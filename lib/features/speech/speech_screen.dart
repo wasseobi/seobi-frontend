@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../core/theme.dart';
+import '../../services/speech_service.dart';
+import '../../models/speech_recognition_model.dart';
 
-class SeobiHomeScreen extends StatefulWidget {
-  const SeobiHomeScreen({super.key});
+class SpeechScreen extends StatefulWidget {
+  const SpeechScreen({super.key});
 
   @override
-  State<SeobiHomeScreen> createState() => _SeobiHomeScreenState();
+  State<SpeechScreen> createState() => _SpeechScreenState();
 }
 
-class _SeobiHomeScreenState extends State<SeobiHomeScreen>
+class _SpeechScreenState extends State<SpeechScreen>
     with SingleTickerProviderStateMixin {
-  late stt.SpeechToText _speech;
+  late SpeechService _speechService;
   bool _isListening = false;
   String _text = '';
   late AnimationController _controller;
@@ -18,7 +20,11 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
+    _speechService = SpeechService();
+    _speechService.onResultCallback = _handleSpeechResult;
+    _speechService.onListeningStatusChanged = _handleListeningStatusChanged;
+    _speechService.initialize();
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -40,37 +46,32 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
     super.dispose();
   }
 
+  void _handleSpeechResult(SpeechRecognitionData data) {
+    setState(() {
+      _text = data.recognizedText;
+    });
+  }
+
+  void _handleListeningStatusChanged(bool isListening) {
+    setState(() {
+      _isListening = isListening;
+      if (!isListening) {
+        _controller.stop();
+      }
+    });
+  }
+
   void _listen() async {
     if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) {
-          if (val == 'done' || val == 'notListening') {
-            setState(() => _isListening = false);
-            _controller.stop();
-          }
-        },
-        onError: (val) {
-          setState(() => _isListening = false);
-          _controller.stop();
-        },
-      );
-      if (available) {
-        setState(() {
-          _isListening = true;
-          _controller.forward();
-        });
-        _speech.listen(
-          onResult: (val) {
-            setState(() {
-              _text = val.recognizedWords;
-            });
-          },
-        );
-      }
+      setState(() {
+        _isListening = true;
+        _controller.forward();
+      });
+      _speechService.startListening();
     } else {
       setState(() => _isListening = false);
       _controller.stop();
-      _speech.stop();
+      _speechService.stopListening();
     }
   }
 
@@ -79,7 +80,7 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(
         child: Stack(
           children: [
@@ -93,7 +94,7 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
                     width: 12,
                     height: 12,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF7D7D7D),
+                      color: AppTheme.secondaryGray,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -102,7 +103,7 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
                     width: 12,
                     height: 12,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFD9D9D9),
+                      color: AppTheme.indicatorGray,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -111,7 +112,7 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
                     width: 12,
                     height: 12,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFD9D9D9),
+                      color: AppTheme.indicatorGray,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -123,16 +124,10 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
               top: size.height * 0.18,
               left: 0,
               right: 0,
-              child: Center(
+              child: const Center(
                 child: Text(
                   '탭 하고, Seobi에게 오늘 일정을 말해보세요!',
-                  style: const TextStyle(
-                    color: Color(0xFF4F4F4F),
-                    fontSize: 20,
-                    fontFamily: 'Pretendard',
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: -0.10,
-                  ),
+                  style: AppTheme.headerText,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -154,8 +149,8 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
                         decoration: BoxDecoration(
                           color:
                               _isListening
-                                  ? Colors.blue.withOpacity(0.3)
-                                  : const Color(0xFFD9D9D9),
+                                  ? AppTheme.accentBlue.withOpacity(0.3)
+                                  : AppTheme.indicatorGray,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -177,12 +172,7 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
               child: Center(
                 child: Text(
                   _text.isEmpty ? '여기에 인식된 텍스트가 표시됩니다.' : _text,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 18,
-                    fontFamily: 'Pretendard',
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: AppTheme.regularText,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -196,7 +186,7 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
                 width: size.width,
                 height: size.height * 0.16,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFD9D9D9),
+                  color: AppTheme.indicatorGray,
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -206,7 +196,7 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
             ),
             // 하단 입력창
             Positioned(
-              bottom: size.height * 0.06, // 조금 더 아래로
+              bottom: size.height * 0.06,
               left: 15,
               right: 15,
               child: Container(
@@ -217,26 +207,14 @@ class _SeobiHomeScreenState extends State<SeobiHomeScreen>
                 ),
                 alignment: Alignment.centerLeft,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: TextField(
-                  decoration: const InputDecoration(
+                child: const TextField(
+                  decoration: InputDecoration(
                     hintText: '텍스트로 Seobi에게 물어보기',
-                    hintStyle: TextStyle(
-                      color: Color(0xFF4F4F4F),
-                      fontSize: 18,
-                      fontFamily: 'Pretendard',
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: -0.09,
-                    ),
+                    hintStyle: AppTheme.regularText,
                     border: InputBorder.none,
                   ),
-                  style: const TextStyle(
-                    color: Color(0xFF4F4F4F),
-                    fontSize: 18,
-                    fontFamily: 'Pretendard',
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: -0.09,
-                  ),
-                  cursorColor: Color(0xFF4F4F4F),
+                  style: AppTheme.regularText,
+                  cursorColor: AppTheme.primaryGray,
                 ),
               ),
             ),
