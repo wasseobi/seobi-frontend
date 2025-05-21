@@ -1,4 +1,4 @@
-package com.example.seobi_app
+package com.wasseobi.app
 
 import io.flutter.embedding.android.FlutterActivity
 
