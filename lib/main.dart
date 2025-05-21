@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'services/database_service.dart';
-import 'features/navigation/app_drawer.dart';
+import 'features/auth/sign_in_screen.dart';
+import 'features/home/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize database
   await DatabaseService().database;
-  
+
   runApp(const MainApp());
 }
 
@@ -21,15 +22,11 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: Scaffold(
-        drawer: const AppDrawer(),
-        appBar: AppBar(
-          title: const Text('Seobi App'),
-        ),
-        body: const Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+      initialRoute: '/sign-in',
+      routes: {
+        '/sign-in': (context) => const SignInScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
     );
   }
 }
