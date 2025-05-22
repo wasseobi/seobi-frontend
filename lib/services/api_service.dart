@@ -14,16 +14,23 @@ class ApiService {
     required String username,
     required String email,
   }) async {
+    final url = Uri.parse('$baseUrl/users/');
+    print('Creating user at: $url');
     final response = await http.post(
-      Uri.parse('$baseUrl/users/'),
+      url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'username': username, 'email': email}),
     );
 
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
     if (response.statusCode == 201) {
       return User.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('사용자 생성에 실패했습니다. 상태 코드: ${response.statusCode}');
+      throw Exception(
+        '사용자 생성에 실패했습니다. 상태 코드: ${response.statusCode}, 응답: ${response.body}',
+      );
     }
   }
 
@@ -58,7 +65,7 @@ class ApiService {
     String role = 'user',
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/messages'),
+      Uri.parse('$baseUrl/messages/session/$sessionId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'session_id': sessionId,
@@ -71,7 +78,9 @@ class ApiService {
     if (response.statusCode == 201) {
       return Message.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('메시지 생성에 실패했습니다. 상태 코드: ${response.statusCode}');
+      throw Exception(
+        '메시지 생성에 실패했습니다. 상태 코드: ${response.statusCode}, 응답: ${response.body}',
+      );
     }
   }
 }

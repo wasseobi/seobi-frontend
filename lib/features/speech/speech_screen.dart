@@ -37,7 +37,12 @@ class _SpeechScreenState extends State<SpeechScreen>
     super.initState();
 
     // API 서비스 초기화
-    _apiService = ApiService(baseUrl: 'http://127.0.0.1:5000');
+    _apiService = ApiService(
+      baseUrl: const String.fromEnvironment(
+        'API_BASE_URL',
+        defaultValue: 'http://192.168.35.221:5000',
+      ),
+    );
     _messageService = MessageService(apiService: _apiService);
 
     // 사용자 및 세션 설정
