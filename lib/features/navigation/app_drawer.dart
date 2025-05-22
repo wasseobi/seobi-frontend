@@ -4,7 +4,8 @@ import '../auth/widgets/google_sign_in_button.dart';
 import 'widgets/user_profile_card.dart';
 import 'widgets/theme_toggle_button.dart';
 import 'widgets/logout_button.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/auth/models/auth_result.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -15,17 +16,35 @@ class AppDrawer extends StatefulWidget {
 
 class _AppDrawerState extends State<AppDrawer> {
   bool _isLoggedIn = false;
+  UserInfo? _userInfo;
+  final _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
     _checkLoginStatus();
+    _authService.addListener(_onAuthStateChanged);
+  }
+
+  @override
+  void dispose() {
+    _authService.removeListener(_onAuthStateChanged);
+    super.dispose();
+  }
+
+  void _onAuthStateChanged() {
+    _checkLoginStatus();
   }
 
   Future<void> _checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
+    final isLoggedIn = _authService.isLoggedIn;
+    final userInfo = await _authService.getUserInfo();
+
     setState(() {
-      _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+      _isLoggedIn = isLoggedIn;
+      _userInfo = userInfo;
     });
   }
 
@@ -39,36 +58,22 @@ class _AppDrawerState extends State<AppDrawer> {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  // 환경설정 섹션
                   ListTile(
-                    title: const Text(
-                      '환경설정',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    leading: const Icon(Icons.settings),
+                    title: const Text('설정'),
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const SettingsScreen(),
+                        ),
                       );
                     },
                   ),
-                  const Divider(),
-
-                  // 연결된 확장기능 섹션
-                  const ListTile(
-                    title: Text(
-                      '연결된 컨텐츠',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  _buildExtensionTile('Notion', 'Notion MCP API', true),
-                  _buildExtensionTile('Google Calendar', 'Google Calendar', true),
-                  _buildExtensionTile('iOS', 'Apple MCP', true),
-                  _buildExtensionTile('Obsidian', 'Obsidian API', true),
                 ],
               ),
             ),
-            if (_isLoggedIn) ...[
+            if (_isLoggedIn && _userInfo != null) ...[
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8.0),
                 child: Row(
@@ -79,22 +84,12 @@ class _AppDrawerState extends State<AppDrawer> {
                   ],
                 ),
               ),
-              const UserProfileCard(),
+              UserProfileCard(userInfo: _userInfo!),
             ] else
               const GoogleSignInButton(),
+            const SizedBox(height: 8),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildExtensionTile(String title, String subtitle, bool isConnected) {
-    return ListTile(
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: Icon(
-        isConnected ? Icons.check_circle : Icons.radio_button_unchecked,
-        color: isConnected ? Colors.green : Colors.grey,
       ),
     );
   }

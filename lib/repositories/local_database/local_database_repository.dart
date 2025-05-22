@@ -2,19 +2,19 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/message.dart';
-import '../models/session.dart';
+import 'models/message.dart';
+import 'models/session.dart';
 
-class DatabaseService {
-  static final DatabaseService _instance = DatabaseService._internal();
+class LocalDatabaseRepository {
+  static final LocalDatabaseRepository _instance = LocalDatabaseRepository._internal();
   static Database? _database;
   final _uuid = const Uuid();
 
-  factory DatabaseService() {
+  factory LocalDatabaseRepository() {
     return _instance;
   }
 
-  DatabaseService._internal();
+  LocalDatabaseRepository._internal();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
