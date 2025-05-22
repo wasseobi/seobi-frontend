@@ -1,12 +1,12 @@
 import 'dart:math';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'i_backend_repository.dart';
+import 'backend_repository_interface.dart';
 import 'models/user.dart';
 import 'models/session.dart';
 import 'models/message.dart';
 
-class StubBackendRepository implements IBackendRepository {
+class StubBackendRepository implements BackendRepositoryInterface {
   static final StubBackendRepository _instance = StubBackendRepository._internal();
   factory StubBackendRepository() => _instance;
 

@@ -2,7 +2,7 @@ import 'models/user.dart';
 import 'models/session.dart';
 import 'models/message.dart';
 
-abstract class IBackendRepository {
+abstract class BackendRepositoryInterface {
   String get baseUrl;
   Future<Map<String, dynamic>> postUserLogin(String googleIdToken);
   

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../../repositories/backend/i_backend_repository.dart';
+import '../../repositories/backend/backend_repository_interface.dart';
 import '../../repositories/backend/backend_repository_factory.dart';
 import '../../repositories/local_database/local_database_repository.dart';
 import '../../repositories/backend/models/session.dart' as backend;
@@ -9,7 +9,7 @@ import '../../repositories/mappers/message_mapper.dart';
 class SyncService {
   static final SyncService _instance = SyncService._internal();
 
-  final IBackendRepository _backendRepository;
+  final BackendRepositoryInterface _backendRepository;
   final LocalDatabaseRepository _localRepository;
 
   factory SyncService() {

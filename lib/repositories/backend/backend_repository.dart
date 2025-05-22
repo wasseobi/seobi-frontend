@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
-import 'i_backend_repository.dart';
+import 'backend_repository_interface.dart';
 import 'models/user.dart';
 import 'models/session.dart';
 import 'models/message.dart';
 import 'http_helper.dart';
 
-class BackendRepository implements IBackendRepository {
+class BackendRepository implements BackendRepositoryInterface {
   static final BackendRepository _instance = BackendRepository._internal();
   factory BackendRepository() => _instance;
 

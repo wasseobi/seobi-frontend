@@ -1,3 +1,4 @@
+/// 세션 모델 클래스입니다.
 class Session {
   final String id;
   final String userId;
@@ -15,26 +16,30 @@ class Session {
     this.description,
   });
 
-  Map<String, dynamic> toMap() {
+  factory Session.fromJson(Map<String, dynamic> json) {
+    return Session(
+      id: json['id'] as String,
+      userId: json['user_id'] as String,
+      startAt: json['start_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(json['start_at'] as int)
+          : null,
+      finishAt: json['finish_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(json['finish_at'] as int)
+          : null,
+      title: json['title'] as String?,
+      description: json['description'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
     return {
       'id': id,
       'user_id': userId,
-      'start_at': startAt?.toIso8601String(),
-      'finish_at': finishAt?.toIso8601String(),
+      'start_at': startAt?.millisecondsSinceEpoch,
+      'finish_at': finishAt?.millisecondsSinceEpoch,
       'title': title,
       'description': description,
     };
-  }
-
-  factory Session.fromMap(Map<String, dynamic> map) {
-    return Session(
-      id: map['id'],
-      userId: map['user_id'],
-      startAt: map['start_at'] != null ? DateTime.parse(map['start_at']) : null,
-      finishAt: map['finish_at'] != null ? DateTime.parse(map['finish_at']) : null,
-      title: map['title'],
-      description: map['description'],
-    );
   }
 
   Session copyWith({

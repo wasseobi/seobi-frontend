@@ -2,7 +2,7 @@ import '../../repositories/gcp/google_sign_in_repository.dart';
 import '../../repositories/gcp/models/google_sign_in_result.dart';
 import '../../repositories/local_storage/local_storage_repository.dart';
 import '../../repositories/backend/backend_repository_factory.dart';
-import '../../repositories/backend/i_backend_repository.dart';
+import '../../repositories/backend/backend_repository_interface.dart';
 import './models/auth_result.dart';
 import 'package:flutter/foundation.dart';
 
@@ -14,7 +14,7 @@ class AuthService extends ChangeNotifier {
 
   final GoogleSignInRepository _googleSignIn = GoogleSignInRepository();
   final LocalStorageRepository _storage = LocalStorageRepository();
-  final IBackendRepository _backend = BackendRepositoryFactory.instance;
+  final BackendRepositoryInterface _backend = BackendRepositoryFactory.instance;
 
   bool get isLoggedIn => _storage.getBool('isLoggedIn') ?? false;
   String? get userEmail => _storage.getString('email');
