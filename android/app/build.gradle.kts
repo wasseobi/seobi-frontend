@@ -38,7 +38,7 @@ android {
         create("release") {
             storeFile = file("../../keys/seobi.keystore")
             storePassword = envVars["RELEASE_STORE_PASSWORD"] ?: "android"
-            keyAlias = envVars["RELEASE_KEY_ALIAS"] ?: "release_key"
+            keyAlias = "release_key"
             keyPassword = envVars["RELEASE_KEY_PASSWORD"] ?: "android"
         }
     }
@@ -55,6 +55,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
