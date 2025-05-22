@@ -1,24 +1,22 @@
 import 'package:flutter/foundation.dart';
 import '../../repositories/backend/backend_repository_interface.dart';
 import '../../repositories/backend/backend_repository_factory.dart';
-import '../../repositories/local_database/local_database_repository.dart';
+import '../../repositories/local_db/local_db_repository.dart';
 import '../../repositories/backend/models/session.dart' as backend;
 import '../../repositories/mappers/session_mapper.dart';
 import '../../repositories/mappers/message_mapper.dart';
 
 class SyncService {
   static final SyncService _instance = SyncService._internal();
-
   final BackendRepositoryInterface _backendRepository;
-  final LocalDatabaseRepository _localRepository;
+  final LocalDbRepository _localRepository;
 
   factory SyncService() {
     return _instance;
   }
-
   SyncService._internal()
     : _backendRepository = BackendRepositoryFactory.instance,
-      _localRepository = LocalDatabaseRepository();
+      _localRepository = LocalDbRepository();
 
   /// 사용자의 세션을 동기화합니다.
   ///
@@ -29,16 +27,15 @@ class SyncService {
   Future<void> syncSessions(String userId) async {
     try {
       final remoteSessions = await _backendRepository.getSessions();
-      final localSessions = await _localRepository.getSessions(userId);
-
+      final localSessions = await _localRepository.getAllSessions();
       final missingSessions = await _findMissingSessions(
         remoteSessions,
-        localSessions.map(SessionMapper.toBackend).toList(),
+        List<backend.Session>.from(localSessions.map(SessionMapper.toBackend)),
       );
 
       for (final session in missingSessions) {
         final localSession = SessionMapper.toLocal(session);
-        await _localRepository.createSession(localSession.userId);
+        await _localRepository.createSession(localSession);
 
         await _syncSessionMessages(session.id);
       }
@@ -74,8 +71,7 @@ class SyncService {
           (await _backendRepository.getMessages())
               .where((m) => m.sessionId == sessionId)
               .toList();
-
-      final localMessages = await _localRepository.getSessionMessages(
+      final localMessages = await _localRepository.getMessagesBySessionId(
         sessionId,
       );
 

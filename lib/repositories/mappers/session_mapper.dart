@@ -1,5 +1,5 @@
 import '../backend/models/session.dart' as backend;
-import '../local_database/models/session.dart' as local;
+import '../local_db/models/session.dart' as local;
 
 /// Session 모델 간의 변환을 담당하는 매퍼 클래스입니다.
 class SessionMapper {

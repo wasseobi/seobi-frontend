@@ -1,6 +1,6 @@
 import '../backend/models/message.dart' as backend;
-import '../local_database/models/message.dart' as local;
-import '../local_database/models/message_role.dart';
+import '../local_db/models/message.dart' as local;
+import '../local_db/models/message_role.dart';
 
 /// Message 모델 간의 변환을 담당하는 매퍼 클래스입니다.
 class MessageMapper {
@@ -12,9 +12,9 @@ class MessageMapper {
       id: backendMessage.id,
       sessionId: backendMessage.sessionId,
       userId: backendMessage.userId,
-      content: backendMessage.content,
+      content: backendMessage.content ?? '',
       role: MessageRole.values.firstWhere(
-        (e) => e.toString() == 'MessageRole.${backendMessage.role}',
+        (e) => e.name == backendMessage.role,
         orElse: () => MessageRole.user,
       ),
       timestamp: backendMessage.timestamp,
@@ -28,7 +28,7 @@ class MessageMapper {
       sessionId: localMessage.sessionId,
       userId: localMessage.userId,
       content: localMessage.content,
-      role: localMessage.role.toString().split('.').last,
+      role: localMessage.role.name,
       timestamp: localMessage.timestamp,
     );
   }
