@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:seobi_app/features/auth/widgets/google_sign_in_button.dart';
-import 'package:seobi_app/features/home/home_screen.dart';
+import './widgets/google_sign_in_button.dart';
+import '../home/home_screen.dart';
 
 class SignInScreen extends StatelessWidget {
   const SignInScreen({super.key});
@@ -26,13 +26,17 @@ class SignInScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 48),
                 GoogleSignInButton(
-                  onSuccess: () {
+                  onSuccess: () async {
                     // 메인 화면으로 이동하고 로그인 화면은 스택에서 제거
-                    Navigator.of(context).pushReplacement(
+                    await Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
                         builder: (context) => const HomeScreen(),
                       ),
                     );
+                  },
+                  onFail: (message) {
+                    // 에러 메시지는 이미 GoogleSignInButton에서 표시됨
+                    debugPrint('로그인 실패: $message');
                   },
                 ),
               ],

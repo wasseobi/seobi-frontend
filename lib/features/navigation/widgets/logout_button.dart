@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:seobi_app/features/auth/google_sign_in_api.dart';
+import '../../../services/auth/auth_service.dart';
 
 class LogoutButton extends StatefulWidget {
   const LogoutButton({super.key});
@@ -14,6 +14,7 @@ class _LogoutButtonState extends State<LogoutButton> with SingleTickerProviderSt
   Timer? _confirmTimer;
   late final AnimationController _animationController;
   late final Animation<double> _textOpacity;
+  final _authService = AuthService();
 
   @override
   void initState() {
@@ -52,8 +53,7 @@ class _LogoutButtonState extends State<LogoutButton> with SingleTickerProviderSt
       _startConfirmationMode();
     } else {
       // 실제 로그아웃 수행
-      final authService = GoogleSignInApi();
-      await authService.signOut();
+      await _authService.signOut();
       
       // 타이머 취소
       _confirmTimer?.cancel();

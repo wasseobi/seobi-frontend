@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:seobi_app/features/auth/google_sign_in_api.dart';
+import '../../../services/auth/auth_service.dart';
 
 class GoogleSignInButton extends StatefulWidget {
   final VoidCallback? onSuccess;
@@ -17,7 +17,7 @@ class GoogleSignInButton extends StatefulWidget {
 }
 
 class _GoogleSignInButtonState extends State<GoogleSignInButton> {
-  final GoogleSignInApi _authService = GoogleSignInApi();
+  final AuthService _authService = AuthService();
   bool _isLoading = false;
 
   Future<void> _handleSignIn() async {
@@ -29,16 +29,18 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
 
     try {
       final result = await _authService.signInManually();
-      if (!result['success'] && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message']),
-            backgroundColor: const Color.fromARGB(255, 255, 157, 156),
-          ),
-        );
-        widget.onFail?.call(result['message']);
-      } else if (mounted) {
-        widget.onSuccess?.call();
+      if (mounted) {
+        if (!result.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: const Color.fromARGB(255, 255, 157, 156),
+            ),
+          );
+          widget.onFail?.call(result.message);
+        } else {
+          widget.onSuccess?.call();
+        }
       }
     } finally {
       if (mounted) {
@@ -51,8 +53,20 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 48, // 버튼과 동일한 높이 유지
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return MaterialButton(
-      onPressed: _isLoading ? null : _handleSignIn,
+      onPressed: _handleSignIn,
       color: Colors.white,
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -63,34 +77,25 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
         vertical: 12,
         horizontal: 16,
       ),
-      child: _isLoading
-          ? const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
-              ),
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SvgPicture.asset(
-                  'assets/google_logo.svg',
-                  width: 24,
-                  height: 24,
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Google로 로그인',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset(
+            'assets/google_logo.svg',
+            width: 24,
+            height: 24,
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Google로 로그인',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
             ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../navigation/app_drawer.dart';
 import '../auth/sign_in_screen.dart';
+import '../../services/auth/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,6 +12,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _initialized = false;
+  final _authService = AuthService();
 
   @override
   void initState() {
@@ -24,10 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkLoginStatus() async {
     if (!mounted) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-
-    if (!isLoggedIn && mounted) {
+    if (!_authService.isLoggedIn && mounted) {
       // 로그인되어 있지 않으면 로그인 화면으로 이동
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
