@@ -1,14 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class HttpHelper {
   final String baseUrl;
-
-  HttpHelper(this.baseUrl);
+  late final Map<String, String> defaultHeaders;
+  HttpHelper(this.baseUrl) {
+    defaultHeaders = {
+      'Content-Type': 'application/json',
+      'X-API-Key': dotenv.get('X_API_KEY'),
+    };
+  }
 
   Uri _buildUri(String path) => Uri.parse('$baseUrl$path');
-
   /// GET 요청을 보내고 JSON 응답을 받습니다.
   Future<T> get<T>(
     String path,
@@ -19,7 +24,7 @@ class HttpHelper {
       final response = await http.get(
         _buildUri(path),
         headers: {
-          'Content-Type': 'application/json',
+          ...defaultHeaders,
           ...?headers,
         },
       );
@@ -37,7 +42,6 @@ class HttpHelper {
       rethrow;
     }
   }
-
   /// GET 요청을 보내고 JSON 배열 응답을 받습니다.
   Future<List<T>> getList<T>(
     String path,
@@ -48,7 +52,7 @@ class HttpHelper {
       final response = await http.get(
         _buildUri(path),
         headers: {
-          'Content-Type': 'application/json',
+          ...defaultHeaders,
           ...?headers,
         },
       );
@@ -66,7 +70,6 @@ class HttpHelper {
       rethrow;
     }
   }
-
   /// POST 요청을 보내고 JSON 응답을 받습니다.
   Future<T> post<T>(
     String path,
@@ -79,7 +82,7 @@ class HttpHelper {
       final response = await http.post(
         _buildUri(path),
         headers: {
-          'Content-Type': 'application/json',
+          ...defaultHeaders,
           ...?headers,
         },
         body: jsonEncode(body),
@@ -98,7 +101,6 @@ class HttpHelper {
       rethrow;
     }
   }
-
   /// PUT 요청을 보내고 JSON 응답을 받습니다.
   Future<T> put<T>(
     String path,
@@ -110,7 +112,7 @@ class HttpHelper {
       final response = await http.put(
         _buildUri(path),
         headers: {
-          'Content-Type': 'application/json',
+          ...defaultHeaders,
           ...?headers,
         },
         body: jsonEncode(body),
@@ -129,7 +131,6 @@ class HttpHelper {
       rethrow;
     }
   }
-
   /// DELETE 요청을 보냅니다.
   Future<void> delete(
     String path, {
@@ -139,7 +140,7 @@ class HttpHelper {
       final response = await http.delete(
         _buildUri(path),
         headers: {
-          'Content-Type': 'application/json',
+          ...defaultHeaders,
           ...?headers,
         },
       );

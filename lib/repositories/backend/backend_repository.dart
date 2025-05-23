@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'i_backend_repository.dart';
 import 'models/user.dart';
 import 'models/session.dart';
@@ -18,14 +19,19 @@ class BackendRepository implements IBackendRepository {
 
   @override
   String get baseUrl {
-    // 실제 서비스에서 사용하는 경우
-    // return 'https://your-production-server.com'; // 실제 서버 주소
-
-    // 개발 단계에서 로컬 서버를 쓰는 경우
-    if (kIsWeb || !Platform.isAndroid) {
-      return 'http://127.0.0.1:5000'; // 웹 또는 iOS
+    // .env 파일에서 백엔드 URL 설정 읽기
+    final useRemoteBackend = dotenv.get('USE_REMOTE_BACKEND', fallback: 'false') == 'true';
+    
+    if (useRemoteBackend) {
+      // 원격 백엔드 사용
+      return dotenv.get('REMOTE_BACKEND_URL');
     } else {
-      return 'http://10.0.2.2:5000'; // Android 에뮬레이터
+      // 로컬 백엔드 사용
+      if (kIsWeb || !Platform.isAndroid) {
+        return dotenv.get('LOCAL_BACKEND_URL_DEFAULT', fallback: 'http://127.0.0.1:5000');
+      } else {
+        return dotenv.get('LOCAL_BACKEND_URL_ANDROID', fallback: 'http://10.0.2.2:5000');
+      }
     }
   }
 
