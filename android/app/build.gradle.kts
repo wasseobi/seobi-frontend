@@ -34,6 +34,7 @@ android {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }    
+    
     signingConfigs {
         create("release") {
             storeFile = file("../../keys/seobi.keystore")
@@ -42,13 +43,16 @@ android {
             keyPassword = envVars["RELEASE_KEY_PASSWORD"] ?: "android"
         }
     }
-
+    
     defaultConfig {
         applicationId = "com.wasseobi.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // .env 파일에서 Google Web Client ID 설정
+        resValue("string", "default_web_client_id", envVars["GOOGLE_WEB_CLIENT_ID"] ?: "")
         
         // Google Sign-In 설정
         manifestPlaceholders["com.google.android.gms.login.api.webClientId"] = envVars["GOOGLE_WEB_CLIENT_ID"] ?: ""

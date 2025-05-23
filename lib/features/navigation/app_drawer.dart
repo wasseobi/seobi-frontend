@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import '../settings/settings_screen.dart';
-import '../auth/widgets/google_sign_in_button.dart';
+import 'package:seobi_app/features/auth/widgets/google_sign_in_button.dart';
+import 'package:seobi_app/features/settings/settings_screen.dart';
+import 'package:seobi_app/features/home/home_screen.dart';
+import 'package:seobi_app/services/auth/auth_service.dart';
+import 'package:seobi_app/services/models/seobi_user.dart';
+import 'package:seobi_app/features/debug/debug_screen.dart';
 import 'widgets/user_profile_card.dart';
 import 'widgets/theme_toggle_button.dart';
 import 'widgets/logout_button.dart';
-import '../../services/auth/auth_service.dart';
-import '../../services/auth/models/auth_result.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -16,7 +18,7 @@ class AppDrawer extends StatefulWidget {
 
 class _AppDrawerState extends State<AppDrawer> {
   bool _isLoggedIn = false;
-  UserInfo? _userInfo;
+  SeobiUser? _user;
   final _authService = AuthService();
 
   @override
@@ -40,11 +42,11 @@ class _AppDrawerState extends State<AppDrawer> {
     if (!mounted) return;
 
     final isLoggedIn = _authService.isLoggedIn;
-    final userInfo = await _authService.getUserInfo();
+    final user = await _authService.getUserInfo();
 
     setState(() {
       _isLoggedIn = isLoggedIn;
-      _userInfo = userInfo;
+      _user = user;
     });
   }
 
@@ -70,21 +72,30 @@ class _AppDrawerState extends State<AppDrawer> {
                       );
                     },
                   ),
+                  ListTile(
+                    leading: const Icon(Icons.bug_report),
+                    title: const Text('디버그'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DebugScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
-            if (_isLoggedIn && _userInfo != null) ...[
+            if (_isLoggedIn && _user != null) ...[
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    LogoutButton(),
-                    ThemeToggleButton(),
-                  ],
+                  children: [LogoutButton(), ThemeToggleButton()],
                 ),
               ),
-              UserProfileCard(userInfo: _userInfo!),
+              UserProfileCard(user: _user!),
             ] else
               const GoogleSignInButton(),
             const SizedBox(height: 8),

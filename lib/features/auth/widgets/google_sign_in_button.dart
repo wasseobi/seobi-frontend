@@ -28,7 +28,7 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
     });
 
     try {
-      final result = await _authService.signInManually();
+      final result = await _authService.signIn();
       if (mounted) {
         if (!result.success) {
           ScaffoldMessenger.of(context).showSnackBar(

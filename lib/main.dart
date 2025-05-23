@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'repositories/local_database/local_database_repository.dart';
 import 'services/auth/auth_service.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/home/home_screen.dart';
@@ -15,9 +14,6 @@ void main() async {
     // 인증 서비스 초기화
     final authService = AuthService();
     await authService.init();
-    
-    // 데이터베이스 초기화
-    await LocalDatabaseRepository().database;
 
     runApp(MainApp(
       initialRoute: authService.isLoggedIn ? '/home' : '/sign-in',
