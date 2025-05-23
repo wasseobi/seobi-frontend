@@ -42,6 +42,10 @@ class AuthService extends ChangeNotifier {
       // await signIn(silently: true);
       debugPrint('로그인 유지되는 중');
     }
+    
+    // TODO: 아래 디버그 코드를 지우세요.
+    final user = await getUserInfo();
+    debugPrint('[JWT] ${user?.accessToken}');
   }
 
   Future<AuthResult> signIn({bool silently = false}) async {

@@ -32,16 +32,12 @@ class ConversationService {
   /// 새로운 대화 세션을 생성합니다.
   ///
   /// [title]과 [description]은 선택적 매개변수입니다.
-  Future<Session> createSession({String? title, String? description}) async {
+  Future<Session> createSession() async {
     try {
       final userId = await _getUserIdAndAuthenticate();
-      
-      final session = await _backendRepository.postSession(
-        userId,
-        title: title,
-        description: description,
-      );
-      
+
+      final session = await _backendRepository.postSession(userId);
+
       debugPrint('새 세션이 생성되었습니다: ${session.id}');
       return session;
     } catch (e) {
@@ -72,15 +68,11 @@ class ConversationService {
       debugPrint('사용자 메시지가 전송되었습니다: ${userMessage.id}');
       
       // AI 응답 요청
-      final completion = await _backendRepository.postMessageLanggraphCompletion(
+      final completionMessage = await _backendRepository.postMessageLanggraphCompletion(
         sessionId: sessionId,
         userId: userId,
         content: content,
       );
-      
-      // AI 응답 메시지 가져오기
-      final completionMessage = Message.fromJson(completion['message']);
-      
       return completionMessage;
     } catch (e) {
       debugPrint('메시지 전송 오류: $e');

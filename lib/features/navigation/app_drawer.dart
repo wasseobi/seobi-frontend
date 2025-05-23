@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/features/auth/widgets/google_sign_in_button.dart';
 import 'package:seobi_app/features/settings/settings_screen.dart';
+import 'package:seobi_app/features/home/home_screen.dart';
 import 'package:seobi_app/services/auth/auth_service.dart';
 import 'package:seobi_app/services/models/seobi_user.dart';
+import 'package:seobi_app/features/debug/debug_screen.dart';
 import 'widgets/user_profile_card.dart';
 import 'widgets/theme_toggle_button.dart';
 import 'widgets/logout_button.dart';
@@ -66,6 +68,18 @@ class _AppDrawerState extends State<AppDrawer> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.bug_report),
+                    title: const Text('디버그'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DebugScreen(),
                         ),
                       );
                     },

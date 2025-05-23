@@ -97,23 +97,16 @@ class StubBackendRepository implements IBackendRepository {
   }
 
   // 더미 세션 데이터 생성
-  Session _createDummySession(
-    String userId, {
-    String? title,
-    String? description,
-  }) {
+  Session _createDummySession(String userId) {
     final sessionId = 'session_${_generateRandomString(8)}';
     final now = DateTime.now();
     return Session(
       id: sessionId,
       userId: userId,
       startAt: now,
-      finishAt:
-          _random.nextBool()
-              ? now.add(Duration(hours: _random.nextInt(4)))
-              : null,
-      title: title ?? '세션 ${_generateRandomString(4)}',
-      description: description,
+      finishAt: null,
+      title: '세션 ${_generateRandomString(4)}',
+      description: '세션 설명',
     );
   }
 
@@ -240,11 +233,7 @@ class StubBackendRepository implements IBackendRepository {
     // 더미 데이터가 없는 경우 3개 생성
     if (_sessions.isEmpty) {
       for (var i = 1; i <= 3; i++) {
-        final session = _createDummySession(
-          'user_${_generateRandomString(8)}',
-          title: '테스트 세션 $i',
-          description: '테스트 세션 $i의 설명입니다.',
-        );
+        final session = _createDummySession('user_${_generateRandomString(8)}');
         _sessions[session.id] = session;
       }
     }
@@ -254,23 +243,13 @@ class StubBackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<Session> postSession(
-    String userId, {
-    String? title,
-    String? description,
-  }) async {
+  Future<Session> postSession(String userId) async {
     debugPrint('[StubBackend] 세션 생성');
-    debugPrint(
-      '[StubBackend] 입력 - userId: $userId, title: $title, description: $description',
-    );
+    debugPrint('[StubBackend] 입력 - userId: $userId');
 
     await _simulateNetworkDelay();
 
-    final session = _createDummySession(
-      userId,
-      title: title,
-      description: description,
-    );
+    final session = _createDummySession(userId);
     _sessions[session.id] = session;
 
     debugPrint('[StubBackend] 출력 - session: $session');
@@ -294,29 +273,17 @@ class StubBackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<Session> putSessionById(
-    String id, {
-    String? title,
-    String? description,
-  }) async {
+  Future<Session> putSessionById(String id, Session updatedSession) async {
     debugPrint('[StubBackend] 세션 업데이트');
-    debugPrint(
-      '[StubBackend] 입력 - id: $id, title: $title, description: $description',
-    );
+    debugPrint('[StubBackend] 입력 - id: $id, updatedSession: $updatedSession');
 
     await _simulateNetworkDelay();
 
-    final session = _sessions[id];
-    if (session == null) {
+    if (!_sessions.containsKey(id)) {
       throw Exception('세션을 찾을 수 없습니다.');
     }
 
-    final updatedSession = session.copyWith(
-      title: title ?? session.title,
-      description: description ?? session.description,
-    );
     _sessions[id] = updatedSession;
-
     debugPrint('[StubBackend] 출력 - updated session: $updatedSession');
     return updatedSession;
   }
@@ -502,16 +469,14 @@ class StubBackendRepository implements IBackendRepository {
     await _simulateNetworkDelay();
 
     final sessionMessages =
-        _messages.values
-            .where((message) => message.sessionId == sessionId)
-            .toList();
+        _messages.values.where((message) => message.sessionId == sessionId).toList();
 
     debugPrint('[StubBackend] 출력 - messages: $sessionMessages');
     return sessionMessages;
   }
 
   @override
-  Future<Map<String, dynamic>> postMessageLanggraphCompletion({
+  Future<Message> postMessageLanggraphCompletion({
     required String sessionId,
     required String userId,
     required String content,
@@ -547,7 +512,7 @@ class StubBackendRepository implements IBackendRepository {
     };
 
     debugPrint('[StubBackend] 출력 - response: $response');
-    return response;
+    return assistantMessage;
   }
 
   @override
