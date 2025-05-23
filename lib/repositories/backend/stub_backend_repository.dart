@@ -90,12 +90,6 @@ class StubBackendRepository implements IBackendRepository {
     );
   }
 
-  // 더미 사용자 데이터 생성
-  User _createDummyUser(String username, String email) {
-    final userId = 'user_${_generateRandomString(8)}';
-    return User(id: userId, username: username, email: email);
-  }
-
   // 더미 세션 데이터 생성
   Session _createDummySession(String userId) {
     final sessionId = 'session_${_generateRandomString(8)}';
@@ -130,99 +124,6 @@ class StubBackendRepository implements IBackendRepository {
               ? List.generate(384, (_) => _random.nextDouble())
               : null,
     );
-  }
-
-  @override
-  Future<List<User>> getUsers() async {
-    debugPrint('[StubBackend] 사용자 목록 조회');
-    await _simulateNetworkDelay();
-
-    // 더미 데이터가 없는 경우 5개 생성
-    if (_users.isEmpty) {
-      for (var i = 1; i <= 5; i++) {
-        final user = _createDummyUser('테스트유저$i', 'user$i@example.com');
-        _users[user.id] = user;
-      }
-    }
-
-    debugPrint('[StubBackend] 출력 - users: ${_users.values.toList()}');
-    return _users.values.toList();
-  }
-
-  @override
-  Future<User> postUser(String username, String email) async {
-    debugPrint('[StubBackend] 사용자 생성');
-    debugPrint('[StubBackend] 입력 - username: $username, email: $email');
-
-    await _simulateNetworkDelay();
-
-    // 이메일 중복 체크
-    if (_users.values.any((user) => user.email == email)) {
-      throw Exception('이미 존재하는 이메일입니다.');
-    }
-
-    final user = _createDummyUser(username, email);
-    _users[user.id] = user;
-
-    debugPrint('[StubBackend] 출력 - user: $user');
-    return user;
-  }
-
-  @override
-  Future<User> getUserById(String id) async {
-    debugPrint('[StubBackend] 사용자 조회');
-    debugPrint('[StubBackend] 입력 - id: $id');
-
-    await _simulateNetworkDelay();
-
-    final user = _users[id];
-    if (user == null) {
-      throw Exception('사용자를 찾을 수 없습니다.');
-    }
-
-    debugPrint('[StubBackend] 출력 - user: $user');
-    return user;
-  }
-
-  @override
-  Future<User> putUserById(String id, String username, String email) async {
-    debugPrint('[StubBackend] 사용자 정보 수정');
-    debugPrint(
-      '[StubBackend] 입력 - id: $id, username: $username, email: $email',
-    );
-
-    await _simulateNetworkDelay();
-
-    final user = _users[id];
-    if (user == null) {
-      throw Exception('사용자를 찾을 수 없습니다.');
-    }
-
-    // 이메일 중복 체크 (자기 자신은 제외)
-    if (_users.values.any((u) => u.id != id && u.email == email)) {
-      throw Exception('이미 존재하는 이메일입니다.');
-    }
-
-    final updatedUser = user.copyWith(username: username, email: email);
-    _users[id] = updatedUser;
-
-    debugPrint('[StubBackend] 출력 - updated user: $updatedUser');
-    return updatedUser;
-  }
-
-  @override
-  Future<void> deleteUserById(String id) async {
-    debugPrint('[StubBackend] 사용자 삭제');
-    debugPrint('[StubBackend] 입력 - id: $id');
-
-    await _simulateNetworkDelay();
-
-    if (!_users.containsKey(id)) {
-      throw Exception('사용자를 찾을 수 없습니다.');
-    }
-
-    _users.remove(id);
-    debugPrint('[StubBackend] 사용자 삭제 완료');
   }
 
   @override
@@ -372,60 +273,6 @@ class StubBackendRepository implements IBackendRepository {
 
     debugPrint('[StubBackend] 출력 - message: $message');
     return message;
-  }
-
-  @override
-  Future<Message> getMessageById(String id) async {
-    debugPrint('[StubBackend] 메시지 조회');
-    debugPrint('[StubBackend] 입력 - id: $id');
-
-    await _simulateNetworkDelay();
-
-    final message = _messages[id];
-    if (message == null) {
-      throw Exception('메시지를 찾을 수 없습니다.');
-    }
-
-    debugPrint('[StubBackend] 출력 - message: $message');
-    return message;
-  }
-
-  @override
-  Future<Message> putMessageById(
-    String id, {
-    String? content,
-    String? role,
-  }) async {
-    debugPrint('[StubBackend] 메시지 수정');
-    debugPrint('[StubBackend] 입력 - id: $id, content: $content, role: $role');
-
-    await _simulateNetworkDelay();
-
-    final message = _messages[id];
-    if (message == null) {
-      throw Exception('메시지를 찾을 수 없습니다.');
-    }
-
-    final updatedMessage = message.copyWith(content: content, role: role);
-    _messages[id] = updatedMessage;
-
-    debugPrint('[StubBackend] 출력 - updated message: $updatedMessage');
-    return updatedMessage;
-  }
-
-  @override
-  Future<void> deleteMessageById(String id) async {
-    debugPrint('[StubBackend] 메시지 삭제');
-    debugPrint('[StubBackend] 입력 - id: $id');
-
-    await _simulateNetworkDelay();
-
-    if (!_messages.containsKey(id)) {
-      throw Exception('메시지를 찾을 수 없습니다.');
-    }
-
-    _messages.remove(id);
-    debugPrint('[StubBackend] 메시지 삭제 완료');
   }
 
   @override
