@@ -7,11 +7,12 @@ import 'models/session.dart';
 import 'models/message.dart';
 
 class StubBackendRepository implements IBackendRepository {
-  static final StubBackendRepository _instance = StubBackendRepository._internal();
+  static final StubBackendRepository _instance =
+      StubBackendRepository._internal();
   factory StubBackendRepository() => _instance;
 
   final Random _random = Random();
-  
+
   // 실제 서비스와 비슷한 네트워크 지연을 시뮬레이션하기 위한 설정
   static const minDelay = Duration(milliseconds: 100);
   static const maxAdditionalDelay = Duration(milliseconds: 300);
@@ -28,13 +29,14 @@ class StubBackendRepository implements IBackendRepository {
 
   @override
   String get baseUrl => 'http://localhost:5000';
+
   /// 실제 서비스와 비슷한 네트워크 지연을 시뮬레이션합니다.
   Future<void> _simulateNetworkDelay() async {
     debugPrint('[StubBackend] 네트워크 지연 시뮬레이션 시작');
     final additionalMs = _random.nextInt(maxAdditionalDelay.inMilliseconds);
     final totalDelay = minDelay + Duration(milliseconds: additionalMs);
     debugPrint('[StubBackend] 예상 지연 시간: ${totalDelay.inMilliseconds}ms');
-    
+
     await Future.delayed(totalDelay);
 
     // 10% 확률로 네트워크 오류 발생
@@ -46,30 +48,35 @@ class StubBackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> postUserLogin(String googleIdToken) async {
+  Future<User> postUserLogin(String googleIdToken) async {
     debugPrint('[StubBackend] 로그인 요청');
-    debugPrint('[StubBackend] 입력 - googleIdToken: ${googleIdToken.substring(0, min(10, googleIdToken.length))}...');
-    
+    debugPrint(
+      '[StubBackend] 입력 - googleIdToken: ${googleIdToken.substring(0, min(10, googleIdToken.length))}...',
+    );
+
     await _simulateNetworkDelay();
-    
+
     // googleIdToken이 비어있으면 오류 발생
     if (googleIdToken.isEmpty) {
       debugPrint('[StubBackend] 오류 - 유효하지 않은 토큰');
       throw Exception('유효하지 않은 Google ID 토큰입니다.');
-    }    // 실제와 유사한 응답 데이터 반환
-    final response = {
-      'user_id': 'user_${_random.nextInt(99999)}',
-      'email': '${_generateRandomString(8)}@gmail.com',
-      'name': '테스트 사용자 ${_random.nextInt(999)}',
-      'profile_image': 'https://picsum.photos/200',  // 실제 이미지 URL 반환
-      'access_token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${_generateRandomString(32)}',
-      'refresh_token': 'rt_${_generateRandomString(32)}',
-      'expires_in': 3600,
-      'created_at': DateTime.now().toIso8601String(),
-    };
-    
-    debugPrint('[StubBackend] 출력 - response: $response');
-    return response;
+    }
+
+    // 더미 유저 데이터 생성
+    final userId = 'user_${_random.nextInt(99999)}';
+    final user = User(
+      id: userId,
+      username: '테스트 사용자 ${_random.nextInt(999)}',
+      email: '${_generateRandomString(8)}@gmail.com',
+      accessToken:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${_generateRandomString(32)}',
+    );
+
+    // 생성된 유저 정보를 저장
+    _users[userId] = user;
+
+    debugPrint('[StubBackend] 출력 - user: $user');
+    return user;
   }
 
   /// 랜덤 문자열을 생성합니다.
@@ -86,11 +93,7 @@ class StubBackendRepository implements IBackendRepository {
   // 더미 사용자 데이터 생성
   User _createDummyUser(String username, String email) {
     final userId = 'user_${_generateRandomString(8)}';
-    return User(
-      id: userId,
-      username: username,
-      email: email,
-    );
+    return User(id: userId, username: username, email: email);
   }
 
   // 더미 세션 데이터 생성
@@ -105,7 +108,10 @@ class StubBackendRepository implements IBackendRepository {
       id: sessionId,
       userId: userId,
       startAt: now,
-      finishAt: _random.nextBool() ? now.add(Duration(hours: _random.nextInt(4))) : null,
+      finishAt:
+          _random.nextBool()
+              ? now.add(Duration(hours: _random.nextInt(4)))
+              : null,
       title: title ?? '세션 ${_generateRandomString(4)}',
       description: description,
     );
@@ -126,7 +132,10 @@ class StubBackendRepository implements IBackendRepository {
       content: content,
       role: role,
       timestamp: DateTime.now(),
-      vector: role != 'user' ? List.generate(384, (_) => _random.nextDouble()) : null,
+      vector:
+          role != 'user'
+              ? List.generate(384, (_) => _random.nextDouble())
+              : null,
     );
   }
 
@@ -138,10 +147,7 @@ class StubBackendRepository implements IBackendRepository {
     // 더미 데이터가 없는 경우 5개 생성
     if (_users.isEmpty) {
       for (var i = 1; i <= 5; i++) {
-        final user = _createDummyUser(
-          '테스트유저$i',
-          'user$i@example.com',
-        );
+        final user = _createDummyUser('테스트유저$i', 'user$i@example.com');
         _users[user.id] = user;
       }
     }
@@ -154,7 +160,7 @@ class StubBackendRepository implements IBackendRepository {
   Future<User> postUser(String username, String email) async {
     debugPrint('[StubBackend] 사용자 생성');
     debugPrint('[StubBackend] 입력 - username: $username, email: $email');
-    
+
     await _simulateNetworkDelay();
 
     // 이메일 중복 체크
@@ -173,7 +179,7 @@ class StubBackendRepository implements IBackendRepository {
   Future<User> getUserById(String id) async {
     debugPrint('[StubBackend] 사용자 조회');
     debugPrint('[StubBackend] 입력 - id: $id');
-    
+
     await _simulateNetworkDelay();
 
     final user = _users[id];
@@ -188,8 +194,10 @@ class StubBackendRepository implements IBackendRepository {
   @override
   Future<User> putUserById(String id, String username, String email) async {
     debugPrint('[StubBackend] 사용자 정보 수정');
-    debugPrint('[StubBackend] 입력 - id: $id, username: $username, email: $email');
-    
+    debugPrint(
+      '[StubBackend] 입력 - id: $id, username: $username, email: $email',
+    );
+
     await _simulateNetworkDelay();
 
     final user = _users[id];
@@ -202,10 +210,7 @@ class StubBackendRepository implements IBackendRepository {
       throw Exception('이미 존재하는 이메일입니다.');
     }
 
-    final updatedUser = user.copyWith(
-      username: username,
-      email: email,
-    );
+    final updatedUser = user.copyWith(username: username, email: email);
     _users[id] = updatedUser;
 
     debugPrint('[StubBackend] 출력 - updated user: $updatedUser');
@@ -216,7 +221,7 @@ class StubBackendRepository implements IBackendRepository {
   Future<void> deleteUserById(String id) async {
     debugPrint('[StubBackend] 사용자 삭제');
     debugPrint('[StubBackend] 입력 - id: $id');
-    
+
     await _simulateNetworkDelay();
 
     if (!_users.containsKey(id)) {
@@ -255,8 +260,10 @@ class StubBackendRepository implements IBackendRepository {
     String? description,
   }) async {
     debugPrint('[StubBackend] 세션 생성');
-    debugPrint('[StubBackend] 입력 - userId: $userId, title: $title, description: $description');
-    
+    debugPrint(
+      '[StubBackend] 입력 - userId: $userId, title: $title, description: $description',
+    );
+
     await _simulateNetworkDelay();
 
     final session = _createDummySession(
@@ -274,7 +281,7 @@ class StubBackendRepository implements IBackendRepository {
   Future<Session> getSessionById(String id) async {
     debugPrint('[StubBackend] 세션 조회');
     debugPrint('[StubBackend] 입력 - id: $id');
-    
+
     await _simulateNetworkDelay();
 
     final session = _sessions[id];
@@ -287,10 +294,16 @@ class StubBackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<Session> putSessionById(String id, {String? title, String? description}) async {
+  Future<Session> putSessionById(
+    String id, {
+    String? title,
+    String? description,
+  }) async {
     debugPrint('[StubBackend] 세션 업데이트');
-    debugPrint('[StubBackend] 입력 - id: $id, title: $title, description: $description');
-    
+    debugPrint(
+      '[StubBackend] 입력 - id: $id, title: $title, description: $description',
+    );
+
     await _simulateNetworkDelay();
 
     final session = _sessions[id];
@@ -312,7 +325,7 @@ class StubBackendRepository implements IBackendRepository {
   Future<void> deleteSessionById(String id) async {
     debugPrint('[StubBackend] 세션 삭제');
     debugPrint('[StubBackend] 입력 - id: $id');
-    
+
     await _simulateNetworkDelay();
 
     if (!_sessions.containsKey(id)) {
@@ -376,8 +389,10 @@ class StubBackendRepository implements IBackendRepository {
     required String role,
   }) async {
     debugPrint('[StubBackend] 메시지 생성');
-    debugPrint('[StubBackend] 입력 - sessionId: $sessionId, userId: $userId, content: $content, role: $role');
-    
+    debugPrint(
+      '[StubBackend] 입력 - sessionId: $sessionId, userId: $userId, content: $content, role: $role',
+    );
+
     await _simulateNetworkDelay();
 
     final message = _createDummyMessage(
@@ -396,7 +411,7 @@ class StubBackendRepository implements IBackendRepository {
   Future<Message> getMessageById(String id) async {
     debugPrint('[StubBackend] 메시지 조회');
     debugPrint('[StubBackend] 입력 - id: $id');
-    
+
     await _simulateNetworkDelay();
 
     final message = _messages[id];
@@ -409,10 +424,14 @@ class StubBackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<Message> putMessageById(String id, {String? content, String? role}) async {
+  Future<Message> putMessageById(
+    String id, {
+    String? content,
+    String? role,
+  }) async {
     debugPrint('[StubBackend] 메시지 수정');
     debugPrint('[StubBackend] 입력 - id: $id, content: $content, role: $role');
-    
+
     await _simulateNetworkDelay();
 
     final message = _messages[id];
@@ -420,10 +439,7 @@ class StubBackendRepository implements IBackendRepository {
       throw Exception('메시지를 찾을 수 없습니다.');
     }
 
-    final updatedMessage = message.copyWith(
-      content: content,
-      role: role,
-    );
+    final updatedMessage = message.copyWith(content: content, role: role);
     _messages[id] = updatedMessage;
 
     debugPrint('[StubBackend] 출력 - updated message: $updatedMessage');
@@ -434,7 +450,7 @@ class StubBackendRepository implements IBackendRepository {
   Future<void> deleteMessageById(String id) async {
     debugPrint('[StubBackend] 메시지 삭제');
     debugPrint('[StubBackend] 입력 - id: $id');
-    
+
     await _simulateNetworkDelay();
 
     if (!_messages.containsKey(id)) {
@@ -449,7 +465,7 @@ class StubBackendRepository implements IBackendRepository {
   Future<Session> postSessionFinish(String id) async {
     debugPrint('[StubBackend] 세션 종료');
     debugPrint('[StubBackend] 입력 - id: $id');
-    
+
     await _simulateNetworkDelay();
 
     final session = _sessions[id];
@@ -457,9 +473,7 @@ class StubBackendRepository implements IBackendRepository {
       throw Exception('세션을 찾을 수 없습니다.');
     }
 
-    final updatedSession = session.copyWith(
-      finishAt: DateTime.now(),
-    );
+    final updatedSession = session.copyWith(finishAt: DateTime.now());
     _sessions[id] = updatedSession;
 
     debugPrint('[StubBackend] 출력 - finished session: $updatedSession');
@@ -470,11 +484,12 @@ class StubBackendRepository implements IBackendRepository {
   Future<List<Session>> getSessionsByUserId(String userId) async {
     debugPrint('[StubBackend] 사용자별 세션 목록 조회');
     debugPrint('[StubBackend] 입력 - userId: $userId');
-    
+
     await _simulateNetworkDelay();
 
-    final userSessions = _sessions.values.where((session) => session.userId == userId).toList();
-    
+    final userSessions =
+        _sessions.values.where((session) => session.userId == userId).toList();
+
     debugPrint('[StubBackend] 출력 - sessions: $userSessions');
     return userSessions;
   }
@@ -483,11 +498,14 @@ class StubBackendRepository implements IBackendRepository {
   Future<List<Message>> getMessagesBySessionId(String sessionId) async {
     debugPrint('[StubBackend] 세션별 메시지 목록 조회');
     debugPrint('[StubBackend] 입력 - sessionId: $sessionId');
-    
+
     await _simulateNetworkDelay();
 
-    final sessionMessages = _messages.values.where((message) => message.sessionId == sessionId).toList();
-    
+    final sessionMessages =
+        _messages.values
+            .where((message) => message.sessionId == sessionId)
+            .toList();
+
     debugPrint('[StubBackend] 출력 - messages: $sessionMessages');
     return sessionMessages;
   }
@@ -499,8 +517,10 @@ class StubBackendRepository implements IBackendRepository {
     required String content,
   }) async {
     debugPrint('[StubBackend] 랭그래프 완료 요청');
-    debugPrint('[StubBackend] 입력 - sessionId: $sessionId, userId: $userId, content: $content');
-    
+    debugPrint(
+      '[StubBackend] 입력 - sessionId: $sessionId, userId: $userId, content: $content',
+    );
+
     await _simulateNetworkDelay();
 
     // 사용자 메시지 추가
@@ -525,7 +545,7 @@ class StubBackendRepository implements IBackendRepository {
       'user_message': userMessage,
       'assistant_message': assistantMessage,
     };
-    
+
     debugPrint('[StubBackend] 출력 - response: $response');
     return response;
   }
@@ -534,11 +554,12 @@ class StubBackendRepository implements IBackendRepository {
   Future<List<Message>> getMessagesByUserId(String userId) async {
     debugPrint('[StubBackend] 사용자별 메시지 목록 조회');
     debugPrint('[StubBackend] 입력 - userId: $userId');
-    
+
     await _simulateNetworkDelay();
 
-    final userMessages = _messages.values.where((message) => message.userId == userId).toList();
-    
+    final userMessages =
+        _messages.values.where((message) => message.userId == userId).toList();
+
     debugPrint('[StubBackend] 출력 - messages: $userMessages');
     return userMessages;
   }

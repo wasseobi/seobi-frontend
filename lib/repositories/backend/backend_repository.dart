@@ -17,6 +17,11 @@ class BackendRepository implements IBackendRepository {
     _http = HttpHelper(baseUrl);
   }
 
+  /// 인증 토큰을 설정합니다.
+  void setAuthToken(String? token) {
+    _http.setAuthToken(token);
+  }
+
   @override
   String get baseUrl {
     // .env 파일에서 백엔드 URL 설정 읽기
@@ -34,13 +39,12 @@ class BackendRepository implements IBackendRepository {
       }
     }
   }
-
   @override
-  Future<Map<String, dynamic>> postUserLogin(String googleIdToken) async {
+  Future<User> postUserLogin(String googleIdToken) async {
     return _http.post(
       '/users/login',
       {'id_token': googleIdToken},
-      (json) => json,
+      User.fromJson,
       expectedStatus: 200,
     );
   }

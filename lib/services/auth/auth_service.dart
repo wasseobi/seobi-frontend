@@ -1,5 +1,6 @@
+import 'package:seobi_app/services/models/seobi_user.dart';
+
 import '../../repositories/gcp/google_sign_in_repository.dart';
-import '../../repositories/gcp/models/google_sign_in_result.dart';
 import '../../repositories/local_storage/local_storage_repository.dart';
 import '../../repositories/backend/backend_repository_factory.dart';
 import '../../repositories/backend/i_backend_repository.dart';
@@ -15,101 +16,78 @@ class AuthService extends ChangeNotifier {
   final GoogleSignInRepository _googleSignIn = GoogleSignInRepository();
   final LocalStorageRepository _storage = LocalStorageRepository();
   final IBackendRepository _backend = BackendRepositoryFactory.instance;
-
   bool get isLoggedIn => _storage.getBool('isLoggedIn') ?? false;
   String? get userEmail => _storage.getString('email');
   String? get displayName => _storage.getString('displayName');
   String? get photoUrl => _storage.getString('photoUrl');
-  Future<String?> get accessToken => Future.value(_storage.getString('access_token'));
+  String? get userId => _storage.getString('userId');
+  Future<String?> get accessToken =>
+      Future.value(_storage.getString('accessToken'));
 
-  Future<UserInfo?> getUserInfo() async {
+  Future<SeobiUser?> getUserInfo() async {
     if (!isLoggedIn) return null;
-    
-    return UserInfo(
-      displayName: displayName,
+
+    return SeobiUser(
+      id: userId ?? '',
+      username: displayName ?? '',
       email: userEmail ?? '',
       photoUrl: photoUrl,
-      idToken: await accessToken,
+      accessToken: await accessToken,
     );
   }
 
   Future<void> init() async {
     await _storage.init();
     if (isLoggedIn) {
-      await _signInSilently();
+      // await signIn(silently: true);
+      debugPrint('로그인 유지되는 중');
     }
   }
 
-  AuthResult _convertGoogleResult(GoogleSignInResult result) {
-    if (!result.success) {
-      return AuthResult.failure(result.message);
-    }
-    return AuthResult.success(
-      result.message,
-      user: result.user == null ? null : UserInfo(
-        displayName: result.user!.displayName,
-        email: result.user!.email,
-        photoUrl: result.user!.photoUrl,
-        idToken: result.user!.idToken,
-      ),
-    );
-  }
-
-  Future<AuthResult> _signInSilently() async {
+  Future<AuthResult> signIn({bool silently = false}) async {
     try {
-      final result = await _googleSignIn.signInSilently();
-      final authResult = _convertGoogleResult(result);
-      if (authResult.user != null) {
-        await _handleLoginSuccess(authResult.user!);
+      final result =
+          silently
+              ? await _googleSignIn.signInSilently()
+              : await _googleSignIn.signInManually();
+      if (!result.success) {
+        return AuthResult.failure(result.message);
       }
-      return authResult;
-    } catch (error) {
-      return AuthResult.failure('자동 로그인 실패: $error');
-    }
-  }
 
-  Future<AuthResult> signInManually() async {
-    try {
-      final result = await _googleSignIn.signInManually();
-      final authResult = _convertGoogleResult(result);
-      if (authResult.user != null) {
-        await _handleLoginSuccess(authResult.user!);
-        notifyListeners();
+      final googleUser = result.user;
+      if (googleUser == null) {
+        return AuthResult.failure('구글 사용자 정보가 없습니다.');
       }
-      return authResult;
+
+      try {
+        final user = await _backend.postUserLogin(googleUser.idToken);
+
+        final seobiUser = SeobiUser.fromGoogleAndBackendUser(
+          googleUser: googleUser,
+          backendUser: user,
+        );
+        _saveUserInfo(seobiUser);
+      } catch (error) {
+        return AuthResult.failure('서버와의 통신 중 오류가 발생했습니다: $error');
+      }
+
+      notifyListeners();
+
+      return AuthResult.success('로그인 성공');
     } catch (error) {
       return AuthResult.failure('로그인 중 오류가 발생했습니다: $error');
     }
   }
 
-  Future<void> _handleLoginSuccess(UserInfo userInfo) async {
-    await _saveUserInfo(userInfo);
-    if (userInfo.idToken != null) {
-      await _requestJwtToken(userInfo.idToken!);
-    }
-    notifyListeners();
-  }
-
-  Future<AuthResult> _requestJwtToken(String idToken) async {
-    try {
-      final response = await _backend.postUserLogin(idToken);
-      if (response.containsKey('access_token')) {
-        await _storage.setString('access_token', response['access_token']);
-        return AuthResult.success('JWT 토큰이 성공적으로 저장되었습니다.');
-      } else {
-        return AuthResult.failure('JWT 토큰이 응답에 없습니다.');
-      }
-    } catch (error) {
-      debugPrint('JWT 토큰 요청 중 오류: $error');
-      return AuthResult.failure(error.toString());
-    }
-  }
-
-  Future<void> _saveUserInfo(UserInfo userInfo) async {
+  Future<void> _saveUserInfo(SeobiUser user) async {
     await _storage.setBool('isLoggedIn', true);
-    await _storage.setString('displayName', userInfo.displayName ?? '');
-    await _storage.setString('email', userInfo.email);
-    await _storage.setString('photoUrl', userInfo.photoUrl ?? '');
+    await _storage.setString('displayName', user.username);
+    await _storage.setString('email', user.email);
+    await _storage.setString('photoUrl', user.photoUrl ?? '');
+    await _storage.setString('userId', user.id);
+    if (user.accessToken != null) {
+      await _storage.setString('accessToken', user.accessToken!);
+    }
   }
 
   Future<void> signOut() async {
@@ -123,6 +101,7 @@ class AuthService extends ChangeNotifier {
     await _storage.setString('displayName', '');
     await _storage.setString('email', '');
     await _storage.setString('photoUrl', '');
-    await _storage.setString('access_token', '');
+    await _storage.setString('accessToken', '');
+    await _storage.setString('userId', '');
   }
 }

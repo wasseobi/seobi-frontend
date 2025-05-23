@@ -1,7 +1,9 @@
+import './google_user.dart';
+
 class GoogleSignInResult {
   final bool success;
   final String message;
-  final GoogleUserInfo? user;
+  final GoogleUser? user;
 
   const GoogleSignInResult({
     required this.success,
@@ -9,7 +11,7 @@ class GoogleSignInResult {
     this.user,
   });
 
-  factory GoogleSignInResult.success(String message, {required GoogleUserInfo user}) {
+  factory GoogleSignInResult.success(String message, {required GoogleUser user}) {
     return GoogleSignInResult(
       success: true,
       message: message,
@@ -23,18 +25,4 @@ class GoogleSignInResult {
       message: message,
     );
   }
-}
-
-class GoogleUserInfo {
-  final String? displayName;
-  final String email;
-  final String? photoUrl;
-  final String? idToken;
-
-  const GoogleUserInfo({
-    this.displayName,
-    required this.email,
-    this.photoUrl,
-    this.idToken,
-  });
 }

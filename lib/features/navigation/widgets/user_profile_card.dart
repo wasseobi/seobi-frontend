@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../../services/auth/models/auth_result.dart';
+import 'package:seobi_app/services/models/seobi_user.dart';
 
 class UserProfileCard extends StatelessWidget {
-  final UserInfo userInfo;
+  final SeobiUser user;
 
   const UserProfileCard({
     super.key,
-    required this.userInfo,
+    required this.user,
   });
 
   @override
@@ -19,9 +19,9 @@ class UserProfileCard extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundImage:
-                  userInfo.photoUrl != null ? NetworkImage(userInfo.photoUrl!) : null,
+                  user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
               radius: 24,
-              child: userInfo.photoUrl == null ? const Icon(Icons.person) : null,
+              child: user.photoUrl == null ? const Icon(Icons.person) : null,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -30,12 +30,12 @@ class UserProfileCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    userInfo.displayName ?? '사용자',
+                    user.username,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    userInfo.email,
+                    user.email,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],

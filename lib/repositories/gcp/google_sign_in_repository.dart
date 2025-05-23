@@ -1,16 +1,16 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'models/google_sign_in_result.dart';
+import 'models/google_user.dart';
 
 class GoogleSignInRepository {
-  static final GoogleSignInRepository _instance = GoogleSignInRepository._internal();
+  static final GoogleSignInRepository _instance =
+      GoogleSignInRepository._internal();
   factory GoogleSignInRepository() => _instance;
 
   GoogleSignInRepository._internal();
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
   Future<GoogleSignInResult> signInManually() async {
     try {
@@ -43,14 +43,13 @@ class GoogleSignInRepository {
       if (auth.accessToken == null || auth.idToken == null) {
         return GoogleSignInResult.failure('인증 토큰을 가져오는데 실패했습니다.');
       }
-
       return GoogleSignInResult.success(
         '로그인 성공',
-        user: GoogleUserInfo(
+        user: GoogleUser(
           displayName: account.displayName,
           email: account.email,
           photoUrl: account.photoUrl,
-          idToken: auth.idToken,
+          idToken: auth.idToken!,
         ),
       );
     } catch (error) {
@@ -62,15 +61,18 @@ class GoogleSignInRepository {
     await _googleSignIn.signOut();
   }
 
-  Future<GoogleUserInfo?> getCurrentUser() async {
+  Future<GoogleUser?> getCurrentUser() async {
     final account = _googleSignIn.currentUser;
     if (account != null) {
       final auth = await account.authentication;
-      return GoogleUserInfo(
+      if (auth.accessToken == null || auth.idToken == null) {
+        return null;
+      }
+      return GoogleUser(
         displayName: account.displayName,
         email: account.email,
         photoUrl: account.photoUrl,
-        idToken: auth.idToken,
+        idToken: auth.idToken!,
       );
     }
     return null;

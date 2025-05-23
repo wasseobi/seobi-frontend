@@ -6,11 +6,33 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class HttpHelper {
   final String baseUrl;
   late final Map<String, String> defaultHeaders;
+  String? _authToken;
+
   HttpHelper(this.baseUrl) {
     defaultHeaders = {
       'Content-Type': 'application/json',
       'X-API-Key': dotenv.get('X_API_KEY'),
     };
+  }
+
+  /// 인증 토큰을 설정합니다.
+  void setAuthToken(String? token) {
+    _authToken = token;
+  }
+
+  /// 현재 요청 헤더에 인증 토큰을 포함하여 반환합니다.
+  Map<String, String> _getHeaders([Map<String, String>? additionalHeaders]) {
+    final headers = {...defaultHeaders};
+    
+    if (_authToken != null) {
+      headers['Authorization'] = 'Bearer $_authToken';
+    }
+    
+    if (additionalHeaders != null) {
+      headers.addAll(additionalHeaders);
+    }
+    
+    return headers;
   }
 
   Uri _buildUri(String path) => Uri.parse('$baseUrl$path');
@@ -23,10 +45,7 @@ class HttpHelper {
     try {
       final response = await http.get(
         _buildUri(path),
-        headers: {
-          ...defaultHeaders,
-          ...?headers,
-        },
+        headers: _getHeaders(headers),
       );
 
       debugPrint('GET $path - 상태 코드: ${response.statusCode}');
@@ -51,10 +70,7 @@ class HttpHelper {
     try {
       final response = await http.get(
         _buildUri(path),
-        headers: {
-          ...defaultHeaders,
-          ...?headers,
-        },
+        headers: _getHeaders(headers),
       );
 
       debugPrint('GET $path - 상태 코드: ${response.statusCode}');
@@ -81,10 +97,7 @@ class HttpHelper {
     try {
       final response = await http.post(
         _buildUri(path),
-        headers: {
-          ...defaultHeaders,
-          ...?headers,
-        },
+        headers: _getHeaders(headers),
         body: jsonEncode(body),
       );
 
@@ -111,10 +124,7 @@ class HttpHelper {
     try {
       final response = await http.put(
         _buildUri(path),
-        headers: {
-          ...defaultHeaders,
-          ...?headers,
-        },
+        headers: _getHeaders(headers),
         body: jsonEncode(body),
       );
 
@@ -139,10 +149,7 @@ class HttpHelper {
     try {
       final response = await http.delete(
         _buildUri(path),
-        headers: {
-          ...defaultHeaders,
-          ...?headers,
-        },
+        headers: _getHeaders(headers),
       );
 
       debugPrint('DELETE $path - 상태 코드: ${response.statusCode}');

@@ -4,7 +4,7 @@ import 'models/message.dart';
 
 abstract class IBackendRepository {
   String get baseUrl;
-  Future<Map<String, dynamic>> postUserLogin(String googleIdToken);
+  Future<User> postUserLogin(String googleIdToken);
   
   // User related methods
   Future<List<User>> getUsers();
