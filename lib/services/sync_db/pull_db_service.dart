@@ -12,15 +12,17 @@ class PullDbService {
   static final PullDbService _instance = PullDbService._internal();
   factory PullDbService() => _instance;
 
-  final IBackendRepository _backendRepository = BackendRepositoryFactory.instance;
+  final IBackendRepository _backendRepository =
+      BackendRepositoryFactory.instance;
   final LocalDatabaseRepository _localRepository = LocalDatabaseRepository();
 
   PullDbService._internal();
 
   /// 백엔드의 세션과 메시지를 로컬 DB에 동기화합니다.
   Future<void> synchronize() async {
-    try {      debugPrint('[PullDbService] 백엔드 데이터 동기화 시작');
-      
+    try {
+      debugPrint('[PullDbService] 백엔드 데이터 동기화 시작');
+
       // 1. 원격에서 세션 목록을 가져옴
       final remoteSessions = await _backendRepository.getSessions();
       debugPrint('[PullDbService] 원격 세션 ${remoteSessions.length}개 조회됨');
@@ -30,10 +32,11 @@ class PullDbService {
       final localSessionIds = localSessions.map((s) => s.id).toSet();
 
       // 3. 로컬에 없는 세션들을 필터링
-      final newSessions = remoteSessions.where(
-        (session) => !localSessionIds.contains(session.id)
-      ).toList();
-      
+      final newSessions =
+          remoteSessions
+              .where((session) => !localSessionIds.contains(session.id))
+              .toList();
+
       if (newSessions.isEmpty) {
         debugPrint('[PullDbService] 동기화할 새로운 세션이 없습니다.');
         return;
@@ -42,15 +45,21 @@ class PullDbService {
       debugPrint('[PullDbService] 새로운 세션 ${newSessions.length}개 발견됨');
 
       // 4. 새로운 세션을 로컬 DB에 저장
-      await _localRepository.insertSessions(newSessions.map((session) => 
-        session.toLocalSession()).toList());
-      
+      await _localRepository.insertSessions(
+        newSessions.map((session) => session.toLocalSession()).toList(),
+      );
+
       // 5. 새로운 세션들의 메시지를 가져와서 저장
       for (final session in newSessions) {
-        final messages = await _backendRepository.getMessagesBySessionId(session.id);
+        final messages = await _backendRepository.getMessagesBySessionId(
+          session.id,
+        );
         await _localRepository.insertMessages(
-          messages.map((message) => message.toLocalMessage()).toList()
-        );        debugPrint('[PullDbService] 세션 ${session.id}의 메시지 ${messages.length}개 저장됨');
+          messages.map((message) => message.toLocalMessage()).toList(),
+        );
+        debugPrint(
+          '[PullDbService] 세션 ${session.id}의 메시지 ${messages.length}개 저장됨',
+        );
       }
 
       debugPrint('[PullDbService] 백엔드 데이터 동기화 완료');
