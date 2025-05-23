@@ -17,9 +17,12 @@ abstract class IBackendRepository {
   Future<List<Session>> getSessions();
   Future<Session> postSession(String userId, {String? title, String? description});
   Future<Session> getSessionById(String id);
+  Future<Session> putSessionById(String id, {String? title, String? description});
   Future<void> deleteSessionById(String id);
+  Future<Session> postSessionFinish(String id);
+  Future<List<Session>> getSessionsByUserId(String userId);
 
-  // Message related methods
+  // Message related methods  
   Future<List<Message>> getMessages();
   Future<Message> postMessage({
     required String sessionId,
@@ -30,4 +33,11 @@ abstract class IBackendRepository {
   Future<Message> getMessageById(String id);
   Future<Message> putMessageById(String id, {String? content, String? role});
   Future<void> deleteMessageById(String id);
+  Future<List<Message>> getMessagesBySessionId(String sessionId);
+  Future<Map<String, dynamic>> postMessageLanggraphCompletion({
+    required String sessionId,
+    required String userId,
+    required String content,
+  });
+  Future<List<Message>> getMessagesByUserId(String userId);
 }

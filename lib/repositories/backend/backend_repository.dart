@@ -108,8 +108,35 @@ class BackendRepository implements IBackendRepository {
   }
 
   @override
+  Future<Session> putSessionById(String id, {String? title, String? description}) {
+    final updates = <String, dynamic>{};
+    if (title != null) updates['title'] = title;
+    if (description != null) updates['description'] = description;
+    
+    return _http.put(
+      '/sessions/$id',
+      updates,
+      Session.fromJson,
+    );
+  }
+
+  @override
   Future<void> deleteSessionById(String id) {
     return _http.delete('/sessions/$id');
+  }
+
+  @override
+  Future<Session> postSessionFinish(String id) {
+    return _http.post(
+      '/sessions/$id/finish',
+      {},
+      Session.fromJson,
+    );
+  }
+
+  @override
+  Future<List<Session>> getSessionsByUserId(String userId) {
+    return _http.getList('/users/$userId/sessions', Session.fromJson);
   }
 
   // Message related methods
@@ -158,5 +185,32 @@ class BackendRepository implements IBackendRepository {
   @override
   Future<void> deleteMessageById(String id) {
     return _http.delete('/messages/$id');
+  }
+  
+  @override
+  Future<List<Message>> getMessagesBySessionId(String sessionId) {
+    return _http.getList('/sessions/$sessionId/messages', Message.fromJson);
+  }
+  
+  @override
+  Future<Map<String, dynamic>> postMessageLanggraphCompletion({
+    required String sessionId,
+    required String userId,
+    required String content,
+  }) {
+    return _http.post(
+      '/messages/langgraph/completion',
+      {
+        'session_id': sessionId,
+        'user_id': userId,
+        'content': content,
+      },
+      (json) => json,
+    );
+  }
+  
+  @override
+  Future<List<Message>> getMessagesByUserId(String userId) {
+    return _http.getList('/users/$userId/messages', Message.fromJson);
   }
 }

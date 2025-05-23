@@ -287,6 +287,28 @@ class StubBackendRepository implements IBackendRepository {
   }
 
   @override
+  Future<Session> putSessionById(String id, {String? title, String? description}) async {
+    debugPrint('[StubBackend] 세션 업데이트');
+    debugPrint('[StubBackend] 입력 - id: $id, title: $title, description: $description');
+    
+    await _simulateNetworkDelay();
+
+    final session = _sessions[id];
+    if (session == null) {
+      throw Exception('세션을 찾을 수 없습니다.');
+    }
+
+    final updatedSession = session.copyWith(
+      title: title ?? session.title,
+      description: description ?? session.description,
+    );
+    _sessions[id] = updatedSession;
+
+    debugPrint('[StubBackend] 출력 - updated session: $updatedSession');
+    return updatedSession;
+  }
+
+  @override
   Future<void> deleteSessionById(String id) async {
     debugPrint('[StubBackend] 세션 삭제');
     debugPrint('[StubBackend] 입력 - id: $id');
@@ -421,5 +443,103 @@ class StubBackendRepository implements IBackendRepository {
 
     _messages.remove(id);
     debugPrint('[StubBackend] 메시지 삭제 완료');
+  }
+
+  @override
+  Future<Session> postSessionFinish(String id) async {
+    debugPrint('[StubBackend] 세션 종료');
+    debugPrint('[StubBackend] 입력 - id: $id');
+    
+    await _simulateNetworkDelay();
+
+    final session = _sessions[id];
+    if (session == null) {
+      throw Exception('세션을 찾을 수 없습니다.');
+    }
+
+    final updatedSession = session.copyWith(
+      finishAt: DateTime.now(),
+    );
+    _sessions[id] = updatedSession;
+
+    debugPrint('[StubBackend] 출력 - finished session: $updatedSession');
+    return updatedSession;
+  }
+
+  @override
+  Future<List<Session>> getSessionsByUserId(String userId) async {
+    debugPrint('[StubBackend] 사용자별 세션 목록 조회');
+    debugPrint('[StubBackend] 입력 - userId: $userId');
+    
+    await _simulateNetworkDelay();
+
+    final userSessions = _sessions.values.where((session) => session.userId == userId).toList();
+    
+    debugPrint('[StubBackend] 출력 - sessions: $userSessions');
+    return userSessions;
+  }
+
+  @override
+  Future<List<Message>> getMessagesBySessionId(String sessionId) async {
+    debugPrint('[StubBackend] 세션별 메시지 목록 조회');
+    debugPrint('[StubBackend] 입력 - sessionId: $sessionId');
+    
+    await _simulateNetworkDelay();
+
+    final sessionMessages = _messages.values.where((message) => message.sessionId == sessionId).toList();
+    
+    debugPrint('[StubBackend] 출력 - messages: $sessionMessages');
+    return sessionMessages;
+  }
+
+  @override
+  Future<Map<String, dynamic>> postMessageLanggraphCompletion({
+    required String sessionId,
+    required String userId,
+    required String content,
+  }) async {
+    debugPrint('[StubBackend] 랭그래프 완료 요청');
+    debugPrint('[StubBackend] 입력 - sessionId: $sessionId, userId: $userId, content: $content');
+    
+    await _simulateNetworkDelay();
+
+    // 사용자 메시지 추가
+    final userMessage = _createDummyMessage(
+      sessionId: sessionId,
+      userId: userId,
+      content: content,
+      role: 'user',
+    );
+    _messages[userMessage.id] = userMessage;
+
+    // 어시스턴트 응답 생성
+    final assistantMessage = _createDummyMessage(
+      sessionId: sessionId,
+      userId: userId,
+      content: '이것은 AI 어시스턴트의 응답입니다: ${_generateRandomString(20)}',
+      role: 'assistant',
+    );
+    _messages[assistantMessage.id] = assistantMessage;
+
+    final response = {
+      'user_message': userMessage,
+      'assistant_message': assistantMessage,
+    };
+    
+    debugPrint('[StubBackend] 출력 - response: $response');
+    return response;
+  }
+
+  @override
+  Future<List<Message>> getMessagesByUserId(String userId) async {
+    debugPrint('[StubBackend] 사용자별 메시지 목록 조회');
+    debugPrint('[StubBackend] 입력 - userId: $userId');
+    
+    await _simulateNetworkDelay();
+
+    final userMessages = _messages.values.where((message) => message.userId == userId).toList();
+    
+    debugPrint('[StubBackend] 출력 - messages: $userMessages');
+    return userMessages;
   }
 }
