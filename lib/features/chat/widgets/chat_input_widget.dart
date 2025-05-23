@@ -51,7 +51,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   Future<void> _initializeSpeech() async {
     bool available = await _sttService.initialize();
     if (!available) {
-      debugPrint('STT is not available on this device');
+      debugPrint('[ChatInputWidget] STT is not available on this device');
     }
   }
 
@@ -81,11 +81,11 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       );
     });
 
-    debugPrint('텍스트 상태 ================================');
-    debugPrint('현재 출력중: "$_displayText"');
-    debugPrint('확정된 값: "$_confirmedText"');
-    debugPrint('인식 중: "$_pendingText"');
-    debugPrint('==========================================');
+    debugPrint('[ChatInputWidget] 텍스트 상태 ================================');
+    debugPrint('[ChatInputWidget] 현재 출력중: "$_displayText"');
+    debugPrint('[ChatInputWidget] 확정된 값: "$_confirmedText"');
+    debugPrint('[ChatInputWidget] 인식 중: "$_pendingText"');
+    debugPrint('[ChatInputWidget] ==========================================');
   }
 
   void _handleSend() {
@@ -123,7 +123,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         onResult: (text, isFinal) {
           if (mounted) {
             setState(() {
-              debugPrint('STT result: $text, isFinal: $isFinal');
+              debugPrint('[ChatInputWidget] STT result: $text, isFinal: $isFinal');
               _pendingText = text;
               _updateDisplayText();
             });
