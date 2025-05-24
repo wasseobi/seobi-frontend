@@ -67,6 +67,13 @@ class _STTScreenState extends State<STTScreen> {
     }
   }
 
+  Future<void> _initializeSpeech() async {
+    bool available = await _sttService.initialize();
+    if (!available) {
+      debugPrint('[STTScreen] STT is not available on this device');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
