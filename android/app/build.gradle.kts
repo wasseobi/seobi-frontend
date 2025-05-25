@@ -23,7 +23,7 @@ val envVars = loadEnvFile()
 
 android {
     namespace = "com.wasseobi.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -43,13 +43,17 @@ android {
             keyPassword = envVars["RELEASE_KEY_PASSWORD"] ?: "android"
         }
     }
-    
-    defaultConfig {
+      defaultConfig {
         applicationId = "com.wasseobi.app"
-        minSdk = flutter.minSdkVersion
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // ONNX Runtime 설정
+        ndk {
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86_64"))
+        }
         
         // .env 파일에서 Google Web Client ID 설정
         resValue("string", "default_web_client_id", envVars["GOOGLE_WEB_CLIENT_ID"] ?: "")
@@ -68,8 +72,16 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
         }
     }
+
+    packagingOptions {
+        pickFirst("lib/**/libonnxruntime.so")
+    }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 }
