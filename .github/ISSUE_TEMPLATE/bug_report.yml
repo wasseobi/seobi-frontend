@@ -1,0 +1,71 @@
+name: 🐞 버그 리포트
+description: 발견한 버그를 신고해주세요
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        버그를 신고해 주셔서 감사합니다. 자세한 정보를 제공해 주시면 빠른 해결에 도움이 됩니다.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: 버그 설명
+      description: 발생한 버그에 대해 명확하고 자세히 설명해 주세요.
+      placeholder: 어떤 문제가 발생했나요?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: 재현 방법
+      description: 버그를 재현하기 위한 단계를 설명해 주세요.
+      placeholder: |
+        1. '...' 화면으로 이동
+        2. '...' 버튼 클릭
+        3. '...' 입력
+        4. 오류 발생
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: 예상 동작
+      description: 원래 어떻게 동작해야 하나요?
+      placeholder: 정상적인 경우 기대되는 동작을 설명해 주세요.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 플랫폼
+      description: 버그가 발생한 플랫폼을 선택해 주세요.
+      multiple: true
+      options:
+        - Android
+        - iOS
+        - Web
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 앱 버전
+      description: 버그가 발생한 앱 버전을 입력해 주세요
+      placeholder: 예) 1.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: 추가 정보
+      description: 스크린샷이나 로그 등 추가 정보가 있다면 첨부해 주세요.
+      placeholder: 스크린샷, 로그 등을 드래그 앤 드롭으로 첨부할 수 있습니다.

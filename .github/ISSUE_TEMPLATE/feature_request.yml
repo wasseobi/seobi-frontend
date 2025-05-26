@@ -1,0 +1,52 @@
+name: 💡 기능 제안
+description: 새로운 기능을 제안해주세요.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        새로운 기능을 제안해 주셔서 감사합니다. 아래 양식을 작성해 주시면 검토하도록 하겠습니다.
+
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: 문제 설명
+      description: 이 기능이 해결하고자 하는 문제나 불편함은 무엇인가요?
+      placeholder: 현재 어떤 문제나 불편함이 있나요?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution-description
+    attributes:
+      label: 제안하는 해결책
+      description: 어떤 방식으로 해결하면 좋을지 설명해 주세요.
+      placeholder: 구체적인 해결 방안을 제시해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 대안 검토
+      description: 고려해 본 다른 해결 방안이 있나요?
+      placeholder: 다른 방식으로 해결할 수 있는 방법을 검토해 보셨나요?
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 우선순위
+      description: 이 기능의 우선순위를 어떻게 평가하시나요?
+      options:
+        - 낮음 (있으면 좋음)
+        - 중간 (필요함)
+        - 높음 (시급함)
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 추가 정보
+      description: 참고할만한 추가 정보나 스크린샷이 있다면 첨부해 주세요.
+      placeholder: 스크린샷, 다이어그램 등을 첨부할 수 있습니다.
