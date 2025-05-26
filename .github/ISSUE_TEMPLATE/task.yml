@@ -1,0 +1,68 @@
+name: 📋 일반 작업
+description: 일반적인 작업이나 개선사항을 등록해주세요
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        작업 내용을 상세히 작성해 주시면 원활한 진행에 도움이 됩니다.
+
+  - type: textarea
+    id: task-description
+    attributes:
+      label: 작업 설명
+      description: 수행해야 할 작업에 대해 설명해 주세요.
+      placeholder: 작업의 목적과 내용을 상세히 기술해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: 완료 조건
+      description: 이 작업이 완료되었다고 판단할 수 있는 조건을 나열해 주세요.
+      placeholder: |
+        예시:
+        - [ ] 조건 1
+        - [ ] 조건 2
+        - [ ] 조건 3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: 작업 유형
+      description: 작업의 성격을 선택해 주세요.
+      options:
+        - 리팩토링
+        - 문서화
+        - 성능 개선
+        - UI/UX 개선
+        - 테스트 추가
+        - 기타
+    validations:
+      required: true
+
+  - type: input
+    id: estimation
+    attributes:
+      label: 예상 소요 시간
+      description: 작업 완료까지 예상되는 시간을 입력해 주세요.
+      placeholder: 예) 2일, 1주일 등
+
+  - type: textarea
+    id: additional-notes
+    attributes:
+      label: 추가 참고사항
+      description: 작업 수행에 필요한 추가 정보나 참고자료를 기재해 주세요.
+      placeholder: 관련 문서, 링크 등을 첨부할 수 있습니다.
+
+  - type: dropdown
+    id: dependency
+    attributes:
+      label: 의존성
+      description: 이 작업이 다른 작업에 의존성이 있나요?
+      options:
+        - 없음
+        - 있음 (설명란에 관련 이슈 번호를 기재해 주세요)
