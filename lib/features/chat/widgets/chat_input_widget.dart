@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/stt/stt_service.dart';
+import '../../../services/tts/tts_service.dart';
 
 class ChatInputWidget extends StatefulWidget {
   final Function(String) onMessageSend;
@@ -21,7 +22,9 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   late final TextEditingController _messageController;
   late final FocusNode _focusNode;
   bool _isListening = false;
+  bool _isPlaying = false; // TTS 재생 상태
   final STTService _sttService = STTService();
+  final TtsService _ttsService = TtsService();
 
   String _displayText = ''; // 1) 텍스트 필드에 표시되는 값
   String _confirmedText = ''; // 2) 확정된 값
@@ -35,6 +38,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     _messageController = TextEditingController(text: _displayText);
     _focusNode = FocusNode();
     _initializeSpeech();
+    _ttsService.setConfiguration(language: 'ko-KR'); // TTS 언어를 한국어로 설정
 
     // 텍스트 수정 시 표시값과 확정값 업데이트
     _messageController.addListener(() {
@@ -62,6 +66,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     if (_sttService.isListening) {
       _sttService.stopListening();
     }
+    _ttsService.dispose(); // TTS 서비스 정리
     super.dispose();
   }
 
@@ -69,7 +74,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     String newDisplayText =
         _confirmedText.isEmpty
             ? _pendingText
-            : '$_confirmedText ${_pendingText}'.trim();
+            : '$_confirmedText $_pendingText'.trim();
 
     setState(() {
       _displayText = newDisplayText;
@@ -92,6 +97,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     final message = _displayText.trim();
     if (message.isNotEmpty) {
       widget.onMessageSend(message);
+      _ttsService.addToQueue(message); // TTS 큐에 메시지 추가
       _messageController.clear();
       _displayText = '';
       _confirmedText = '';
@@ -152,6 +158,18 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
         _pendingText = '';
         _updateDisplayText();
       });
+    }
+  }
+
+  void _handleTtsToggle() async {
+    setState(() {
+      _isPlaying = !_isPlaying;
+    });
+
+    if (_isPlaying) {
+      await _ttsService.resume();
+    } else {
+      await _ttsService.pause();
     }
   }
 
@@ -220,6 +238,13 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                       IconButton(
                         onPressed: _handleSend,
                         icon: const Icon(Icons.send),
+                      ),
+                      IconButton(
+                        onPressed: _handleTtsToggle,
+                        icon: Icon(
+                          _isPlaying ? Icons.pause : Icons.play_arrow,
+                          color: Theme.of(context).primaryColor,
+                        ),
                       ),
                     ],
                   ),
