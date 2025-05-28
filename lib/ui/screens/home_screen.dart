@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../components/custom_tab_bar.dart';
+import '../components/custom_navigation_bar.dart';
+import '../components/custom_drawer.dart';
+import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void dispose() {
@@ -33,6 +36,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const CustomDrawer(),
       body: SafeArea(
         child: Column(
           children: [
@@ -40,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
               selectedTabIndex: _selectedIndex,
               onTabChanged: _onTabTapped,
               onMenuPressed: () {
-                // TODO: 햄버거 메뉴 처리
+                _scaffoldKey.currentState?.openDrawer();
               },
             ),
             Expanded(
@@ -48,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 controller: _pageController,
                 onPageChanged: _onPageChanged,
                 children: [
-                  Center(child: Text('채팅 화면')),
+                  const ChatScreen(),
                   Center(child: Text('보관함 화면')),
                   Center(child: Text('통계 화면')),
                 ],
