@@ -1,4 +1,4 @@
-class TabDimens {
+class TabDimensions {
   static const double iconSize = 24.0;
   static const double size = 44.0;
   static const double spacing = 10.0;
