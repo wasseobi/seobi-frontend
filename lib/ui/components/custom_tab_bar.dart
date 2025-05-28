@@ -18,7 +18,7 @@ class CustomTabBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       padding: EdgeInsets.all(TabDimensions.padding),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: AppColors.navBox,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Stack(
@@ -33,7 +33,7 @@ class CustomTabBar extends StatelessWidget {
               width: TabDimensions.size,
               height: TabDimensions.size,
               decoration: BoxDecoration(
-                color: AppColors.white,
+                color: AppColors.navSelectedLight,  // TODO: 어두운 테마 고려
                 borderRadius: _getBorderRadius(selectedIndex),
               ),
             ),
@@ -67,8 +67,8 @@ class CustomTabBar extends StatelessWidget {
                 _getIcon(index),
                 key: ValueKey<bool>(selectedIndex == index),
                 color: selectedIndex == index
-                    ? AppColors.primary
-                    : AppColors.white,
+                    ? AppColors.navIconSelectedLight
+                    : AppColors.navIcon,
                 size: TabDimensions.iconSize,
               ),
             ),
