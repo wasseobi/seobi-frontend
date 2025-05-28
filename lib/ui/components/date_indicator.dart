@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
 
 class DateIndicator extends StatelessWidget {
   final String date;
@@ -19,7 +20,7 @@ class DateIndicator extends StatelessWidget {
               date,
               textAlign: TextAlign.right,
               style: const TextStyle(
-                color: Color(0xFF4F4F4F), /* Color-Gray-100 */
+                color: AppColors.textLight,
                 fontSize: 12,
                 fontFamily: 'Pretendard',
                 fontWeight: FontWeight.w700,
@@ -34,7 +35,7 @@ class DateIndicator extends StatelessWidget {
               dayOfWeek,
               textAlign: TextAlign.right,
               style: const TextStyle(
-                color: Color(0xFF4F4F4F), /* Color-Gray-100 */
+                color: AppColors.textLight,
                 fontSize: 12,
                 fontFamily: 'Pretendard',
                 fontWeight: FontWeight.w400,
