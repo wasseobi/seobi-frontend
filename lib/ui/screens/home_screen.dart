@@ -36,9 +36,12 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            CustomTabBar(
-              selectedIndex: _selectedIndex,
-              onTap: _onTabTapped,
+            CustomNavigationBar(
+              selectedTabIndex: _selectedIndex,
+              onTabChanged: _onTabTapped,
+              onMenuPressed: () {
+                // TODO: 햄버거 메뉴 처리
+              },
             ),
             Expanded(
               child: PageView(
