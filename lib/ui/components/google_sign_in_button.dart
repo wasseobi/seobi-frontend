@@ -10,10 +10,12 @@ class GoogleSignInButton extends StatelessWidget {
     required this.onPressed,
     this.text = 'Google 계정으로 로그인',
   });
-  @override  Widget build(BuildContext context) {
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
-      width: 370,
       height: 58,
+      width: double.infinity,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
@@ -22,12 +24,10 @@ class GoogleSignInButton extends StatelessWidget {
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           shape: RoundedRectangleBorder(
-            side: const BorderSide(
-              width: 1,
-              color: Color(0xFFADB3BC),
-            ),
+            side: const BorderSide(width: 1, color: Color(0xFFADB3BC)),
             borderRadius: BorderRadius.circular(12),
-          ),        ),
+          ),
+        ),
         child: Stack(
           children: [
             // 로고 (좌측 정렬)
