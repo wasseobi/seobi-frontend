@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
 class AppGradients {
-  static const LinearGradient lightBackground = LinearGradient(
-    begin: Alignment(0.27, 0.00),
-    end: Alignment(0.50, 1.00),
-    colors: [Color(0xFFF5EFED), Color(0xFFE9E4E1)],
-  );
-
-  static const LinearGradient darkBackground = LinearGradient(
+  static const LinearGradient darkBG = LinearGradient(
     begin: Alignment(0.50, 1.00),
     end: Alignment(0.64, -0.00),
     colors: [Color(0xFF272727), Color(0xFF363636)],
+  );
+
+  static const LinearGradient lightBG = LinearGradient(
+    begin: Alignment(0.27, 0.00),
+    end: Alignment(0.50, 1.00),
+    colors: [Color(0xFFF5EFED), Color(0xFFE9E4E1)],
   );
 }
 
@@ -30,9 +30,14 @@ class AppColors {
 
   // general/text
   static const Color textDarkPrimary = white100;
-  static const Color textDarkSecondary = white80; //icon포함
+  static const Color textDarkSecondary = white80;
   static const Color textLightPrimary = gray100;
-  static const Color textLightSecondary = gray80; // icon포함
+  static const Color textLightSecondary = gray80;
+
+  // general/icon
+  static const Color iconDark = white80;
+  static const Color iconLight = gray80;
+  static const Color iconHighlight = main100;
 
   // general/container
   static const Color containerDark = gray100;
@@ -41,8 +46,11 @@ class AppColors {
   // general/button
   static const Color buttonDarkBg = black100;
   static const Color buttonLightBg = white80;
-  static const Color buttonIconPrimary = main100;
-  static const Color buttonIconSecondary = gray80;
+
+  // general/switch
+  static const Color switchOn = green100;
+  static const Color switchOff = gray80;
+  static const Color switchHandle = white100;
 
   // Custom tab bar (navigation, nav로 통칭)
   static const Color navBox = main100;
@@ -54,11 +62,22 @@ class AppColors {
   static const Color navIconSelectedDark = white100;
   static const Color navOpenSidebar = gray80;
 
+  // general/message input (input으로 통칭)
+  static const Color boxDark = gray100;
+  static const Color boxLight = white100;
+  static const Color guideText = gray80;
+  static const Color textDark = white100;
+  static const Color textLight = black100;
+
+  // Side bar (sideBar로 통칭) (Background는 Gradient 활용)
+  static const Color sideBarGuideLine = main100;
+
   // Chat screen (chat으로 통칭) (Background는 Gradient 활용)
   static const Color chatMsgBox = main80;
   static const Color chatLogBox = white80;
   static const Color chatGuideLine = gray80;
 
-  // Side bar (sideBar로 통칭) (Background는 Gradient 활용)
-  static const Color sideBarGuideLine = main100;
+  // Worktree screen (worktree로 통칭) (Background는 추후 변경)
+
+  // Dashboard screen (board로 통칭)
 }
