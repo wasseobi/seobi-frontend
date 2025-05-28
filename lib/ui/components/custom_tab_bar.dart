@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/dimensions/tab_dimensions.dart';
-import '../constants/dimensions/container_dimensions.dart';
 
 class CustomTabBar extends StatelessWidget {
   final int selectedIndex;
@@ -16,22 +15,23 @@ class CustomTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),      padding: EdgeInsets.all(TabDimens.padding),
+      margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      padding: EdgeInsets.all(TabDimensions.padding),
       decoration: BoxDecoration(
         color: AppColors.primary,
-        borderRadius: BorderRadius.circular(ContainerDimens.radius),
+        borderRadius: BorderRadius.circular(28),
       ),
       child: Stack(
         children: [
           AnimatedPositioned(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
-            left: selectedIndex * (TabDimens.size + TabDimens.spacing),
+            left: selectedIndex * (TabDimensions.size + TabDimensions.spacing),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeInOut,
-              width: TabDimens.size,
-              height: TabDimens.size,
+              width: TabDimensions.size,
+              height: TabDimensions.size,
               decoration: BoxDecoration(
                 color: AppColors.white,
                 borderRadius: _getBorderRadius(selectedIndex),
@@ -40,6 +40,7 @@ class CustomTabBar extends StatelessWidget {
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(3, (index) => _buildTab(index)),
           ),
         ],
@@ -50,11 +51,12 @@ class CustomTabBar extends StatelessWidget {
   Widget _buildTab(int index) {
     return GestureDetector(
       onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque,      child: Padding(
-        padding: EdgeInsets.only(left: index > 0 ? TabDimens.spacing : 0),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: EdgeInsets.only(left: index > 0 ? TabDimensions.spacing : 0),
         child: SizedBox(
-          width: TabDimens.size,
-          height: TabDimens.size,
+          width: TabDimensions.size,
+          height: TabDimensions.size,
           child: Center(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
@@ -67,7 +69,7 @@ class CustomTabBar extends StatelessWidget {
                 color: selectedIndex == index
                     ? AppColors.primary
                     : AppColors.white,
-                size: TabDimens.iconSize,
+                size: TabDimensions.iconSize,
               ),
             ),
           ),
@@ -75,19 +77,24 @@ class CustomTabBar extends StatelessWidget {
       ),
     );
   }
+
   BorderRadius _getBorderRadius(int index) {
     if (index == 0) {
-      return BorderRadius.horizontal(
-        left: Radius.circular(TabDimens.radiusLarge),
-        right: Radius.circular(TabDimens.radiusSmall),
+      return BorderRadius.only(
+        topLeft: Radius.circular(TabDimensions.radiusLarge),
+        topRight: Radius.circular(TabDimensions.radiusSmall),
+        bottomLeft: Radius.circular(TabDimensions.radiusLarge),
+        bottomRight: Radius.circular(TabDimensions.radiusSmall),
       );
     } else if (index == 2) {
-      return BorderRadius.horizontal(
-        left: Radius.circular(TabDimens.radiusSmall),
-        right: Radius.circular(TabDimens.radiusLarge),
+      return BorderRadius.only(
+        topLeft: Radius.circular(TabDimensions.radiusSmall),
+        topRight: Radius.circular(TabDimensions.radiusLarge),
+        bottomLeft: Radius.circular(TabDimensions.radiusSmall),
+        bottomRight: Radius.circular(TabDimensions.radiusLarge),
       );
     }
-    return BorderRadius.circular(TabDimens.radiusSmall);
+    return BorderRadius.circular(TabDimensions.radiusSmall);
   }
 
   IconData _getIcon(int index) {
