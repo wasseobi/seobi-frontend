@@ -50,10 +50,15 @@ class AppColors {
   static const Color navSelectedDark = black100;
   static const Color navSelectedWhilePressed = main80;
   static const Color navIcon = white100;
+  static const Color navIconSelectedLight = black100;
+  static const Color navIconSelectedDark = white100;
   static const Color navOpenSidebar = gray80;
 
   // Chat screen (chat으로 통칭) (Background는 Gradient 활용)
   static const Color chatMsgBox = main80;
   static const Color chatLogBox = white80;
-  static const Color chatLine = gray80;
+  static const Color chatGuideLine = gray80;
+
+  // Side bar (sideBar로 통칭) (Background는 Gradient 활용)
+  static const Color sideBarGuideLine = main100;
 }
