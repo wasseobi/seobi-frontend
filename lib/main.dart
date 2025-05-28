@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/auth/auth_service.dart';
-import 'features/auth/sign_in_screen.dart';
 import 'ui/screens/home_screen.dart';
 
 void main() async {
@@ -38,7 +37,7 @@ class MainApp extends StatelessWidget {
       initialRoute: initialRoute,
       routes: {
         '/home': (context) => const HomeScreen(),
-        '/signin': (context) => const SignInScreen(),
+        // '/signin': (context) => const SignInScreen(),
       },
     );
   }
