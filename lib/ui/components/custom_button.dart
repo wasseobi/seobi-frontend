@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
 
 enum CustomButtonType {
   transparent,
@@ -32,7 +33,7 @@ class CustomButton extends StatelessWidget {
     final buttonChild = Icon(
       icon,
       size: iconSize,
-      color: iconColor ?? Theme.of(context).iconTheme.color,
+      color: iconColor ?? AppColors.iconLight,
     );
 
     return SizedBox(
