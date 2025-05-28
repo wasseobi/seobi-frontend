@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../constants/app_dimens.dart';
+import '../constants/app_dimensions.dart';
 
 class CustomTabBar extends StatelessWidget {
   final int selectedIndex;
