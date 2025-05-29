@@ -46,6 +46,7 @@ class AppColors {
   // general/button
   static const Color buttonDarkBg = black100;
   static const Color buttonLightBg = white80;
+  // TODO: 버튼 테두리 색상 추가
 
   // general/switch
   static const Color switchOn = green100;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
 
 class GoogleSignInButton extends StatelessWidget {
   final VoidCallback onPressed;
@@ -19,8 +20,8 @@ class GoogleSignInButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF272727),
+          backgroundColor: AppColors.buttonLightBg,
+          foregroundColor: AppColors.textLight,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           shape: RoundedRectangleBorder(
@@ -44,7 +45,7 @@ class GoogleSignInButton extends StatelessWidget {
               child: Text(
                 text,
                 style: const TextStyle(
-                  color: Color(0xFF272727),
+                  color: AppColors.textLight,
                   fontSize: 16,
                   fontFamily: 'Pretendard',
                   fontWeight: FontWeight.w600,
