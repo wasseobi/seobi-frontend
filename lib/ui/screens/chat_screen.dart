@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../components/message_list.dart';
 
 class ChatScreen extends StatelessWidget {
-  const ChatScreen({super.key});
+  final List<Map<String, dynamic>> messages;
+  const ChatScreen({super.key, this.messages = const []});
 
   @override
   Widget build(BuildContext context) {
-    return Container();
+    return ChatMessageList(messages: messages);
   }
 }

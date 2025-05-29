@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/dimensions/message_dimensions.dart';
+import 'card_schedule.dart';
 
 class AssistantMessage extends StatelessWidget {
   final String message;
@@ -27,7 +28,7 @@ class AssistantMessage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMessageBubble(),
-          SizedBox(height: MessageDimensions.spacing * 2.5), // ✅ 간격 추가
+          SizedBox(height: MessageDimensions.spacing * 2.5),
           if ((type == 'card' && card != null) ||
               (actions != null && actions!.isNotEmpty))
             Container(
@@ -41,7 +42,12 @@ class AssistantMessage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (type == 'card' && card != null) _buildCard(),
+                    if (type == 'card' && card != null)
+                      ScheduleCard(
+                        title: card!['title'] ?? '',
+                        time: card!['time'] ?? '',
+                        location: card!['location'] ?? '',
+                      ), // ✅ 카드 위젯 대체
                     if (actions != null && actions!.isNotEmpty)
                       Padding(
                         padding: EdgeInsets.only(
@@ -80,54 +86,6 @@ class AssistantMessage extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: AppColors.gray100,
         ),
-      ),
-    );
-  }
-
-  Widget _buildCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white100,
-        borderRadius: BorderRadius.circular(MessageDimensions.radius),
-        border: Border.all(color: AppColors.gray40),
-      ),
-      padding: EdgeInsets.all(MessageDimensions.padding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                card!['title'] ?? '',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.black100,
-                ),
-              ),
-              Text(
-                card!['time'] ?? '',
-                style: TextStyle(fontSize: 12, color: AppColors.gray80),
-              ),
-            ],
-          ),
-          SizedBox(height: MessageDimensions.spacing * 1.5),
-          Row(
-            children: [
-              Icon(
-                Icons.location_on,
-                size: MessageDimensions.iconSize,
-                color: AppColors.gray60,
-              ),
-              SizedBox(width: MessageDimensions.spacing),
-              Text(
-                card!['location'] ?? '',
-                style: TextStyle(fontSize: 12, color: AppColors.gray100),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
