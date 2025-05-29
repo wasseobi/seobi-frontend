@@ -5,7 +5,6 @@ import '../../services/auth/auth_service.dart';
 import '../chat/chat_screen.dart';
 import '../task/task_screen.dart';
 import '../dashboard/dashboard_screen.dart';
-import '../chat/widgets/chat_input_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,7 +13,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   bool _initialized = false;
   final _authService = AuthService();
   late final TabController _tabController;
@@ -53,11 +53,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
-  void _handleMessageSend(String message) {
-    // TODO: 백엔드에 메시지 전송하는 로직 구현
-    print('메시지 전송: $message');
-  }
-
   Widget _buildScreen() {
     switch (_tabController.index) {
       case 0:
@@ -90,20 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ],
         ),
       ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Column(
-            children: [
-              Expanded(child: _buildScreen()),
-              ChatInputWidget(
-                onMessageSend: _handleMessageSend,
-                onSwitchMode: () {},  // Unused
-              ),
-            ],
-          ),
-        ],
-      ),
+      body: _buildScreen(),
     );
   }
 }
