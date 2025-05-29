@@ -62,6 +62,7 @@ class AuthService extends ChangeNotifier {
       if (googleUser == null) {
         return AuthResult.failure('구글 사용자 정보가 없습니다.');
       }
+
       try {
         final user = await _backend.postUserLogin(googleUser.idToken);
 
@@ -69,7 +70,7 @@ class AuthService extends ChangeNotifier {
           googleUser: googleUser,
           backendUser: user,
         );
-        await _saveUserInfo(seobiUser);
+        _saveUserInfo(seobiUser);
       } catch (error) {
         return AuthResult.failure('서버와의 통신 중 오류가 발생했습니다: $error');
       }
@@ -106,5 +107,14 @@ class AuthService extends ChangeNotifier {
     await _storage.setString('photoUrl', '');
     await _storage.setString('accessToken', '');
     await _storage.setString('userId', '');
+  }
+
+  Future<bool> checkLoginStatus() async {
+    await init();
+    return isLoggedIn;
+  }
+
+  Future<AuthResult> signInWithGoogle() async {
+    return signIn(silently: false);
   }
 }

@@ -116,7 +116,7 @@ class StubBackendRepository implements IBackendRepository {
       id: messageId,
       sessionId: sessionId,
       userId: userId,
-      content: content,
+      content: content ?? '', // null일 경우 빈 문자열 사용
       role: role,
       timestamp: DateTime.now(),
       vector:
@@ -206,46 +206,8 @@ class StubBackendRepository implements IBackendRepository {
 
   @override
   Future<List<Message>> getMessages() async {
-    debugPrint('[StubBackend] 메시지 목록 조회');
+    debugPrint('[StubBackend] 전체 메시지 목록 조회');
     await _simulateNetworkDelay();
-
-    // 더미 데이터가 없는 경우 5개 생성
-    if (_messages.isEmpty) {
-      final sessionId = 'session_${_generateRandomString(8)}';
-      final userId = 'user_${_generateRandomString(8)}';
-
-      // 시스템 메시지
-      final systemMessage = _createDummyMessage(
-        sessionId: sessionId,
-        userId: userId,
-        content: '새로운 대화를 시작합니다.',
-        role: 'system',
-      );
-      _messages[systemMessage.id] = systemMessage;
-
-      // 사용자와 어시스턴트의 대화
-      for (var i = 1; i <= 2; i++) {
-        // 사용자 메시지
-        final userMessage = _createDummyMessage(
-          sessionId: sessionId,
-          userId: userId,
-          content: '테스트 질문 $i입니다.',
-          role: 'user',
-        );
-        _messages[userMessage.id] = userMessage;
-
-        // 어시스턴트 응답
-        final assistantMessage = _createDummyMessage(
-          sessionId: sessionId,
-          userId: userId,
-          content: '테스트 응답 $i입니다.',
-          role: 'assistant',
-        );
-        _messages[assistantMessage.id] = assistantMessage;
-      }
-    }
-
-    debugPrint('[StubBackend] 출력 - messages: ${_messages.values.toList()}');
     return _messages.values.toList();
   }
 
@@ -266,7 +228,7 @@ class StubBackendRepository implements IBackendRepository {
     final message = _createDummyMessage(
       sessionId: sessionId,
       userId: userId,
-      content: content,
+      content: content ?? '', // null일 경우 빈 문자열 사용
       role: role,
     );
     _messages[message.id] = message;
@@ -315,11 +277,29 @@ class StubBackendRepository implements IBackendRepository {
 
     await _simulateNetworkDelay();
 
-    final sessionMessages =
-        _messages.values.where((message) => message.sessionId == sessionId).toList();
+    final messages =
+        _messages.values
+            .where((message) => message.sessionId == sessionId)
+            .toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-    debugPrint('[StubBackend] 출력 - messages: $sessionMessages');
-    return sessionMessages;
+    debugPrint('[StubBackend] 출력 - messages: $messages');
+    return messages;
+  }
+
+  @override
+  Future<List<Message>> getMessagesByUserId(String userId) async {
+    debugPrint('[StubBackend] 사용자별 메시지 목록 조회');
+    debugPrint('[StubBackend] 입력 - userId: $userId');
+
+    await _simulateNetworkDelay();
+
+    final messages =
+        _messages.values.where((message) => message.userId == userId).toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    debugPrint('[StubBackend] 출력 - messages: $messages');
+    return messages;
   }
 
   @override
@@ -363,16 +343,68 @@ class StubBackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<List<Message>> getMessagesByUserId(String userId) async {
-    debugPrint('[StubBackend] 사용자별 메시지 목록 조회');
-    debugPrint('[StubBackend] 입력 - userId: $userId');
+  Stream<Map<String, dynamic>> postMessageLanggraphCompletionStream({
+    required String sessionId,
+    required String userId,
+    required String content,
+  }) async* {
+    debugPrint('[StubBackend] LangGraph 스트리밍 시작');
+    debugPrint('[StubBackend] 입력 - sessionId: $sessionId, userId: $userId');
+    debugPrint('[StubBackend] 입력 - content: $content');
 
-    await _simulateNetworkDelay();
+    // 시작 청크 전송
+    yield {
+      'type': 'start',
+      'user_message': {'content': content},
+    };
 
-    final userMessages =
-        _messages.values.where((message) => message.userId == userId).toList();
+    // 더미 응답 텍스트
+    const dummyResponse = '''
+안녕하세요! 저는 AI 어시스턴트입니다.
+제가 도움을 드릴 수 있는 부분이 있다면 말씀해 주세요.
+저는 다음과 같은 작업을 도와드릴 수 있습니다:
 
-    debugPrint('[StubBackend] 출력 - messages: $userMessages');
-    return userMessages;
+1. 질문에 대한 답변
+2. 정보 검색 및 요약
+3. 코드 관련 도움
+4. 일상적인 대화
+''';
+
+    // 메타데이터 템플릿
+    final metadata = {
+      'langgraph_step': 0,
+      'langgraph_node': 'agent',
+      'langgraph_triggers': [
+        '__start__',
+        'branch:agent:state_conditional:agent',
+        'tool',
+      ],
+      'langgraph_path': ['__pregel_pull', 'agent'],
+      'langgraph_checkpoint_ns': 'agent:${_generateRandomString(32)}',
+      'checkpoint_ns': 'agent:${_generateRandomString(32)}',
+      'ls_provider': 'azure',
+      'ls_model_name': 'o4-mini',
+      'ls_model_type': 'chat',
+      'ls_temperature': null,
+    };
+
+    // 응답을 한 글자씩 스트리밍
+    for (var i = 0; i < dummyResponse.length; i++) {
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      yield {
+        'type': 'chunk',
+        'content': dummyResponse[i],
+        'metadata': metadata,
+      };
+    }
+
+    // 전체 응답 전송
+    yield {'type': 'answer', 'answer': dummyResponse};
+
+    // 종료 청크 전송
+    yield {'type': 'end', 'context_saved': true};
+
+    debugPrint('[StubBackend] LangGraph 스트리밍 완료');
   }
 }
