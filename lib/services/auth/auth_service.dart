@@ -42,7 +42,7 @@ class AuthService extends ChangeNotifier {
       // await signIn(silently: true);
       debugPrint('로그인 유지되는 중');
     }
-    
+
     // TODO: 아래 디버그 코드를 지우세요.
     final user = await getUserInfo();
     debugPrint('[JWT] ${user?.accessToken}');
@@ -62,7 +62,6 @@ class AuthService extends ChangeNotifier {
       if (googleUser == null) {
         return AuthResult.failure('구글 사용자 정보가 없습니다.');
       }
-
       try {
         final user = await _backend.postUserLogin(googleUser.idToken);
 
@@ -70,7 +69,7 @@ class AuthService extends ChangeNotifier {
           googleUser: googleUser,
           backendUser: user,
         );
-        _saveUserInfo(seobiUser);
+        await _saveUserInfo(seobiUser);
       } catch (error) {
         return AuthResult.failure('서버와의 통신 중 오류가 발생했습니다: $error');
       }
