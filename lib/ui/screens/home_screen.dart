@@ -3,6 +3,7 @@ import '../components/custom_navigation_bar.dart';
 import '../components/custom_drawer.dart';
 import '../components/sign_in_bottom_sheet.dart';
 import '../../services/auth/auth_service.dart';
+import '../components/fab.dart';
 import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,8 +18,18 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final AuthService _authService = AuthService();
-  
+
   // 예시 메시지 데이터
+
+  bool _isChatExpanded = false;
+  final TextEditingController _chatController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  // FAB 관련 높이 설정
+  final double collapsedChatHeight = 88;
+  final double expandedChatHeight = 205;
+  final double fabMarginBottom = 28;
+
   final List<Map<String, dynamic>> _messages = [
     {
       'isUser': false,
@@ -59,9 +70,12 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => const SignInBottomSheet(),
     );
   }
+
   @override
   void dispose() {
     _pageController.dispose();
+    _chatController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -77,33 +91,94 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
+  void _toggleChat() {
+    setState(() {
+      _isChatExpanded = !_isChatExpanded;
+    });
+
+    if (_isChatExpanded) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        FocusScope.of(context).requestFocus(_focusNode);
+      });
+    } else {
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  void _collapseChat() {
+    setState(() => _isChatExpanded = false);
+    FocusScope.of(context).unfocus();
+  }
+
+  void _handleSend() {
+    print("보낸 메시지: ${_chatController.text}");
+    _chatController.clear();
+    FocusScope.of(context).unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: const CustomDrawer(),
-      body: SafeArea(
-        child: Column(
-          children: [
-            CustomNavigationBar(
-              selectedTabIndex: _selectedIndex,
-              onTabChanged: _onTabTapped,
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: _onPageChanged,
+    final double chatBarHeight =
+        (_isChatExpanded ? expandedChatHeight : collapsedChatHeight) +
+        fabMarginBottom;
+
+    return GestureDetector(
+      onTap: () {
+        if (_isChatExpanded) _collapseChat(); // 외부 탭하면 닫힘
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: const CustomDrawer(),
+        body: SafeArea(
+          // SafeArea를 Stack 밖으로 빼서 화면 전체를 안전 영역으로 감쌈
+          child: Stack(
+            children: [
+              Column(
                 children: [
-                  ChatScreen(messages: _messages),
-                  Center(child: Text('보관함 화면')),
-                  Center(child: Text('통계 화면')),
+                  CustomNavigationBar(
+                    selectedTabIndex: _selectedIndex,
+                    onTabChanged: _onTabTapped,
+                    onMenuPressed: () {
+                      _scaffoldKey.currentState?.openDrawer();
+                    },
+                  ),
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      onPageChanged: _onPageChanged,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(bottom: chatBarHeight),
+                          child: ChatScreen(messages: _messages),
+                        ),
+                        const Center(child: Text('보관함 화면')),
+                        const Center(child: Text('통계 화면')),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
+
+              // 투명한 영역 클릭 시 닫힘 처리
+              IgnorePointer(
+                ignoring: !_isChatExpanded,
+                child: GestureDetector(
+                  onTap: _collapseChat,
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+
+              // FAB (채팅 플로팅바)
+              ChatFloatingBar(
+                isExpanded: _isChatExpanded,
+                onToggle: _toggleChat,
+                onCollapse: _collapseChat,
+                onSend: _handleSend,
+                controller: _chatController,
+                focusNode: _focusNode,
+              ),
+            ],
+          ),
         ),
       ),
     );
