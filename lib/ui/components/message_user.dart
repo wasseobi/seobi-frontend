@@ -25,7 +25,8 @@ class UserMessage extends StatelessWidget {
         message,
         style: TextStyle(
           color: isSentByUser ? AppColors.textLight : AppColors.textLight,
-          fontSize: MessageDimensions.fontSize,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

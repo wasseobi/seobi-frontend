@@ -73,6 +73,10 @@ class AppColors {
   // Side bar (sideBar로 통칭) (Background는 Gradient 활용)
   static const Color sideBarGuideLine = main100;
 
+  //onboarding
+  static const Color borderButton = gray60;
+  static const Color borderArticle = white80; //디자인변경가능
+
   // Chat screen (chat으로 통칭) (Background는 Gradient 활용)
   static const Color chatMsgBox = main80;
   static const Color chatLogBox = white80;
