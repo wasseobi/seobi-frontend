@@ -109,41 +109,59 @@ class BackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<Message> postMessage({
-    required String sessionId,
-    required String userId,
-    String? content,
-    required String role,
-  }) {
-    return _http.post('/messages/session/$sessionId', {
-      'session_id': sessionId,
-      'user_id': userId,
-      'content': content,
-      'role': role,
-    }, Message.fromJson);
-  }
-
-  @override
   Future<List<Message>> getMessagesBySessionId(String sessionId) {
-    return _http.getList('/sessions/$sessionId/messages', Message.fromJson);
-  }
-
-  @override
-  Future<Message> postMessageLanggraphCompletion({
-    required String sessionId,
-    required String userId,
-    required String content,
-  }) {
-    return _http.post(
-      '/messages/session/$sessionId/langgraph-completion',
-      {'user_id': userId, 'content': content},
-      (json) => Message.fromJson(json['assistant_message']),
-      expectedStatus: 200,
-    );
+    return _http.getList('/messages/session/$sessionId', Message.fromJson);
   }
 
   @override
   Future<List<Message>> getMessagesByUserId(String userId) {
     return _http.getList('/messages/user/$userId', Message.fromJson);
+  }
+
+  @override
+  Stream<Map<String, dynamic>> postMessageLanggraphCompletionStream({
+    required String sessionId,
+    required String userId,
+    required String content,
+  }) {
+    final endpoint = '/s/$sessionId/send';
+    debugPrint('[BackendRepository] 메시지 전송 시작: $endpoint');
+    debugPrint(
+      '[BackendRepository] 요청 본문: {user_id: $userId, content: $content}',
+    );
+
+    return _http
+        .postStream(
+          endpoint,
+          {'content': content},
+          headers: {'user-id': userId},
+        )
+        .map((chunk) {
+          debugPrint('[BackendRepository] 청크 수신: $chunk');
+          if (chunk is! Map<String, dynamic>) {
+            throw FormatException('잘못된 청크 형식: $chunk');
+          }
+          return chunk;
+        })
+        .where((chunk) {
+          try {
+            final type = chunk['type'];
+            if (type == 'answer') return true;
+            if (type == 'end') return true;
+
+            final content = chunk['content'];
+            final isValid = type == 'chunk' && content != null;
+
+            if (!isValid) {
+              debugPrint(
+                '[BackendRepository] 무시된 청크: type=$type, content=$content',
+              );
+            }
+            return isValid;
+          } catch (e) {
+            debugPrint('[BackendRepository] 청크 필터링 오류: $e');
+            return false;
+          }
+        });
   }
 }
