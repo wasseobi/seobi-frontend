@@ -15,18 +15,15 @@ void main() async {
     final authService = AuthService();
     await authService.init();
 
-    runApp(MainApp(initialRoute: authService.isLoggedIn ? '/home' : '/signin'));
+    runApp(const MainApp());
   } catch (e) {
     debugPrint('초기화 중 오류 발생: $e');
-    // 에러 발생 시 로그인 화면으로 이동
-    runApp(const MainApp(initialRoute: '/signin'));
+    runApp(const MainApp());
   }
 }
 
 class MainApp extends StatelessWidget {
-  final String initialRoute;
-
-  const MainApp({super.key, required this.initialRoute});
+  const MainApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +32,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      initialRoute: initialRoute,
-      routes: {
-        '/home': (context) => const HomeScreen(),
-        '/signin': (context) => const SignInScreen(),
-      },
+      home: const HomeScreen(),
     );
   }
 }
