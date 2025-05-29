@@ -9,6 +9,7 @@ class TtsService {
   bool _isPaused = false;
   String? _currentText;
   int? _currentWordStartPosition;
+  bool _isWaitingForNewMessage = false;
 
   TtsService() {
     _initTTS();
@@ -25,7 +26,9 @@ class TtsService {
       String word,
     ) {
       _currentWordStartPosition = startOffset;
-      debugPrint('[TtsService] 현재 단어 진행 상태: $word (위치: $startOffset-$endOffset)');
+      debugPrint(
+        '[TtsService] 현재 단어 진행 상태: $word (위치: $startOffset-$endOffset)',
+      );
     });
 
     _flutterTts.setCompletionHandler(() {
@@ -102,7 +105,9 @@ class TtsService {
     double? rate,
     String? language,
   }) async {
-    debugPrint('[TtsService] TTS 설정 변경 - volume: $volume, pitch: $pitch, rate: $rate, language: $language');
+    debugPrint(
+      '[TtsService] TTS 설정 변경 - volume: $volume, pitch: $pitch, rate: $rate, language: $language',
+    );
     if (volume != null) await _flutterTts.setVolume(volume);
     if (pitch != null) await _flutterTts.setPitch(pitch);
     if (rate != null) await _flutterTts.setSpeechRate(rate);
@@ -113,5 +118,26 @@ class TtsService {
   Future<void> dispose() async {
     debugPrint('[TtsService] TTS 서비스 정리');
     await stop();
+  }
+
+  /// 새로운 메시지를 받았을 때 호출되는 메서드
+  Future<void> handleNewMessage(String text) async {
+    debugPrint('[TtsService] 새로운 메시지 수신: $text');
+    // 현재 재생 중인 TTS를 중지
+    await stop();
+    // 새로운 메시지를 큐에 추가
+    await addToQueue(text);
+    _isWaitingForNewMessage = false;
+  }
+
+  /// 새로운 메시지를 기다리는 상태로 설정
+  void setWaitingForNewMessage() {
+    debugPrint('[TtsService] 새로운 메시지 대기 상태로 전환');
+    _isWaitingForNewMessage = true;
+  }
+
+  /// 현재 새로운 메시지를 기다리는 중인지 확인
+  bool isWaitingForNewMessage() {
+    return _isWaitingForNewMessage;
   }
 }

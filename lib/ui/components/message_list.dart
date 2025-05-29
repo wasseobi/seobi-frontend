@@ -4,56 +4,89 @@ import 'message_ai.dart';
 import '../constants/dimensions/message_dimensions.dart';
 
 class ChatMessageList extends StatelessWidget {
-  final List<Map<String, dynamic>> messages; // 나중에 map에서 모델로 변경 예정
+  final List<Map<String, Object>> messages;
+  final ScrollController scrollController;
+  final bool isStreaming;
 
-  const ChatMessageList({super.key, required this.messages});
+  const ChatMessageList({
+    super.key,
+    required this.messages,
+    required this.scrollController,
+    required this.isStreaming,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 80, top: 16),
+    return ListView.builder(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: messages.length,
-      reverse: false,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final msg = messages[index];
-        final isUser = msg['isUser'] as bool;
+        final message = messages[index];
+        final isUser = message['isUser'] as bool;
+        final text = message['text'] as String;
+        final isLastMessage = index == messages.length - 1;
 
-        final messageWidget =
-            isUser
-                ? UserMessage(
-                  key: ValueKey('user_$index'),
-                  message: msg['text'],
-                  isSentByUser: true,
-                )
-                : Padding(
-                  padding:
-                      msg['type'] == 'card' || msg['actions'] != null
-                          ? EdgeInsets.only(left: MessageDimensions.padding)
-                          : EdgeInsets.zero,
-                  child: AssistantMessage(
-                    key: ValueKey('ai_$index'),
-                    message: msg['text'],
-                    type: msg['type'], // 'text', 'action', 'card'
-                    actions: msg['actions'], // optional
-                    card: msg['card'], // optional
-                    timestamp: msg['timestamp'], // optional
-                  ),
-                );
-
-        return Align(
-          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder:
-                (child, animation) => SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.1),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Row(
+            mainAxisAlignment:
+                isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: [
+              if (!isUser) ...[
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  child: const Icon(Icons.android, color: Colors.white),
                 ),
-            child: messageWidget,
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color:
+                        isUser
+                            ? Theme.of(context).primaryColor
+                            : Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        text,
+                        style: TextStyle(
+                          color: isUser ? Colors.white : Colors.black87,
+                          fontSize: 16,
+                        ),
+                      ),
+                      if (!isUser && isLastMessage && isStreaming) ...[
+                        const SizedBox(height: 8),
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (isUser) ...[
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  child: const Icon(Icons.person, color: Colors.white),
+                ),
+              ],
+            ],
           ),
         );
       },

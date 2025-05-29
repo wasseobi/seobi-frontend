@@ -145,12 +145,26 @@ class Message {
   static const String ROLE_ASSISTANT = 'assistant';
   static const String ROLE_SYSTEM = 'system';
 
+  // 메시지 타입 상수
+  static const String TYPE_NORMAL = 'normal';
+  static const String TYPE_TOOL_CALL = 'tool_call';
+  static const String TYPE_TOOL_RESULT = 'tool_result';
+  static const String TYPE_AI_RESPONSE = 'ai_response';
+
+  // 메시지 상태 상수
+  static const String STATUS_LOADING = 'loading';
+  static const String STATUS_COMPLETE = 'complete';
+  static const String STATUS_ERROR = 'error';
+
   final String id;
   final String sessionId;
   final String userId;
   final String content;
   final String role;
   final DateTime timestamp;
+  final String type; // 추가: 메시지 타입
+  final String status; // 추가: 메시지 상태
+  final Map<String, dynamic>? metadata; // 추가: 메타데이터 (진행 상태 등)
   final List<double>? vector;
 
   Message({
@@ -160,17 +174,23 @@ class Message {
     required this.content,
     required this.role,
     required this.timestamp,
+    this.type = TYPE_NORMAL,
+    this.status = STATUS_COMPLETE,
+    this.metadata,
     this.vector,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
     return Message(
       id: json['id'] as String,
-      sessionId: json['session_id'] as String,
-      userId: json['user_id'] as String,
-      content: json['content'] as String? ?? '',
+      sessionId: json['sessionId'] as String,
+      userId: json['userId'] as String,
+      content: json['content'] as String,
       role: json['role'] as String,
       timestamp: DateTime.parse(json['timestamp'] as String),
+      type: json['type'] as String? ?? TYPE_NORMAL,
+      status: json['status'] as String? ?? STATUS_COMPLETE,
+      metadata: json['metadata'] as Map<String, dynamic>?,
       vector:
           json['vector'] != null
               ? (json['vector'] as List).map((e) => e as double).toList()
@@ -191,6 +211,8 @@ class Message {
       content: content,
       role: ROLE_ASSISTANT,
       timestamp: DateTime.now(),
+      type: TYPE_NORMAL,
+      status: STATUS_COMPLETE,
     );
   }
 
@@ -264,11 +286,14 @@ class Message {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'session_id': sessionId,
-      'user_id': userId,
+      'sessionId': sessionId,
+      'userId': userId,
       'content': content,
       'role': role,
       'timestamp': timestamp.toIso8601String(),
+      'type': type,
+      'status': status,
+      'metadata': metadata,
       'vector': vector,
     };
   }
@@ -280,6 +305,9 @@ class Message {
     String? content,
     String? role,
     DateTime? timestamp,
+    String? type,
+    String? status,
+    Map<String, dynamic>? metadata,
     List<double>? vector,
   }) {
     return Message(
@@ -289,12 +317,15 @@ class Message {
       content: content ?? this.content,
       role: role ?? this.role,
       timestamp: timestamp ?? this.timestamp,
+      type: type ?? this.type,
+      status: status ?? this.status,
+      metadata: metadata ?? this.metadata,
       vector: vector ?? this.vector,
     );
   }
 
   @override
   String toString() {
-    return 'Message(id: $id, sessionId: $sessionId, userId: $userId, content: $content, role: $role, timestamp: $timestamp, vector: $vector)';
+    return 'Message(id: $id, sessionId: $sessionId, userId: $userId, content: $content, role: $role, timestamp: $timestamp, type: $type, status: $status, metadata: $metadata, vector: $vector)';
   }
 }

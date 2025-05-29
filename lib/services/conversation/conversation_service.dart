@@ -4,12 +4,16 @@ import '../../repositories/backend/backend_repository.dart';
 import '../../repositories/backend/models/session.dart';
 import '../../repositories/backend/models/message.dart';
 import '../../services/auth/auth_service.dart';
+import '../tts/tts_service.dart';
+import 'dart:convert';
+import 'dart:math' as math;
 
 class ConversationService {
   static final ConversationService _instance = ConversationService._internal();
 
   final BackendRepository _backendRepository = BackendRepository();
   final AuthService _authService = AuthService();
+  final TtsService _ttsService = TtsService();
 
   factory ConversationService() => _instance;
 
@@ -166,13 +170,18 @@ class ConversationService {
     required String sessionId,
     required String content,
     required void Function(String partialResponse) onProgress,
+    bool enableTts = true,
   }) async {
-    final StringBuffer buffer = StringBuffer();
-    String? finalAnswer;
-
     try {
       final userId = await _getUserIdAndAuthenticate();
-      debugPrint('[ConversationService] AI 응답 스트리밍 시작');
+      debugPrint('[ConversationService] AI 응답 스트리밍 시작: $content');
+
+      // TTS 서비스에 새로운 메시지 대기 상태 설정
+      if (enableTts) {
+        _ttsService.setWaitingForNewMessage();
+      }
+
+      final StringBuffer buffer = StringBuffer();
 
       await for (final chunk in _backendRepository
           .postMessageLanggraphCompletionStream(
@@ -182,20 +191,58 @@ class ConversationService {
           )) {
         try {
           final type = chunk['type'] as String;
+          debugPrint('[ConversationService] 청크 타입: $type');
 
           switch (type) {
+            case 'tool_calls':
+              final toolCalls = chunk['tool_calls'] as List<dynamic>;
+              if (toolCalls.isNotEmpty) {
+                final toolCall = toolCalls[0];
+                final function = toolCall['function'] as Map<String, dynamic>;
+                final toolName = function['name'] as String?;
+
+                if (toolName == 'search_web') {
+                  final message = '검색 도구를 실행합니다...';
+                  onProgress(message);
+                  if (enableTts) {
+                    await _ttsService.handleNewMessage(message);
+                  }
+                }
+              }
+              break;
+
+            case 'toolmessage':
+              final searchContent = chunk['content'] as String;
+              final results = _extractSearchResults(searchContent);
+              if (results != null && results.isNotEmpty) {
+                final message = '검색 결과:\n\n$results\n\nAI가 분석을 시작합니다...';
+                onProgress(message);
+                if (enableTts) {
+                  await _ttsService.handleNewMessage(message);
+                }
+              }
+              break;
+
             case 'chunk':
               final chunkContent = chunk['content'] as String;
               if (chunkContent.isNotEmpty) {
                 buffer.write(chunkContent);
-                onProgress(buffer.toString()); // 누적된 전체 텍스트 전달
-                debugPrint('[ConversationService] 청크 처리: $chunkContent');
+                final currentResponse = buffer.toString();
+                onProgress(currentResponse);
+                if (enableTts && _ttsService.isWaitingForNewMessage()) {
+                  await _ttsService.handleNewMessage(currentResponse);
+                }
               }
               break;
 
             case 'answer':
-              finalAnswer = chunk['answer'] as String;
-              debugPrint('[ConversationService] 전체 응답 수신: $finalAnswer');
+              final answer = chunk['content'] as String;
+              if (answer.isNotEmpty) {
+                onProgress(answer);
+                if (enableTts) {
+                  await _ttsService.handleNewMessage(answer);
+                }
+              }
               break;
 
             case 'end':
@@ -212,10 +259,8 @@ class ConversationService {
         }
       }
 
-      final aiResponse = buffer.toString().trim();
-      debugPrint('[ConversationService] 최종 응답: $aiResponse');
-
-      if (aiResponse.isEmpty && finalAnswer == null) {
+      final response = buffer.toString().trim();
+      if (response.isEmpty) {
         throw Exception('AI 응답이 비어있습니다.');
       }
 
@@ -223,13 +268,50 @@ class ConversationService {
         id: DateTime.now().toIso8601String(),
         sessionId: sessionId,
         userId: 'assistant',
-        content: finalAnswer ?? aiResponse,
+        content: response,
         role: Message.ROLE_ASSISTANT,
         timestamp: DateTime.now(),
       );
     } catch (e) {
       debugPrint('[ConversationService] 스트리밍 오류: $e');
       rethrow;
+    }
+  }
+
+  String? _extractSearchResults(String content) {
+    try {
+      final List<dynamic> results = _parseSearchResults(content);
+      if (results.isEmpty) return null;
+
+      final StringBuffer formatted = StringBuffer();
+      for (var i = 0; i < math.min(2, results.length); i++) {
+        final result = results[i];
+        final title = result['title'] as String;
+        final content = result['content'] as String;
+
+        // 제목과 내용의 길이를 제한하여 표시
+        final truncatedContent =
+            content.length > 200 ? '${content.substring(0, 200)}...' : content;
+
+        formatted.writeln('${i + 1}. $title');
+        formatted.writeln('$truncatedContent\n');
+      }
+
+      return formatted.toString();
+    } catch (e) {
+      debugPrint('[ConversationService] 검색 결과 추출 오류: $e');
+      return null;
+    }
+  }
+
+  List<dynamic> _parseSearchResults(String content) {
+    try {
+      // 문자열을 List<Map>으로 파싱
+      final results = json.decode(content) as List<dynamic>;
+      return results;
+    } catch (e) {
+      debugPrint('[ConversationService] JSON 파싱 오류: $e');
+      return [];
     }
   }
 }

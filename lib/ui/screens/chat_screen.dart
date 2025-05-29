@@ -32,6 +32,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isListening = false;
   bool _isExpanded = false;
   String? _userId;
+  bool _isStreaming = false;
 
   String _displayText = '';
   String _confirmedText = '';
@@ -116,6 +117,33 @@ class _ChatScreenState extends State<ChatScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _updateMessage(String text, {bool shouldScroll = true}) {
+    if (mounted && _messages.isNotEmpty) {
+      setState(() {
+        _messages[_messages.length - 1] = {
+          ..._messages[_messages.length - 1],
+          'text': text,
+        };
+      });
+
+      if (shouldScroll) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+    }
+  }
+
   Future<void> _handleMessageSend() async {
     final content = _displayText.trim();
 
@@ -139,8 +167,13 @@ class _ChatScreenState extends State<ChatScreen> {
       _displayText = '';
       _confirmedText = '';
       _pendingText = '';
+      _isStreaming = true;
     });
     _focusNode.unfocus();
+
+    String bufferedText = '';
+    String pendingTTS = '';
+    bool hasStartedTTS = false;
 
     try {
       // 사용자 메시지 준비
@@ -171,43 +204,66 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages = [..._messages, userMessage, aiMessage];
       });
 
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
+
       // POST /s/{session_id}/send로 메시지 전송 및 스트리밍 응답 처리
-      await _conversationService.sendMessageStream(
+      final response = await _conversationService.sendMessageStream(
         sessionId: _currentSession!.id,
         content: content,
-        onProgress: (partialResponse) {
+        onProgress: (partialResponse) async {
           if (mounted && _messages.isNotEmpty) {
-            setState(() {
-              _messages[_messages.length - 1] = {
-                ..._messages[_messages.length - 1],
-                'text': partialResponse,
-              };
-            });
+            String newText = '';
+            if (partialResponse.length > bufferedText.length) {
+              newText = partialResponse.substring(bufferedText.length);
+              bufferedText = partialResponse;
+              pendingTTS += newText;
+            }
+
+            _updateMessage(partialResponse);
+
+            // TTS 처리 로직
+            if (!hasStartedTTS) {
+              if (isParagraphComplete(pendingTTS)) {
+                String completeParagraph = extractCompleteParagraph(pendingTTS);
+                if (completeParagraph.isNotEmpty) {
+                  hasStartedTTS = true;
+                  setState(() {
+                    _isPlaying = true;
+                  });
+                  await _ttsService.stop();
+                  await _ttsService.addToQueue(completeParagraph);
+                  pendingTTS = pendingTTS.substring(completeParagraph.length);
+                }
+              }
+            } else if (pendingTTS.isNotEmpty) {
+              String completeParagraph = extractCompleteParagraph(pendingTTS);
+              if (completeParagraph.isNotEmpty) {
+                await _ttsService.addToQueue(completeParagraph);
+                pendingTTS = pendingTTS.substring(completeParagraph.length);
+              }
+            }
           }
         },
       );
 
-      // GET /s/{session_id}/m로 최신 메시지 목록 조회
-      final messages = await _conversationService.getSessionMessages(
-        _currentSession!.id,
-        isAIChat: true,
-      );
-
       if (mounted) {
         setState(() {
-          _messages = _convertToUIMessages(messages);
-          // Add timestamp to the last AI message after it's fully printed
-          if (_messages.isNotEmpty && !(_messages.last['isUser'] as bool)) {
-            _messages[_messages.length - 1] = {
-              ..._messages[_messages.length - 1],
-              'timestamp': DateTime.now().toString(),
-            };
-          }
+          _messages[_messages.length - 1] = {
+            ..._messages[_messages.length - 1],
+            'text': response.content,
+            'timestamp': response.timestamp.toString(),
+          };
+          _isStreaming = false;
         });
 
-        // TTS 재생
-        if (_messages.isNotEmpty && !(_messages[0]['isUser'] as bool)) {
-          _ttsService.addToQueue(_messages[0]['text'] as String);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+
+        if (pendingTTS.isNotEmpty) {
+          await _ttsService.addToQueue(pendingTTS);
         }
       }
     } catch (e) {
@@ -215,13 +271,25 @@ class _ChatScreenState extends State<ChatScreen> {
       _showError('메시지 전송 중 오류가 발생했습니다');
       if (mounted && _messages.isNotEmpty) {
         setState(() {
-          _messages.removeAt(0);
+          _messages.removeAt(_messages.length - 1);
+          _isPlaying = false;
+          _isStreaming = false;
         });
       }
     }
   }
 
   Future<void> _handleVoiceListen() async {
+    // TTS가 재생 중이면 먼저 중지
+    if (_isPlaying) {
+      await _ttsService.stop();
+      setState(() {
+        _isPlaying = false;
+      });
+      // TTS가 완전히 중지되도록 잠시 대기
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
     if (_sttService.isListening) {
       await _sttService.stopListening();
       setState(() {
@@ -241,7 +309,13 @@ class _ChatScreenState extends State<ChatScreen> {
         onResult: (text, isFinal) {
           if (mounted) {
             setState(() {
-              _pendingText = text;
+              if (isFinal) {
+                _confirmedText =
+                    _confirmedText.isEmpty ? text : '$_confirmedText $text';
+                _pendingText = '';
+              } else {
+                _pendingText = text;
+              }
               _updateDisplayText();
             });
           }
@@ -282,6 +356,17 @@ class _ChatScreenState extends State<ChatScreen> {
       _isPlaying = !_isPlaying;
     });
 
+    // STT가 활성화되어 있으면 중지
+    if (_isListening) {
+      await _sttService.stopListening();
+      setState(() {
+        _isListening = false;
+        _confirmedText = _displayText;
+        _pendingText = '';
+        _updateDisplayText();
+      });
+    }
+
     if (_isPlaying) {
       await _ttsService.resume();
     } else {
@@ -299,6 +384,31 @@ class _ChatScreenState extends State<ChatScreen> {
         _updateDisplayText();
       });
     }
+  }
+
+  // 문단 완성 여부를 확인하는 함수
+  bool isParagraphComplete(String text) {
+    // 문장 종결 부호들
+    final endMarkers = ['다.', '요.', '죠.', '까?', '니다.', '세요.'];
+    return endMarkers.any((marker) => text.contains(marker));
+  }
+
+  // 문단을 추출하는 함수
+  String extractCompleteParagraph(String text) {
+    final endMarkers = ['다.', '요.', '죠.', '까?', '니다.', '세요.'];
+    int lastIndex = -1;
+
+    for (var marker in endMarkers) {
+      int index = text.lastIndexOf(marker);
+      if (index != -1 && index > lastIndex) {
+        lastIndex = index + marker.length;
+      }
+    }
+
+    if (lastIndex != -1) {
+      return text.substring(0, lastIndex);
+    }
+    return '';
   }
 
   @override
@@ -326,7 +436,11 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          ChatMessageList(messages: _messages),
+          ChatMessageList(
+            messages: _messages,
+            scrollController: _scrollController,
+            isStreaming: _isStreaming,
+          ),
           ChatFloatingBar(
             isExpanded: _isExpanded,
             onToggle: () {
@@ -340,6 +454,9 @@ class _ChatScreenState extends State<ChatScreen> {
               });
             },
             onSend: _handleMessageSend,
+            onVoiceInput: _handleVoiceListen,
+            isListening: _isListening,
+            isPlaying: _isPlaying,
             controller: _messageController,
             focusNode: _focusNode,
           ),

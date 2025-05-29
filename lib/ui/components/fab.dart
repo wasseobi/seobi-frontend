@@ -5,6 +5,9 @@ class ChatFloatingBar extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onCollapse;
   final VoidCallback onSend;
+  final VoidCallback onVoiceInput;
+  final bool isListening;
+  final bool isPlaying;
   final TextEditingController controller;
   final FocusNode focusNode;
 
@@ -14,6 +17,9 @@ class ChatFloatingBar extends StatelessWidget {
     required this.onToggle,
     required this.onCollapse,
     required this.onSend,
+    required this.onVoiceInput,
+    required this.isListening,
+    required this.isPlaying,
     required this.controller,
     required this.focusNode,
   });
@@ -124,15 +130,19 @@ class ChatFloatingBar extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildActionButton(
-                        icon: Icons.keyboard_voice,
-                        color: const Color(0xFFFF7A33),
-                        iconColor: Colors.white,
+                        icon: isListening ? Icons.mic : Icons.keyboard_voice,
+                        color:
+                            isListening
+                                ? const Color(0xFFFF7A33)
+                                : const Color(0xFFF6F6F6),
+                        iconColor: isListening ? Colors.white : Colors.black,
+                        onTap: onVoiceInput,
                       ),
                       const SizedBox(width: 8),
                       _buildActionButton(
                         icon: Icons.send,
                         color: const Color(0xFFF6F6F6),
-                        onTap: onSend,
+                        onTap: controller.text.trim().isEmpty ? null : onSend,
                       ),
                     ],
                   ),
