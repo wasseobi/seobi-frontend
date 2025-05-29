@@ -13,7 +13,7 @@ class ChatMessageList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: 80, top: 16),
       itemCount: messages.length,
-      reverse: true,
+      reverse: false,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final msg = messages[index];

@@ -162,13 +162,13 @@ class _ChatScreenState extends State<ChatScreen> {
         'user_id': _userId!,
         'text': '',
         'isUser': false,
-        'timestamp': DateTime.now().toString(),
+        'timestamp': '',
         'type': 'text',
         'role': Message.ROLE_ASSISTANT,
       };
 
       setState(() {
-        _messages = [aiMessage, userMessage, ..._messages];
+        _messages = [..._messages, userMessage, aiMessage];
       });
 
       // POST /s/{session_id}/send로 메시지 전송 및 스트리밍 응답 처리
@@ -178,7 +178,10 @@ class _ChatScreenState extends State<ChatScreen> {
         onProgress: (partialResponse) {
           if (mounted && _messages.isNotEmpty) {
             setState(() {
-              _messages[0] = {..._messages[0], 'text': partialResponse};
+              _messages[_messages.length - 1] = {
+                ..._messages[_messages.length - 1],
+                'text': partialResponse,
+              };
             });
           }
         },
@@ -193,6 +196,13 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) {
         setState(() {
           _messages = _convertToUIMessages(messages);
+          // Add timestamp to the last AI message after it's fully printed
+          if (_messages.isNotEmpty && !(_messages.last['isUser'] as bool)) {
+            _messages[_messages.length - 1] = {
+              ..._messages[_messages.length - 1],
+              'timestamp': DateTime.now().toString(),
+            };
+          }
         });
 
         // TTS 재생

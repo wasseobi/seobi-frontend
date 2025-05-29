@@ -59,7 +59,7 @@ class AssistantMessage extends StatelessWidget {
                 ),
               ),
             ),
-          if (timestamp != null)
+          if (timestamp != null && timestamp!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
