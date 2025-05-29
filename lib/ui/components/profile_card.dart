@@ -1,22 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:seobi_app/services/auth/auth_service.dart';
+import 'text_placeholder.dart';
+import 'role_badge.dart';
 
-class ProfileCard extends StatelessWidget {
-  final String name;
-  final String email;
-  final String role;
-  final String? profileImageUrl;
-  final Color roleBackgroundColor;
+class ProfileCard extends StatefulWidget {
+  final Color? roleBackgroundColor;
   final VoidCallback? onProfileTap;
 
   const ProfileCard({
     super.key,
-    required this.name,
-    required this.email,
-    required this.role,
-    this.profileImageUrl,
     this.roleBackgroundColor = const Color(0xFFFF7A33),
     this.onProfileTap,
   });
+
+  @override
+  State<ProfileCard> createState() => _ProfileCardState();
+}
+
+class _ProfileCardState extends State<ProfileCard> {
+  final AuthService _authService = AuthService();
+  String? _name;
+  String? _email;
+  String? _profileImageUrl;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _authService.addListener(_loadUserData);
+  }
+
+  @override
+  void dispose() {
+    _authService.removeListener(_loadUserData);
+    super.dispose();
+  }
+
+  void _loadUserData() {
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = _authService.isLoggedIn;
+        _name = _authService.displayName;
+        _email = _authService.userEmail;
+        _profileImageUrl = _authService.photoUrl;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -44,53 +75,45 @@ class ProfileCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          name,
-          style: const TextStyle(
-            color: Color(0xFF4F4F4F),
-            fontSize: 20,
-            fontFamily: 'Pretendard',
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.10,
-          ),
-        ),
+        _isLoggedIn && _name != null && _name!.isNotEmpty
+            ? Text(
+              _name!,
+              style: const TextStyle(
+                color: Color(0xFF4F4F4F),
+                fontSize: 20,
+                fontFamily: 'Pretendard',
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.10,
+              ),
+            )
+            : const TextPlaceholder(fontSize: 20, characterCount: 6),
         const SizedBox(height: 1),
-        Text(
-          email,
-          style: const TextStyle(
-            color: Color(0xFF4F4F4F),
-            fontSize: 12,
-            fontFamily: 'Pretendard',
-            fontWeight: FontWeight.w500,
-            letterSpacing: -0.06,
-          ),
-        ),
+        _isLoggedIn && _email != null && _email!.isNotEmpty
+            ? Text(
+              _email!,
+              style: const TextStyle(
+                color: Color(0xFF4F4F4F),
+                fontSize: 12,
+                fontFamily: 'Pretendard',
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.06,
+              ),
+            )
+            : const TextPlaceholder(fontSize: 12, characterCount: 15),
       ],
     );
   }
 
   Widget _buildRoleTag() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: ShapeDecoration(
-        color: roleBackgroundColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-      ),
-      child: Text(
-        role,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontFamily: 'Pretendard',
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.06,
-        ),
-      ),
-    );
+    if (!_isLoggedIn) {
+      return const SizedBox.shrink();
+    }
+    return RoleBadge(role: '일반', backgroundColor: widget.roleBackgroundColor);
   }
+
   Widget _buildProfileIcon() {
     return GestureDetector(
-      onTap: onProfileTap,
+      onTap: widget.onProfileTap,
       child: Container(
         width: 55,
         height: 55,
@@ -98,20 +121,24 @@ class ProfileCard extends StatelessWidget {
           shape: BoxShape.circle,
           color: Colors.grey[200],
         ),
-        child: profileImageUrl != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(27.5),
-                child: Image.network(
-                  profileImageUrl!,
-                  width: 55,
-                  height: 55,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.person_outline, color: Colors.grey);
-                  },
-                ),
-              )
-            : const Icon(Icons.person_outline, color: Colors.grey),
+        child:
+            _isLoggedIn && _profileImageUrl != null
+                ? ClipRRect(
+                  borderRadius: BorderRadius.circular(27.5),
+                  child: Image.network(
+                    _profileImageUrl!,
+                    width: 55,
+                    height: 55,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.person_outline,
+                        color: Colors.grey,
+                      );
+                    },
+                  ),
+                )
+                : const Icon(Icons.person_outline, color: Colors.grey),
       ),
     );
   }

@@ -1,13 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:seobi_app/services/auth/auth_service.dart';
 import 'google_sign_in_button.dart';
 
-class SignInBottomSheet extends StatelessWidget {
-  final VoidCallback onGoogleSignIn;
-
+class SignInBottomSheet extends StatefulWidget {
   const SignInBottomSheet({
     super.key,
-    required this.onGoogleSignIn,
   });
+
+  @override
+  State<SignInBottomSheet> createState() => _SignInBottomSheetState();
+}
+
+class _SignInBottomSheetState extends State<SignInBottomSheet> {
+  final AuthService _authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _authService.addListener(_onAuthStateChanged);
+  }
+
+  @override
+  void dispose() {
+    _authService.removeListener(_onAuthStateChanged);
+    super.dispose();
+  }
+
+  void _onAuthStateChanged() {
+    if (_authService.isLoggedIn && mounted) {
+      // 로그인 성공 시 바텀 시트 닫기
+      Navigator.of(context).pop();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +92,7 @@ class SignInBottomSheet extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    GoogleSignInButton(onPressed: onGoogleSignIn),
+                    GoogleSignInButton(),
                   ],
                 ),
               ),
