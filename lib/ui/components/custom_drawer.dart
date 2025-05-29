@@ -28,16 +28,18 @@ class _CustomDrawerState extends State<CustomDrawer> {
     _authService.removeListener(_loadAuthState);
     super.dispose();
   }
+
   void _loadAuthState() async {
     // 스토리지 업데이트가 완료될 때까지 잠시 대기
     await Future.delayed(const Duration(milliseconds: 50));
-    
+
     if (mounted) {
       setState(() {
         _isLoggedIn = _authService.isLoggedIn;
       });
     }
   }
+
   Future<void> _handleSignIn() async {
     // 바텀 시트 열기
     showModalBottomSheet(
@@ -71,8 +73,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
           children: [
             // 상단 여백을 위한 Spacer
             const Expanded(child: SizedBox()),
+            // 구분선
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 33, vertical: 13),
+              child: Divider(height: 1, thickness: 1, color: AppColors.main80),
+            ),
             // 최하단 프로필 카드
             _buildBottomProfile(),
+            // 하단 여백을 위한 Spacer
+            SizedBox(height: 10),
           ],
         ),
       ),
