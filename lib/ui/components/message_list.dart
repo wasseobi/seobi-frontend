@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'message_user.dart';
 import 'message_ai.dart';
+import '../constants/dimensions/message_dimensions.dart';
 
 class ChatMessageList extends StatelessWidget {
   final List<Map<String, dynamic>> messages; // 나중에 map에서 모델로 변경 예정
@@ -17,16 +18,28 @@ class ChatMessageList extends StatelessWidget {
       itemBuilder: (context, index) {
         final msg = messages[index];
         final isUser = msg['isUser'] as bool;
-        final text = msg['text'] as String;
 
         final messageWidget =
             isUser
                 ? UserMessage(
                   key: ValueKey('user_$index'),
-                  message: text,
+                  message: msg['text'],
                   isSentByUser: true,
                 )
-                : AssistantMessage(key: ValueKey('ai_$index'), message: text);
+                : Padding(
+                  padding:
+                      msg['type'] == 'card' || msg['actions'] != null
+                          ? EdgeInsets.only(left: MessageDimensions.padding)
+                          : EdgeInsets.zero,
+                  child: AssistantMessage(
+                    key: ValueKey('ai_$index'),
+                    message: msg['text'],
+                    type: msg['type'], // 'text', 'action', 'card'
+                    actions: msg['actions'], // optional
+                    card: msg['card'], // optional
+                    timestamp: msg['timestamp'], // optional
+                  ),
+                );
 
         return Align(
           alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
