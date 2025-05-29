@@ -1,62 +1,57 @@
 import 'package:flutter/material.dart';
+import '../../repositories/backend/models/message.dart';
 import 'message_user.dart';
 import 'message_ai.dart';
-import '../constants/dimensions/message_dimensions.dart';
 
 class ChatMessageList extends StatelessWidget {
-  final List<Map<String, dynamic>> messages; // 나중에 map에서 모델로 변경 예정
+  final List<Message> messages;
 
   const ChatMessageList({super.key, required this.messages});
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 80, top: 16),
-      itemCount: messages.length,
+    return ListView.builder(
       reverse: true,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: messages.length,
       itemBuilder: (context, index) {
-        final msg = messages[index];
-        final isUser = msg['isUser'] as bool;
-
-        final messageWidget =
-            isUser
-                ? UserMessage(
-                  key: ValueKey('user_$index'),
-                  message: msg['text'],
-                  isSentByUser: true,
-                )
-                : Padding(
-                  padding:
-                      msg['type'] == 'card' || msg['actions'] != null
-                          ? EdgeInsets.only(left: MessageDimensions.padding)
-                          : EdgeInsets.zero,
-                  child: AssistantMessage(
-                    key: ValueKey('ai_$index'),
-                    message: msg['text'],
-                    type: msg['type'], // 'text', 'action', 'card'
-                    actions: msg['actions'], // optional
-                    card: msg['card'], // optional
-                    timestamp: msg['timestamp'], // optional
-                  ),
-                );
-
-        return Align(
-          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder:
-                (child, animation) => SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.1),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                ),
-            child: messageWidget,
-          ),
-        );
+        final message = messages[index];
+        return _buildMessageWidget(context, message);
       },
     );
+  }
+
+  Widget _buildMessageWidget(BuildContext context, Message message) {
+    final isUser = message.role == Message.ROLE_USER;
+
+    if (isUser) {
+      return UserMessage(message: message.content, isSentByUser: true);
+    } else {
+      // Parse message content for special types
+      Map<String, dynamic>? parsedContent;
+      try {
+        if (message.content.startsWith('{')) {
+          parsedContent = Map<String, dynamic>.from(message.content as Map);
+        } else {
+          parsedContent = {'text': message.content};
+        }
+      } catch (e) {
+        parsedContent = {'text': message.content};
+      }
+
+      return AssistantMessage(
+        message: parsedContent['text'] ?? message.content,
+        type: parsedContent['type'] ?? 'text',
+        actions:
+            parsedContent['actions'] != null
+                ? List<Map<String, String>>.from(parsedContent['actions'])
+                : null,
+        card:
+            parsedContent['card'] != null
+                ? Map<String, String>.from(parsedContent['card'])
+                : null,
+        timestamp: parsedContent['timestamp'],
+      );
+    }
   }
 }

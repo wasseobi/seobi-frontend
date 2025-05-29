@@ -5,8 +5,10 @@ class ChatFloatingBar extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onCollapse;
   final VoidCallback onSend;
+  final VoidCallback onVoiceTap;
   final TextEditingController controller;
   final FocusNode focusNode;
+  final bool isListening;
 
   const ChatFloatingBar({
     super.key,
@@ -14,8 +16,10 @@ class ChatFloatingBar extends StatelessWidget {
     required this.onToggle,
     required this.onCollapse,
     required this.onSend,
+    required this.onVoiceTap,
     required this.controller,
     required this.focusNode,
+    this.isListening = false,
   });
 
   @override
@@ -80,15 +84,19 @@ class ChatFloatingBar extends StatelessWidget {
           bottom: 13,
         ),
         child: SingleChildScrollView(
-          // ✅ 추가된 부분
           child: Column(
-            mainAxisSize: MainAxisSize.min, // ✅ 꼭 같이 설정
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 controller: controller,
                 focusNode: focusNode,
                 maxLines: 2,
+                onSubmitted: (_) {
+                  if (controller.text.trim().isNotEmpty) {
+                    onSend();
+                  }
+                },
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
@@ -108,7 +116,7 @@ class ChatFloatingBar extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              const SizedBox(height: 12), // Spacer 대신 사용
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -119,15 +127,21 @@ class ChatFloatingBar extends StatelessWidget {
                   Row(
                     children: [
                       _buildCircleButton(
-                        icon: Icons.keyboard_voice,
-                        color: const Color(0xFFFF7A33),
+                        icon: isListening ? Icons.stop : Icons.keyboard_voice,
+                        color:
+                            isListening ? Colors.red : const Color(0xFFFF7A33),
                         iconColor: Colors.white,
+                        onTap: onVoiceTap,
                       ),
                       const SizedBox(width: 10),
                       _buildCircleButton(
                         icon: Icons.send,
                         color: const Color(0xFFF6F6F6),
-                        onTap: onSend,
+                        onTap: () {
+                          if (controller.text.trim().isNotEmpty) {
+                            onSend();
+                          }
+                        },
                       ),
                     ],
                   ),

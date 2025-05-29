@@ -35,12 +35,21 @@ class ConversationService {
   Future<Session> createSession({bool isAIChat = false}) async {
     try {
       final userId = await _getUserIdAndAuthenticate();
+      debugPrint('[ConversationService] Creating session with userId: $userId');
+      debugPrint(
+        '[ConversationService] Using backend URL: ${_backendRepository.baseUrl}',
+      );
+
       final session = await _backendRepository.postSession(userId);
       session.isAiChat = isAIChat;
       debugPrint('새 ${isAIChat ? 'AI 채팅' : ''} 세션이 생성되었습니다: ${session.id}');
       return session;
     } catch (e) {
       debugPrint('세션 생성 오류: $e');
+      if (e.toString().contains('Failed host lookup') ||
+          e.toString().contains('SocketException')) {
+        throw Exception('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+      }
       rethrow;
     }
   }

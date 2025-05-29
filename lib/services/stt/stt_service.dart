@@ -43,4 +43,8 @@ class STTService {
   }
 
   bool get isListening => _speech.isListening;
+
+  void dispose() {
+    stopListening();
+  }
 }

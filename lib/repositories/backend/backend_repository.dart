@@ -39,6 +39,7 @@ class BackendRepository implements IBackendRepository {
           fallback: 'http://127.0.0.1:5000',
         );
       } else {
+        // Android 에뮬레이터에서는 10.0.2.2를 사용
         return dotenv.get(
           'LOCAL_BACKEND_URL_ANDROID',
           fallback: 'http://10.0.2.2:5000',

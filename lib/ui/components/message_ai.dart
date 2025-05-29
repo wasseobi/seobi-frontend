@@ -22,40 +22,42 @@ class AssistantMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(left: 0, right: 50),
+      padding: const EdgeInsets.only(left: 0, right: 50),
       constraints: const BoxConstraints(maxWidth: 320),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMessageBubble(),
-          SizedBox(height: MessageDimensions.spacing * 2.5),
           if ((type == 'card' && card != null) ||
               (actions != null && actions!.isNotEmpty))
-            Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(color: AppColors.gray100, width: 1),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: AppColors.gray100, width: 1),
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(left: MessageDimensions.padding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (type == 'card' && card != null)
-                      ScheduleCard(
-                        title: card!['title'] ?? '',
-                        time: card!['time'] ?? '',
-                        location: card!['location'] ?? '',
-                      ), // ✅ 카드 위젯 대체
-                    if (actions != null && actions!.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: MessageDimensions.spacing * 1.5,
+                child: Padding(
+                  padding: EdgeInsets.only(left: MessageDimensions.padding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (type == 'card' && card != null)
+                        ScheduleCard(
+                          title: card!['title'] ?? '',
+                          time: card!['time'] ?? '',
+                          location: card!['location'] ?? '',
                         ),
-                        child: _buildActions(),
-                      ),
-                  ],
+                      if (actions != null && actions!.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: MessageDimensions.spacing * 1.5,
+                          ),
+                          child: _buildActions(),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -77,14 +79,18 @@ class AssistantMessage extends StatelessWidget {
   }
 
   Widget _buildMessageBubble() {
-    return Align(
-      alignment: Alignment.centerLeft,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Text(
         message,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: AppColors.gray100,
+          color: Colors.black87,
         ),
       ),
     );
@@ -102,14 +108,14 @@ class AssistantMessage extends StatelessWidget {
                     children: [
                       Text(
                         action['icon'] ?? '',
-                        style: TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 12),
                       ),
                       SizedBox(width: MessageDimensions.spacing),
                       Text(
                         action['text'] ?? '',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: AppColors.gray100,
+                          color: Colors.black87,
                         ),
                       ),
                     ],
