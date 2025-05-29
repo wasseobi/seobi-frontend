@@ -32,14 +32,29 @@ class ChatFloatingBar extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 32),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final double maxAvailableWidth = constraints.maxWidth;
-            final double expandedWidth =
-                maxAvailableWidth.clamp(300, 600).toDouble();
+            // 화면 크기에 따른 동적 계산
+            final screenWidth = MediaQuery.of(context).size.width;
+            final screenHeight = MediaQuery.of(context).size.height;
+            final double maxWidth = screenWidth * 0.9; // 화면의 90%
+            final double minWidth = 56.0;
+            final double maxExpandedWidth = 600.0;
+
+            // 실제 사용할 너비 계산
+            final double expandedWidth = maxWidth.clamp(
+              300.0,
+              maxExpandedWidth,
+            );
+            final double buttonSize =
+                (expandedWidth - 32 - 16) / 6; // 패딩과 간격 고려
+            final double maxHeight = screenHeight * 0.4; // 화면 높이의 40%까지 허용
 
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              width: isExpanded ? expandedWidth : 56,
-              height: isExpanded ? 205 : 56,
+              width: isExpanded ? expandedWidth : minWidth,
+              constraints: BoxConstraints(
+                minHeight: minWidth,
+                maxHeight: isExpanded ? maxHeight : minWidth,
+              ),
               decoration: ShapeDecoration(
                 color: Colors.white,
                 shape: RoundedRectangleBorder(
@@ -54,7 +69,11 @@ class ChatFloatingBar extends StatelessWidget {
               ),
               child:
                   isExpanded
-                      ? _buildExpandedContent()
+                      ? _buildExpandedContent(
+                        expandedWidth,
+                        buttonSize,
+                        maxHeight,
+                      )
                       : _buildCollapsedButton(),
             );
           },
@@ -80,7 +99,11 @@ class ChatFloatingBar extends StatelessWidget {
     );
   }
 
-  Widget _buildExpandedContent() {
+  Widget _buildExpandedContent(
+    double expandedWidth,
+    double buttonSize,
+    double maxHeight,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -95,58 +118,86 @@ class ChatFloatingBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                controller: controller,
-                focusNode: focusNode,
-                maxLines: 2,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF7D7D7D),
-                  letterSpacing: -0.1,
-                ),
-                decoration: const InputDecoration(
-                  hintText: '질문을 입력하거나, 일정을 등록하거나 Seobi 에게 업무를 시켜 보세요.',
-                  hintStyle: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF7D7D7D),
-                    letterSpacing: -0.1,
+              Flexible(
+                child: SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: expandedWidth - 32,
+                      maxHeight: maxHeight - 100, // 버튼 영역과 패딩을 고려한 높이
+                    ),
+                    child: TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF7D7D7D),
+                        letterSpacing: -0.1,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: '질문을 입력하거나, 일정을 등록하거나 Seobi 에게 업무를 시켜 보세요.',
+                        hintStyle: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF7D7D7D),
+                          letterSpacing: -0.1,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
                   ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildActionButton(
-                    icon: Icons.attach_file,
-                    color: const Color(0xFFF6F6F6),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildActionButton(
-                        icon: isListening ? Icons.mic : Icons.keyboard_voice,
-                        color:
-                            isListening
-                                ? const Color(0xFFFF7A33)
-                                : const Color(0xFFF6F6F6),
-                        iconColor: isListening ? Colors.white : Colors.black,
-                        onTap: onVoiceInput,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildActionButton(
-                        icon: Icons.send,
+              SizedBox(
+                width: expandedWidth - 32,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    SizedBox(
+                      width: buttonSize,
+                      height: buttonSize,
+                      child: _buildActionButton(
+                        icon: Icons.attach_file,
                         color: const Color(0xFFF6F6F6),
-                        onTap: controller.text.trim().isEmpty ? null : onSend,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: buttonSize,
+                          height: buttonSize,
+                          child: _buildActionButton(
+                            icon:
+                                isListening ? Icons.mic : Icons.keyboard_voice,
+                            color:
+                                isListening
+                                    ? const Color(0xFFFF7A33)
+                                    : const Color(0xFFF6F6F6),
+                            iconColor:
+                                isListening ? Colors.white : Colors.black,
+                            onTap: onVoiceInput,
+                          ),
+                        ),
+                        SizedBox(width: buttonSize / 4),
+                        SizedBox(
+                          width: buttonSize,
+                          height: buttonSize,
+                          child: _buildActionButton(
+                            icon: Icons.send,
+                            color: const Color(0xFFF6F6F6),
+                            onTap:
+                                controller.text.trim().isEmpty ? null : onSend,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
