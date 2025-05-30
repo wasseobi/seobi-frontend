@@ -41,7 +41,6 @@ class ConversationService {
       final userId = await _getUserIdAndAuthenticate();
       final session = await _backendRepository.postSession(userId);
       session.isAiChat = isAIChat;
-      debugPrint('새 ${isAIChat ? 'AI 채팅' : ''} 세션이 생성되었습니다: ${session.id}');
       return session;
     } catch (e) {
       debugPrint('세션 생성 오류: $e');
@@ -78,7 +77,6 @@ class ConversationService {
 
       // AI 응답 생성 및 저장
       final StringBuffer buffer = StringBuffer();
-      debugPrint('[ConversationService] AI 응답 스트리밍 시작');
 
       await for (final chunk in _backendRepository
           .postMessageLanggraphCompletionStream(
@@ -89,13 +87,10 @@ class ConversationService {
         final chunkContent = Message.getContentFromChunk(chunk);
         if (chunkContent != null) {
           buffer.write(chunkContent);
-          debugPrint('[ConversationService] 청크 수신: $chunkContent');
         }
       }
 
       final aiResponse = buffer.toString().trim();
-      debugPrint('[ConversationService] AI 응답 완료: $aiResponse');
-
       if (aiResponse.isEmpty) {
         throw Exception('AI 응답이 비어있습니다.');
       }
@@ -110,7 +105,7 @@ class ConversationService {
         timestamp: DateTime.now(),
       );
     } catch (e) {
-      debugPrint('[ConversationService] 메시지 전송 오류: $e');
+      debugPrint('메시지 전송 오류: $e');
       rethrow;
     }
   }
@@ -124,11 +119,10 @@ class ConversationService {
       await _getUserIdAndAuthenticate();
       return await _backendRepository.getMessagesBySessionId(sessionId);
     } catch (e) {
-      debugPrint('세션 메시지 조회 오류: $e');
-      // 404 에러인 경우 빈 메시지 배열 반환
       if (e.toString().contains('404')) {
         return [];
       }
+      debugPrint('세션 메시지 조회 오류: $e');
       rethrow;
     }
   }
@@ -139,10 +133,7 @@ class ConversationService {
   Future<Session> endSession(String sessionId) async {
     try {
       await _getUserIdAndAuthenticate();
-      final session = await _backendRepository.postSessionFinish(sessionId);
-
-      debugPrint('세션이 종료되었습니다: $sessionId');
-      return session;
+      return await _backendRepository.postSessionFinish(sessionId);
     } catch (e) {
       debugPrint('세션 종료 오류: $e');
       rethrow;
@@ -153,7 +144,6 @@ class ConversationService {
   Future<List<Session>> getUserSessions() async {
     try {
       final userId = await _getUserIdAndAuthenticate();
-
       return await _backendRepository.getSessionsByUserId(userId);
     } catch (e) {
       debugPrint('사용자 세션 조회 오류: $e');
@@ -174,14 +164,11 @@ class ConversationService {
   }) async {
     try {
       final userId = await _getUserIdAndAuthenticate();
-      debugPrint('[ConversationService] AI 응답 스트리밍 시작: $content');
-
-      // TTS 서비스에 새로운 메시지 대기 상태 설정
-      if (enableTts) {
-        _ttsService.setWaitingForNewMessage();
-      }
 
       final StringBuffer buffer = StringBuffer();
+      String accumulatedArguments = '';
+      bool toolCallsInProgress = false;
+      bool searchExecuted = false;
 
       await for (final chunk in _backendRepository
           .postMessageLanggraphCompletionStream(
@@ -191,7 +178,6 @@ class ConversationService {
           )) {
         try {
           final type = chunk['type'] as String;
-          debugPrint('[ConversationService] 청크 타입: $type');
 
           switch (type) {
             case 'tool_calls':
@@ -200,12 +186,43 @@ class ConversationService {
                 final toolCall = toolCalls[0];
                 final function = toolCall['function'] as Map<String, dynamic>;
                 final toolName = function['name'] as String?;
+                final arguments = function['arguments'] as String?;
 
                 if (toolName == 'search_web') {
-                  final message = '검색 도구를 실행합니다...';
-                  onProgress(message);
-                  if (enableTts) {
-                    await _ttsService.handleNewMessage(message);
+                  searchExecuted = true;
+                }
+
+                if (arguments != null) {
+                  accumulatedArguments += arguments;
+                }
+
+                if (toolName != null && !toolCallsInProgress) {
+                  if (toolName == 'search_web') {
+                    String message = '🔍 웹 검색을 시작합니다';
+                    onProgress(message);
+                    toolCallsInProgress = true;
+                  } else {
+                    final message = '🛠️ $toolName 도구를 실행 중...';
+                    onProgress(message);
+                    toolCallsInProgress = true;
+                  }
+                }
+
+                if (toolCallsInProgress &&
+                    toolName == 'search_web' &&
+                    accumulatedArguments.isNotEmpty &&
+                    _isValidJson(accumulatedArguments)) {
+                  try {
+                    final argMap =
+                        json.decode(accumulatedArguments)
+                            as Map<String, dynamic>;
+                    final query = argMap['query'] as String?;
+                    if (query != null && query.isNotEmpty) {
+                      final message = '🔍 "$query" 검색 중...';
+                      onProgress(message);
+                    }
+                  } catch (e) {
+                    debugPrint('arguments 파싱 오류: $e');
                   }
                 }
               }
@@ -213,24 +230,55 @@ class ConversationService {
 
             case 'toolmessage':
               final searchContent = chunk['content'] as String;
-              final results = _extractSearchResults(searchContent);
-              if (results != null && results.isNotEmpty) {
-                final message = '검색 결과:\n\n$results\n\nAI가 분석을 시작합니다...';
-                onProgress(message);
-                if (enableTts) {
-                  await _ttsService.handleNewMessage(message);
+              toolCallsInProgress = false;
+              accumulatedArguments = '';
+
+              if (searchContent.isNotEmpty) {
+                final results = _extractSearchResults(searchContent);
+                if (results != null && results.isNotEmpty) {
+                  final resultCount =
+                      results
+                          .split('\n')
+                          .where((line) => line.trim().isNotEmpty)
+                          .length;
+                  final message =
+                      '✅ $resultCount개의 검색 결과를 찾았습니다.\n\n서비가 답변을 준비 중...';
+                  onProgress(message);
+                } else {
+                  if (searchContent.length > 50) {
+                    final message = '✅ 검색 결과를 찾았습니다.\n\n서비가 답변을 준비 중...';
+                    onProgress(message);
+                  } else {
+                    final message = '⚠️ 검색 결과를 처리하고 있습니다...';
+                    onProgress(message);
+                  }
                 }
+              } else {
+                final message = '⚠️ 검색을 다시 시도하고 있습니다...';
+                onProgress(message);
               }
               break;
 
             case 'chunk':
               final chunkContent = chunk['content'] as String;
               if (chunkContent.isNotEmpty) {
+                // 원본 텍스트는 표시용으로 사용
                 buffer.write(chunkContent);
                 final currentResponse = buffer.toString();
                 onProgress(currentResponse);
-                if (enableTts && _ttsService.isWaitingForNewMessage()) {
-                  await _ttsService.handleNewMessage(currentResponse);
+
+                if (enableTts) {
+                  // 첫 번째 실제 콘텐츠 청크에서 인터럽트 해제
+                  if (_ttsService.isInterrupted &&
+                      chunkContent.trim().isNotEmpty) {
+                    debugPrint(
+                      '[ConversationService] 첫 번째 콘텐츠 청크 - TTS 인터럽트 해제',
+                    );
+                    await _ttsService.resumeAfterInterrupt();
+                  }
+
+                  // 스트리밍 텍스트 처리 (원본 텍스트 사용, 정리는 TTS에서 처리)
+                  await _ttsService.addStreamingText(chunkContent);
                 }
               }
               break;
@@ -244,19 +292,16 @@ class ConversationService {
                 }
               }
               break;
-
-            case 'end':
-              debugPrint('[ConversationService] 스트리밍 종료');
-              break;
-
-            default:
-              debugPrint('[ConversationService] 알 수 없는 청크 타입: $type');
-              break;
           }
         } catch (e) {
-          debugPrint('[ConversationService] 청크 처리 오류: $e');
+          debugPrint('청크 처리 오류: $e');
           continue;
         }
+      }
+
+      // 스트리밍 완료 후 TTS 버퍼 정리
+      if (enableTts) {
+        await _ttsService.flushStreamBuffer();
       }
 
       final response = buffer.toString().trim();
@@ -273,7 +318,17 @@ class ConversationService {
         timestamp: DateTime.now(),
       );
     } catch (e) {
-      debugPrint('[ConversationService] 스트리밍 오류: $e');
+      debugPrint('스트리밍 오류: $e');
+
+      // 오류 발생 시에도 TTS 버퍼 정리
+      if (enableTts) {
+        try {
+          await _ttsService.flushStreamBuffer();
+        } catch (ttsError) {
+          debugPrint('TTS 버퍼 정리 오류: $ttsError');
+        }
+      }
+
       rethrow;
     }
   }
@@ -289,7 +344,6 @@ class ConversationService {
         final title = result['title'] as String;
         final content = result['content'] as String;
 
-        // 제목과 내용의 길이를 제한하여 표시
         final truncatedContent =
             content.length > 200 ? '${content.substring(0, 200)}...' : content;
 
@@ -299,19 +353,56 @@ class ConversationService {
 
       return formatted.toString();
     } catch (e) {
-      debugPrint('[ConversationService] 검색 결과 추출 오류: $e');
+      debugPrint('검색 결과 추출 오류: $e');
       return null;
     }
   }
 
   List<dynamic> _parseSearchResults(String content) {
     try {
-      // 문자열을 List<Map>으로 파싱
-      final results = json.decode(content) as List<dynamic>;
+      try {
+        final results = json.decode(content) as List<dynamic>;
+        return results;
+      } catch (e) {
+        // 표준 JSON 파싱 실패 시 Python 형태 파싱 시도
+      }
+
+      String jsonContent = content.trim();
+      jsonContent = _cleanUnicodeEscapes(jsonContent);
+      jsonContent = _convertPythonToJson(jsonContent);
+
+      final results = json.decode(jsonContent) as List<dynamic>;
       return results;
     } catch (e) {
-      debugPrint('[ConversationService] JSON 파싱 오류: $e');
+      debugPrint('검색 결과 파싱 오류: $e');
       return [];
+    }
+  }
+
+  String _cleanUnicodeEscapes(String content) {
+    content = content.replaceAll(r'\xa0', ' ');
+    content = content.replaceAll(r'\x20', ' ');
+    content = content.replaceAll(r'\x09', '\t');
+    content = content.replaceAll(r'\x0a', '\n');
+    content = content.replaceAll(r'\x0d', '\r');
+    return content;
+  }
+
+  String _convertPythonToJson(String content) {
+    content = content
+        .replaceAll("'", '"')
+        .replaceAll('True', 'true')
+        .replaceAll('False', 'false')
+        .replaceAll('None', 'null');
+    return content;
+  }
+
+  bool _isValidJson(String content) {
+    try {
+      json.decode(content);
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 }

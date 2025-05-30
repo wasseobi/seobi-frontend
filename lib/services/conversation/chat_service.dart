@@ -83,8 +83,12 @@ class ChatService {
     }
 
     try {
-      // TTS 중지
-      await _ttsService.stop();
+      // TTS 완전 중지 (메시지 전송 시)
+      debugPrint('[ChatService] 메시지 전송 시작 - TTS 인터럽트 실행');
+      await _ttsService.interrupt();
+
+      // 잠시 기다려서 TTS가 완전히 정지되도록 함
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // 사용자 메시지 생성
       final userMessage = Message(
@@ -123,8 +127,8 @@ class ChatService {
             final updatedAiMessage = aiMessage.copyWith(content: bufferedText);
             _onMessageReceived?.call(updatedAiMessage);
 
-            // 새로운 텍스트를 TTS 스트리밍 버퍼에 추가
-            await _ttsService.addStreamingText(newText);
+            // TTS는 conversation_service에서 적절한 메시지만 처리하도록 함
+            // await _ttsService.addStreamingText(newText);
           }
         },
       );
@@ -148,12 +152,16 @@ class ChatService {
     required Function(String text, bool isFinal) onResult,
     VoidCallback? onSpeechComplete,
   }) async {
-    // TTS 중지
-    await _ttsService.stop();
-
     if (_sttService.isListening) {
       await _sttService.stopListening();
     } else {
+      // STT 시작 시 TTS 완전 중지 및 인터럽트
+      debugPrint('[ChatService] STT 시작 - TTS 인터럽트 실행');
+      await _ttsService.interrupt();
+
+      // 잠시 기다려서 TTS가 완전히 정지되도록 함
+      await Future.delayed(const Duration(milliseconds: 100));
+
       await _sttService.startListening(
         onResult: onResult,
         onSpeechComplete: onSpeechComplete,

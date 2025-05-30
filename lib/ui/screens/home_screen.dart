@@ -7,6 +7,7 @@ import '../../services/conversation/chat_service.dart';
 import '../components/fab.dart';
 import '../../repositories/backend/models/message.dart';
 import 'chat_screen.dart';
+import '../constants/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -161,52 +162,73 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         key: _scaffoldKey,
         drawer: const CustomDrawer(),
-        body: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  CustomNavigationBar(
-                    selectedTabIndex: _selectedIndex,
-                    onTabChanged: _onTabTapped,
-                    onMenuPressed: () {
-                      _scaffoldKey.currentState?.openDrawer();
-                    },
-                  ),
-                  Expanded(
-                    child: PageView(
-                      controller: _pageController,
-                      onPageChanged: _onPageChanged,
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.only(bottom: chatBarHeight),
-                          child: ChatScreen(key: _chatScreenKey),
-                        ),
-                        const Center(child: Text('보관함 화면')),
-                        const Center(child: Text('통계 화면')),
-                      ],
+        body: Container(
+          decoration: const BoxDecoration(gradient: AppGradients.lightBG),
+          child: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    CustomNavigationBar(
+                      selectedTabIndex: _selectedIndex,
+                      onTabChanged: _onTabTapped,
+                      onMenuPressed: () {
+                        _scaffoldKey.currentState?.openDrawer();
+                      },
                     ),
-                  ),
-                ],
-              ),
-              IgnorePointer(
-                ignoring: !_isChatExpanded,
-                child: GestureDetector(
-                  onTap: () {
-                    if (!_isUserInteracting) _collapseChat();
-                  },
-                  child: Container(color: Colors.transparent),
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: _onPageChanged,
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.only(bottom: chatBarHeight),
+                            child: ChatScreen(key: _chatScreenKey),
+                          ),
+                          const Center(
+                            child: Text(
+                              'Dashboard 화면',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textLightPrimary,
+                              ),
+                            ),
+                          ),
+                          const Center(
+                            child: Text(
+                              '통계 화면',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textLightPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              ChatFloatingBar(
-                isExpanded: _isChatExpanded,
-                onToggle: _toggleChat,
-                onCollapse: _collapseChat,
-                onMessageSent: _handleMessageSent,
-                controller: _chatController,
-                focusNode: _focusNode,
-              ),
-            ],
+                IgnorePointer(
+                  ignoring: !_isChatExpanded,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (!_isUserInteracting) _collapseChat();
+                    },
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+                ChatFloatingBar(
+                  isExpanded: _isChatExpanded,
+                  onToggle: _toggleChat,
+                  onCollapse: _collapseChat,
+                  onMessageSent: _handleMessageSent,
+                  controller: _chatController,
+                  focusNode: _focusNode,
+                ),
+              ],
+            ),
           ),
         ),
       ),

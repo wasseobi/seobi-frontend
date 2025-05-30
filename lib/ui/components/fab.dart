@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../services/conversation/chat_service.dart';
 import '../../repositories/backend/models/message.dart';
 import '../../services/auth/auth_service.dart';
+import '../../services/tts/tts_service.dart';
 import '../constants/dimensions/app_dimensions.dart';
+import '../constants/app_colors.dart';
 
 class ChatFloatingBar extends StatefulWidget {
   final bool isExpanded;
@@ -31,6 +33,7 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
   late final FocusNode _focusNode;
   final ChatService _chatService = ChatService();
   final AuthService _authService = AuthService();
+  final TtsService _ttsService = TtsService();
 
   bool _isListening = false;
   bool _isSending = false;
@@ -81,6 +84,19 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
         _updateDisplayText();
       });
     } else {
+      // STT 시작 시 TTS 인터럽트
+      debugPrint(
+        '[FAB] STT 시작 전 TTS 상태 - isPlaying: ${_ttsService.isPlaying}, isPaused: ${_ttsService.isPaused}',
+      );
+      await _ttsService.interrupt();
+
+      // TTS가 완전히 정지될 때까지 잠시 대기
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      debugPrint(
+        '[FAB] STT 시작 후 TTS 상태 - isPlaying: ${_ttsService.isPlaying}, isPaused: ${_ttsService.isPaused}, isInterrupted: ${_ttsService.isInterrupted}',
+      );
+
       setState(() {
         _isListening = true;
         _pendingText = '';
@@ -125,6 +141,13 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
       _showError('사용자 인증이 필요합니다.');
       return;
     }
+
+    // 메시지 전송 시 TTS 인터럽트
+    debugPrint('[FAB] 메시지 전송 시작 - TTS 인터럽트 실행');
+    await _ttsService.interrupt();
+
+    // TTS가 완전히 정지될 때까지 잠시 대기
+    await Future.delayed(const Duration(milliseconds: 150));
 
     setState(() => _isSending = true);
 
@@ -211,7 +234,7 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
                       ? AppDimensions.fabExpandedHeight
                       : AppDimensions.fabCollapsedSize,
               decoration: ShapeDecoration(
-                color: Colors.white,
+                color: AppColors.containerLight,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(
                     widget.isExpanded
@@ -221,8 +244,9 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
                 ),
                 shadows: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -241,7 +265,11 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
     return GestureDetector(
       onTap: widget.onToggle,
       child: const Center(
-        child: Icon(Icons.chat_bubble_outline, color: Colors.black87, size: 32),
+        child: Icon(
+          Icons.chat_bubble_outline,
+          color: AppColors.iconLight,
+          size: 32,
+        ),
       ),
     );
   }
@@ -273,7 +301,7 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF7D7D7D),
+                  color: AppColors.textLightPrimary,
                   letterSpacing: -0.1,
                 ),
                 decoration: const InputDecoration(
@@ -281,7 +309,7 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
                   hintStyle: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF7D7D7D),
+                    color: AppColors.textLightSecondary,
                     letterSpacing: -0.1,
                   ),
                   border: InputBorder.none,
@@ -295,21 +323,25 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
                 children: [
                   _buildCircleButton(
                     icon: Icons.attach_file,
-                    color: const Color(0xFFF6F6F6),
+                    color: AppColors.gray20,
+                    iconColor: AppColors.iconLight,
                   ),
                   Row(
                     children: [
                       _buildCircleButton(
                         icon: _isListening ? Icons.stop : Icons.keyboard_voice,
                         color:
-                            _isListening ? Colors.red : const Color(0xFFFF7A33),
-                        iconColor: Colors.white,
+                            _isListening
+                                ? AppColors.error100
+                                : AppColors.main100,
+                        iconColor: AppColors.white100,
                         onTap: _handleVoiceListen,
                       ),
                       SizedBox(width: AppDimensions.spacing10),
                       _buildCircleButton(
                         icon: Icons.send,
-                        color: const Color(0xFFF6F6F6),
+                        color: AppColors.gray20,
+                        iconColor: AppColors.iconLight,
                         onTap: _handleSend,
                       ),
                     ],
@@ -326,7 +358,7 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
   Widget _buildCircleButton({
     required IconData icon,
     required Color color,
-    Color iconColor = Colors.black,
+    Color iconColor = AppColors.iconLight,
     VoidCallback? onTap,
   }) {
     return GestureDetector(

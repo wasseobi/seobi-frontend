@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/dimensions/message_dimensions.dart';
 import '../constants/dimensions/app_dimensions.dart';
+import '../constants/app_colors.dart';
 
 class MessageUser extends StatelessWidget {
   final String content;
@@ -20,16 +21,20 @@ class MessageUser extends StatelessWidget {
           Flexible(
             child: Container(
               constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75, // 최대 75%
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
               ),
               padding: EdgeInsets.all(MessageDimensions.padding),
               decoration: BoxDecoration(
-                color: const Color(0xFF6200EA),
+                color: AppColors.main80,
                 borderRadius: BorderRadius.circular(AppDimensions.radius12),
               ),
               child: Text(
                 content,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.gray100,
+                ),
               ),
             ),
           ),

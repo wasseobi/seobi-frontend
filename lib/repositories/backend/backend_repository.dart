@@ -125,10 +125,6 @@ class BackendRepository implements IBackendRepository {
     required String content,
   }) {
     final endpoint = '/s/$sessionId/send';
-    debugPrint('[BackendRepository] 메시지 전송 시작: $endpoint');
-    debugPrint(
-      '[BackendRepository] 요청 본문: {user_id: $userId, content: $content}',
-    );
 
     return _http
         .postStream(
@@ -137,7 +133,6 @@ class BackendRepository implements IBackendRepository {
           headers: {'user-id': userId},
         )
         .map((chunk) {
-          debugPrint('[BackendRepository] 청크 수신: $chunk');
           if (chunk is! Map<String, dynamic>) {
             throw FormatException('잘못된 청크 형식: $chunk');
           }
@@ -146,20 +141,16 @@ class BackendRepository implements IBackendRepository {
         .where((chunk) {
           try {
             final type = chunk['type'];
+
+            if (type == 'chunk') return true;
             if (type == 'answer') return true;
             if (type == 'end') return true;
+            if (type == 'tool_calls') return true;
+            if (type == 'toolmessage') return true;
 
-            final content = chunk['content'];
-            final isValid = type == 'chunk' && content != null;
-
-            if (!isValid) {
-              debugPrint(
-                '[BackendRepository] 무시된 청크: type=$type, content=$content',
-              );
-            }
-            return isValid;
+            return false;
           } catch (e) {
-            debugPrint('[BackendRepository] 청크 필터링 오류: $e');
+            debugPrint('청크 필터링 오류: $e');
             return false;
           }
         });

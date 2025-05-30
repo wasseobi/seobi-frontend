@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/auth/auth_service.dart';
-import '../constants/app_colors.dart';
-import '../constants/app_fonts.dart';
 import 'google_sign_in_button.dart';
 
 class SignInBottomSheet extends StatefulWidget {

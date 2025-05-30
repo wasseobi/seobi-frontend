@@ -182,6 +182,7 @@ class HttpHelper {
     Stream<List<int>> byteStream,
   ) async* {
     String buffer = '';
+    String incompleteJson = ''; // 불완전한 JSON을 저장할 버퍼
 
     await for (final chunk in byteStream.transform(utf8.decoder)) {
       buffer += chunk;
@@ -197,15 +198,73 @@ class HttpHelper {
 
         // SSE 형식 처리
         if (line.startsWith('data: ')) {
-          final jsonStr = line.substring(6); // 'data: ' 제거
+          final jsonStr = line.substring(6).trim(); // 'data: ' 제거 및 공백 정리
           if (jsonStr == '[DONE]') continue; // 스트림 종료 신호 무시
 
+          // 이전에 불완전했던 JSON과 합치기
+          String fullJsonStr = incompleteJson + jsonStr;
+
           try {
-            final Map<String, dynamic> jsonData = jsonDecode(jsonStr);
+            final Map<String, dynamic> jsonData = jsonDecode(fullJsonStr);
             debugPrint('[HttpHelper] 파싱된 청크: $jsonData');
+            incompleteJson = ''; // 성공적으로 파싱되면 불완전 버퍼 초기화
+
+            // 내용이 불완전한 단어로 끝나는지 체크
+            if (jsonData['type'] == 'chunk') {
+              final content = jsonData['content'] as String?;
+              if (content != null && content.isNotEmpty) {
+                // 단어가 중간에 끊어졌는지 확인 (영어나 한글이 불완전)
+                final lastChar = content[content.length - 1];
+                final isIncompleteWord = _isIncompleteWord(content);
+
+                if (!isIncompleteWord) {
+                  yield jsonData;
+                } else {
+                  // 불완전한 단어인 경우 다음 청크와 합쳐질 때까지 대기
+                  debugPrint('[HttpHelper] 불완전한 단어 감지, 다음 청크 대기: $content');
+                  // 임시로 저장하지 말고 바로 전송 (TTS에서 처리)
+                  yield jsonData;
+                }
+              } else {
+                yield jsonData;
+              }
+            } else {
+              yield jsonData;
+            }
+          } catch (e) {
+            debugPrint('[HttpHelper] 청크 파싱 오류: $e - JSON: $fullJsonStr');
+
+            // JSON 파싱 실패 시 불완전한 JSON으로 간주하고 다음 청크와 합치기
+            if (fullJsonStr.length < 10000) {
+              // 버퍼 크기 제한
+              incompleteJson = fullJsonStr;
+              debugPrint('[HttpHelper] 불완전한 JSON으로 판단, 다음 청크와 합치기 위해 저장');
+            } else {
+              // 너무 큰 데이터는 버리고 다시 시작
+              incompleteJson = '';
+              debugPrint('[HttpHelper] JSON 버퍼가 너무 커서 초기화');
+            }
+            continue;
+          }
+        } else if (line.trim().isNotEmpty) {
+          // data: 없이 들어오는 JSON 처리 (일부 서버에서 발생)
+          String fullJsonStr = incompleteJson + line;
+
+          try {
+            final Map<String, dynamic> jsonData = jsonDecode(fullJsonStr);
+            debugPrint('[HttpHelper] 직접 JSON 파싱: $jsonData');
+            incompleteJson = ''; // 성공적으로 파싱되면 불완전 버퍼 초기화
             yield jsonData;
           } catch (e) {
-            debugPrint('[HttpHelper] 청크 파싱 오류: $e');
+            debugPrint('[HttpHelper] 직접 JSON 파싱 실패: $e - 라인: $fullJsonStr');
+
+            // JSON 파싱 실패 시 불완전한 JSON으로 간주
+            if (fullJsonStr.length < 10000) {
+              // 버퍼 크기 제한
+              incompleteJson = fullJsonStr;
+            } else {
+              incompleteJson = '';
+            }
             continue;
           }
         }
@@ -213,20 +272,77 @@ class HttpHelper {
     }
 
     // 버퍼에 남은 데이터 처리
-    if (buffer.isNotEmpty) {
-      if (buffer.startsWith('data: ')) {
-        final jsonStr = buffer.substring(6);
-        if (jsonStr != '[DONE]') {
+    if (buffer.trim().isNotEmpty) {
+      final remainingData = buffer.trim();
+
+      if (remainingData.startsWith('data: ')) {
+        final jsonStr = remainingData.substring(6).trim();
+        if (jsonStr != '[DONE]' && jsonStr.isNotEmpty) {
+          String fullJsonStr = incompleteJson + jsonStr;
+
           try {
-            final Map<String, dynamic> jsonData = jsonDecode(jsonStr);
+            final Map<String, dynamic> jsonData = jsonDecode(fullJsonStr);
             debugPrint('[HttpHelper] 마지막 청크 파싱: $jsonData');
             yield jsonData;
           } catch (e) {
-            debugPrint('[HttpHelper] 마지막 청크 파싱 오류: $e');
+            debugPrint('[HttpHelper] 마지막 청크 파싱 오류: $e - JSON: $fullJsonStr');
           }
+        }
+      } else if (remainingData.isNotEmpty) {
+        // data: 없이 남은 JSON 처리
+        String fullJsonStr = incompleteJson + remainingData;
+
+        try {
+          final Map<String, dynamic> jsonData = jsonDecode(fullJsonStr);
+          debugPrint('[HttpHelper] 마지막 직접 JSON 파싱: $jsonData');
+          yield jsonData;
+        } catch (e) {
+          debugPrint('[HttpHelper] 마지막 직접 JSON 파싱 실패: $e - 데이터: $fullJsonStr');
         }
       }
     }
+  }
+
+  /// 단어가 불완전한지 확인 (백엔드에서 단어 중간에 끊어서 전송되는 경우 감지)
+  bool _isIncompleteWord(String content) {
+    if (content.isEmpty) return false;
+
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return false;
+
+    // 영어 단어가 불완전한지 확인 (자음으로만 끝나거나 너무 짧은 경우)
+    final englishPattern = RegExp(r'[A-Za-z]+$');
+    final match = englishPattern.firstMatch(trimmed);
+    if (match != null) {
+      final word = match.group(0)!;
+      // 알려진 불완전 패턴들
+      if (word == 'Healt' ||
+          word == 'iPhon' ||
+          word == 'Appl' ||
+          word == 'Watch' && !trimmed.endsWith('Watch ')) {
+        return true;
+      }
+
+      // 일반적으로 3글자 이하의 영어 단어는 불완전할 가능성이 높음 (완성된 단어 제외)
+      if (word.length <= 3 &&
+          ![
+            'app',
+            'get',
+            'use',
+            'run',
+            'set',
+            'new',
+            'old',
+            'big',
+            'top',
+          ].contains(word.toLowerCase())) {
+        return true;
+      }
+    }
+
+    // 한글의 경우는 음절이 완성되지 않은 경우는 거의 없으므로 검사하지 않음
+
+    return false;
   }
 
   /// 스트리밍 POST 요청을 보내고 응답을 스트림으로 받습니다.

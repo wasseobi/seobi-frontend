@@ -48,7 +48,7 @@ class AppColors {
   // general/button
   static const Color buttonDarkBg = black100;
   static const Color buttonLightBg = white80;
-  // TODO: 버튼 테두리 색상 추가
+  static const Color buttonBorder = gray60;
 
   // general/switch
   static const Color switchOn = green100;
@@ -77,14 +77,20 @@ class AppColors {
 
   //onboarding
   static const Color borderButton = gray60;
-  static const Color borderArticle = white80; //디자인변경가능
+  static const Color borderArticle = white80;
 
   // Chat screen (chat으로 통칭) (Background는 Gradient 활용)
   static const Color chatMsgBox = main80;
   static const Color chatLogBox = white80;
   static const Color chatGuideLine = gray80;
 
-  // Worktree screen (worktree로 통칭) (Background는 추후 변경)
+  // Worktree screen (worktree로 통칭)
+  static const Color workTreeBg = white80;
+  static const Color workTreeItem = white100;
+  static const Color workTreeBorder = gray60;
 
   // Dashboard screen (board로 통칭)
+  static const Color boardBg = white80;
+  static const Color boardItem = white100;
+  static const Color boardBorder = gray60;
 }
