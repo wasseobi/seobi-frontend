@@ -3,6 +3,8 @@ import '../../services/conversation/chat_service.dart';
 import '../../repositories/backend/models/message.dart';
 import '../../services/auth/auth_service.dart';
 import '../constants/dimensions/app_dimensions.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_fonts.dart';
 
 class ChatFloatingBar extends StatefulWidget {
   final bool isExpanded;
@@ -188,52 +190,68 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: AppDimensions.fabBottomPadding),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double maxAvailableWidth = constraints.maxWidth;
-            final double expandedWidth = maxAvailableWidth.clamp(
-              AppDimensions.fabMinWidth,
-              AppDimensions.fabMaxWidth,
-            );
+    return Stack(
+      children: [
+        if (widget.isExpanded)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                FocusScope.of(context).unfocus();
+                widget.onCollapse();
+              },
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(
+              bottom: AppDimensions.fabBottomPadding,
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final double maxAvailableWidth = constraints.maxWidth;
+                final double expandedWidth = maxAvailableWidth.clamp(
+                  AppDimensions.fabMinWidth,
+                  AppDimensions.fabMaxWidth,
+                );
 
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width:
-                  widget.isExpanded
-                      ? expandedWidth
-                      : AppDimensions.fabCollapsedSize,
-              height:
-                  widget.isExpanded
-                      ? AppDimensions.fabExpandedHeight
-                      : AppDimensions.fabCollapsedSize,
-              decoration: ShapeDecoration(
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    widget.isExpanded
-                        ? AppDimensions.fabExpandedRadius
-                        : AppDimensions.fabCollapsedRadius,
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width:
+                      widget.isExpanded
+                          ? expandedWidth
+                          : AppDimensions.fabCollapsedSize,
+                  height:
+                      widget.isExpanded
+                          ? AppDimensions.fabExpandedHeight
+                          : AppDimensions.fabCollapsedSize,
+                  decoration: ShapeDecoration(
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        widget.isExpanded
+                            ? AppDimensions.fabExpandedRadius
+                            : AppDimensions.fabCollapsedRadius,
+                      ),
+                    ),
+                    shadows: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                      ),
+                    ],
                   ),
-                ),
-                shadows: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child:
-                  widget.isExpanded
-                      ? _buildExpandedContent()
-                      : _buildCollapsedButton(),
-            );
-          },
+                  child:
+                      widget.isExpanded
+                          ? _buildExpandedContent()
+                          : _buildCollapsedButton(),
+                );
+              },
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -241,83 +259,76 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
     return GestureDetector(
       onTap: widget.onToggle,
       child: const Center(
-        child: Icon(Icons.chat_bubble_outline, color: Colors.black87, size: 32),
+        child: Icon(
+          Icons.chat_bubble_outline,
+          color: AppColors.gray100,
+          size: 32,
+        ),
       ),
     );
   }
 
   Widget _buildExpandedContent() {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        widget.onCollapse();
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(
-          top: AppDimensions.fabContentPaddingTop,
-          left: AppDimensions.fabContentPaddingLeft,
-          right: AppDimensions.fabContentPaddingRight,
-          bottom: AppDimensions.fabContentPaddingBottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                maxLines: 2,
-                onSubmitted: (_) => _handleSend(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF7D7D7D),
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: AppDimensions.fabContentPaddingTop,
+        left: AppDimensions.fabContentPaddingLeft,
+        right: AppDimensions.fabContentPaddingRight,
+        bottom: AppDimensions.fabContentPaddingBottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              maxLines: 2,
+              onSubmitted: (_) => _handleSend(),
+              style: PretendardStyles.semiBold20.copyWith(
+                color: AppColors.black100,
+                letterSpacing: -0.1,
+              ),
+              decoration: InputDecoration(
+                hintText: '질문을 입력하거나, 일정을 등록하거나 Seobi 에게 업무를 시켜 보세요.',
+                hintStyle: PretendardStyles.semiBold20.copyWith(
+                  color: AppColors.gray80,
                   letterSpacing: -0.1,
                 ),
-                decoration: const InputDecoration(
-                  hintText: '질문을 입력하거나, 일정을 등록하거나 Seobi 에게 업무를 시켜 보세요.',
-                  hintStyle: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF7D7D7D),
-                    letterSpacing: -0.1,
-                  ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            SizedBox(height: AppDimensions.spacing12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildCircleButton(
+                  icon: Icons.attach_file,
+                  color: AppColors.white80,
                 ),
-              ),
-              SizedBox(height: AppDimensions.spacing12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildCircleButton(
-                    icon: Icons.attach_file,
-                    color: const Color(0xFFF6F6F6),
-                  ),
-                  Row(
-                    children: [
-                      _buildCircleButton(
-                        icon: _isListening ? Icons.stop : Icons.keyboard_voice,
-                        color:
-                            _isListening ? Colors.red : const Color(0xFFFF7A33),
-                        iconColor: Colors.white,
-                        onTap: _handleVoiceListen,
-                      ),
-                      SizedBox(width: AppDimensions.spacing10),
-                      _buildCircleButton(
-                        icon: Icons.send,
-                        color: const Color(0xFFF6F6F6),
-                        onTap: _handleSend,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
+                Row(
+                  children: [
+                    _buildCircleButton(
+                      icon: _isListening ? Icons.stop : Icons.keyboard_voice,
+                      color:
+                          _isListening ? AppColors.error100 : AppColors.main100,
+                      iconColor: AppColors.white100,
+                      onTap: _handleVoiceListen,
+                    ),
+                    SizedBox(width: AppDimensions.spacing10),
+                    _buildCircleButton(
+                      icon: Icons.send,
+                      color: AppColors.white80,
+                      onTap: _handleSend,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -326,7 +337,7 @@ class _ChatFloatingBarState extends State<ChatFloatingBar> {
   Widget _buildCircleButton({
     required IconData icon,
     required Color color,
-    Color iconColor = Colors.black,
+    Color iconColor = AppColors.gray100,
     VoidCallback? onTap,
   }) {
     return GestureDetector(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_fonts.dart';
 import '../constants/dimensions/message_dimensions.dart';
 import 'card_schedule.dart';
 
@@ -22,6 +23,16 @@ class AssistantMessage extends StatelessWidget {
     this.onTtsPlay,
     this.isStreaming = false,
   });
+
+  String _formatTimestamp(String? timestamp) {
+    if (timestamp == null) return '';
+    try {
+      final date = DateTime.parse(timestamp);
+      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,13 +78,11 @@ class AssistantMessage extends StatelessWidget {
             ),
           if (timestamp != null)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(left: 16),
               child: Text(
-                timestamp!,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppColors.gray80,
-                  fontWeight: FontWeight.w500,
+                _formatTimestamp(timestamp),
+                style: PretendardStyles.medium10.copyWith(
+                  color: AppColors.gray100,
                 ),
               ),
             ),
@@ -98,22 +107,22 @@ class AssistantMessage extends StatelessWidget {
                     ? _buildTypingIndicator()
                     : Text(
                       message,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                      style: PretendardStyles.semiBold16.copyWith(
+                        color: AppColors.gray100,
                       ),
                     ),
           ),
-          // TTS 아이콘은 스트리밍 중이 아니고 메시지가 있을 때만 표시
           if (!isStreaming && message.isNotEmpty && onTtsPlay != null)
             IconButton(
-              icon: const Icon(Icons.volume_up),
+              icon: const Icon(
+                Icons.volume_up,
+                color: AppColors.gray80,
+                size: 20,
+              ),
               onPressed: onTtsPlay,
-              color: Colors.black87,
-              iconSize: 20,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
-          // 스트리밍 중일 때는 로딩 인디케이터 표시
           if (isStreaming && message.isNotEmpty)
             Container(
               width: 20,
@@ -121,7 +130,7 @@ class AssistantMessage extends StatelessWidget {
               margin: const EdgeInsets.only(left: 8),
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[400]!),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.gray80),
               ),
             ),
         ],
@@ -135,10 +144,8 @@ class AssistantMessage extends StatelessWidget {
       children: [
         Text(
           '서비가 응답 중입니다.',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[600],
+          style: PretendardStyles.semiBold14.copyWith(
+            color: AppColors.gray80,
             fontStyle: FontStyle.italic,
           ),
         ),
@@ -148,7 +155,7 @@ class AssistantMessage extends StatelessWidget {
           height: 20,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[400]!),
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.gray80),
           ),
         ),
       ],

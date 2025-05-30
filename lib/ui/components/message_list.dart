@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../repositories/backend/models/message.dart';
 import 'message_user.dart';
 import 'message_ai.dart';
-import '../constants/dimensions/message_dimensions.dart';
-import '../constants/app_colors.dart';
+import '../constants/dimensions/app_dimensions.dart';
 
 class MessageList extends StatelessWidget {
   final List<Message> messages;
@@ -21,7 +20,10 @@ class MessageList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       controller: scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppDimensions.spacing16,
+        vertical: AppDimensions.spacing8,
+      ),
       itemCount: messages.length,
       itemBuilder: (context, index) {
         final message = messages[index];
@@ -59,7 +61,7 @@ class MessageList extends StatelessWidget {
             parsedContent['card'] != null
                 ? Map<String, String>.from(parsedContent['card'])
                 : null,
-        timestamp: parsedContent['timestamp'],
+        timestamp: message.timestamp?.toIso8601String(),
         onTtsPlay: () => onTtsPlay(message),
         isStreaming: message.id == 'streaming',
       );

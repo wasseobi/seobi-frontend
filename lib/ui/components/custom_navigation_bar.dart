@@ -21,6 +21,7 @@ class CustomNavigationBar extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(left: 10, right: 23),
+      color: Colors.transparent,
       child: Stack(
         alignment: Alignment.center,
         children: [
