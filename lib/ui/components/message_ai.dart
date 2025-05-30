@@ -9,6 +9,8 @@ class AssistantMessage extends StatelessWidget {
   final List<Map<String, String>>? actions;
   final Map<String, String>? card;
   final String? timestamp;
+  final VoidCallback? onTtsPlay;
+  final bool isStreaming; // 스트리밍 중인지 여부
 
   const AssistantMessage({
     super.key,
@@ -17,49 +19,53 @@ class AssistantMessage extends StatelessWidget {
     this.actions,
     this.card,
     this.timestamp,
+    this.onTtsPlay,
+    this.isStreaming = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(left: 0, right: 50),
+      padding: const EdgeInsets.only(left: 0, right: 50),
       constraints: const BoxConstraints(maxWidth: 320),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildMessageBubble(),
-          SizedBox(height: MessageDimensions.spacing * 2.5),
           if ((type == 'card' && card != null) ||
               (actions != null && actions!.isNotEmpty))
-            Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(color: AppColors.gray100, width: 1),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: AppColors.gray100, width: 1),
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(left: MessageDimensions.padding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (type == 'card' && card != null)
-                      ScheduleCard(
-                        title: card!['title'] ?? '',
-                        time: card!['time'] ?? '',
-                        location: card!['location'] ?? '',
-                      ), // ✅ 카드 위젯 대체
-                    if (actions != null && actions!.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: MessageDimensions.spacing * 1.5,
+                child: Padding(
+                  padding: EdgeInsets.only(left: MessageDimensions.padding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (type == 'card' && card != null)
+                        ScheduleCard(
+                          title: card!['title'] ?? '',
+                          time: card!['time'] ?? '',
+                          location: card!['location'] ?? '',
                         ),
-                        child: _buildActions(),
-                      ),
-                  ],
+                      if (actions != null && actions!.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: MessageDimensions.spacing * 1.5,
+                          ),
+                          child: _buildActions(),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          if (timestamp != null && timestamp!.isNotEmpty)
+          if (timestamp != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
@@ -77,16 +83,75 @@ class AssistantMessage extends StatelessWidget {
   }
 
   Widget _buildMessageBubble() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        message,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: AppColors.gray100,
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(20),
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child:
+                message.isEmpty && isStreaming
+                    ? _buildTypingIndicator()
+                    : Text(
+                      message,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+          ),
+          // TTS 아이콘은 스트리밍 중이 아니고 메시지가 있을 때만 표시
+          if (!isStreaming && message.isNotEmpty && onTtsPlay != null)
+            IconButton(
+              icon: const Icon(Icons.volume_up),
+              onPressed: onTtsPlay,
+              color: Colors.black87,
+              iconSize: 20,
+            ),
+          // 스트리밍 중일 때는 로딩 인디케이터 표시
+          if (isStreaming && message.isNotEmpty)
+            Container(
+              width: 20,
+              height: 20,
+              margin: const EdgeInsets.only(left: 8),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[400]!),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '서비가 응답 중입니다.',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[400]!),
+          ),
+        ),
+      ],
     );
   }
 
@@ -102,14 +167,14 @@ class AssistantMessage extends StatelessWidget {
                     children: [
                       Text(
                         action['icon'] ?? '',
-                        style: TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 12),
                       ),
                       SizedBox(width: MessageDimensions.spacing),
                       Text(
                         action['text'] ?? '',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: AppColors.gray100,
+                          color: Colors.black87,
                         ),
                       ),
                     ],

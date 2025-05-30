@@ -1,68 +1,143 @@
 import 'package:flutter/material.dart';
 import '../components/message_list.dart';
-import '../components/custom_button.dart';
-import '../components/fab.dart';
 import '../../services/conversation/conversation_service.dart';
-import '../../services/tts/tts_service.dart';
-import '../../services/stt/stt_service.dart';
 import '../../repositories/backend/models/message.dart';
 import '../../repositories/backend/models/session.dart';
 import '../../services/auth/auth_service.dart';
+import '../../services/tts/tts_service.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final Function(String)? onMessageSubmit;
+
+  const ChatScreen({super.key, this.onMessageSubmit});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<ChatScreen> createState() => ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class ChatScreenState extends State<ChatScreen> {
   final ConversationService _conversationService = ConversationService();
   final ScrollController _scrollController = ScrollController();
-  final TtsService _ttsService = TtsService();
-  final STTService _sttService = STTService();
-  final TextEditingController _messageController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
   final AuthService _authService = AuthService();
+  final TtsService _ttsService = TtsService();
 
   Session? _currentSession;
-  List<Map<String, Object>> _messages = [];
+  List<Message> _messages = [];
   bool _isLoading = false;
-  bool _isPlaying = false;
-  bool _isListening = false;
-  bool _isExpanded = false;
-  String? _userId;
   bool _isStreaming = false;
+  String? _userId;
 
-  String _displayText = '';
-  String _confirmedText = '';
-  String _pendingText = '';
+  // TTS 버퍼 관련 변수
+  String _ttsBuffer = '';
+  static const int _minBufferSize = 30; // 버퍼 크기를 30자로 증가
+  static final RegExp _sentenceEndPattern = RegExp(r'[.!?]+\s*');
 
   @override
   void initState() {
     super.initState();
+    _initializeTts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeChat();
     });
-    _initializeSpeech();
-    _ttsService.setConfiguration(language: 'ko-KR');
     _userId = _authService.userId;
+  }
 
-    _messageController.addListener(() {
-      final newText = _messageController.text;
-      if (!_isListening && _displayText != newText) {
-        setState(() {
-          _displayText = newText;
-          _confirmedText = newText;
-        });
+  Future<void> _initializeTts() async {
+    await _ttsService.setConfiguration(
+      language: 'ko-KR',
+      volume: 1.0, // 최대 볼륨
+    );
+  }
+
+  void addMessage(Message message) {
+    setState(() {
+      // 스트리밍 중인 메시지 업데이트
+      if (message.id == 'streaming') {
+        final index = _messages.indexWhere((m) => m.id == 'streaming');
+        if (index != -1) {
+          final previousContent = _messages[index].content;
+          _messages[index] = message;
+
+          // 스트리밍 중인 메시지의 새로운 내용이 있다면 TTS 버퍼에 추가
+          if (message.content.length > previousContent.length) {
+            final newContent = message.content.substring(
+              previousContent.length,
+            );
+            _ttsBuffer += newContent;
+
+            // 버퍼가 충분히 쌓였거나 문장이 완성되면 TTS 실행
+            if (_ttsBuffer.length >= _minBufferSize ||
+                _sentenceEndPattern.hasMatch(_ttsBuffer)) {
+              // 문장 단위로 분리하여 처리
+              final sentences = _ttsBuffer.split(_sentenceEndPattern);
+              if (sentences.length > 1) {
+                // 완성된 문장들 처리
+                final completeText =
+                    sentences
+                        .sublist(0, sentences.length - 1)
+                        .join('. ')
+                        .trim() +
+                    '.';
+                if (completeText.isNotEmpty) {
+                  _ttsService.handleNewMessage(completeText);
+                }
+                // 마지막 미완성 문장은 버퍼에 유지
+                _ttsBuffer = sentences.last;
+              }
+            }
+          }
+        } else {
+          _messages.add(message);
+        }
+      } else {
+        // 일반 메시지 추가 또는 업데이트
+        final index = _messages.indexWhere(
+          (m) =>
+              m.id == message.id ||
+              (m.id == 'streaming' && m.role == message.role),
+        );
+        if (index != -1) {
+          final previousContent = _messages[index].content;
+          _messages[index] = message;
+
+          // 최종 메시지의 남은 부분 처리
+          if (message.role == Message.ROLE_ASSISTANT &&
+              message.content.length > previousContent.length) {
+            // 버퍼에 남은 내용이 있으면 함께 처리
+            final remainingContent =
+                (_ttsBuffer + message.content.substring(previousContent.length))
+                    .trim();
+            if (remainingContent.isNotEmpty) {
+              _ttsService.handleNewMessage(remainingContent);
+              _ttsBuffer = '';
+            }
+          }
+        } else {
+          _messages.add(message);
+        }
       }
+
+      // 스크롤을 최신 메시지로 이동
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     });
   }
 
-  Future<void> _initializeSpeech() async {
-    bool available = await _sttService.initialize();
-    if (!available) {
-      debugPrint('[ChatScreen] STT is not available on this device');
+  void updateLastMessage(Message message) {
+    if (_messages.isNotEmpty) {
+      setState(() {
+        _messages[_messages.length - 1] = message;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
     }
   }
 
@@ -85,30 +160,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
       setState(() {
         _currentSession = session;
-        _messages = _convertToUIMessages(messages);
+        _messages = messages;
       });
     } catch (e) {
       _showError('채팅 초기화 중 오류가 발생했습니다: $e');
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  List<Map<String, Object>> _convertToUIMessages(List<Message> messages) {
-    return messages
-        .map(
-          (msg) => <String, Object>{
-            'id': msg.id,
-            'session_id': msg.sessionId,
-            'user_id': msg.userId,
-            'text': msg.content,
-            'isUser': msg.role == Message.ROLE_USER,
-            'timestamp': msg.timestamp.toString(),
-            'type': 'text',
-            'role': msg.role,
-          },
-        )
-        .toList();
   }
 
   void _showError(String message) {
@@ -130,10 +188,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void _updateMessage(String text, {bool shouldScroll = true}) {
     if (mounted && _messages.isNotEmpty) {
       setState(() {
-        _messages[_messages.length - 1] = {
-          ..._messages[_messages.length - 1],
-          'text': text,
-        };
+        _messages[_messages.length - 1] = _messages[_messages.length - 1]
+            .copyWith(content: text);
       });
 
       if (shouldScroll) {
@@ -144,9 +200,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _handleMessageSend() async {
-    final content = _displayText.trim();
-
+  Future<void> _handleMessageSubmit(String content) async {
     if (_currentSession == null) {
       _showError('세션이 초기화되지 않았습니다.');
       return;
@@ -162,43 +216,30 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    setState(() {
-      _messageController.clear();
-      _displayText = '';
-      _confirmedText = '';
-      _pendingText = '';
-      _isStreaming = true;
-    });
-    _focusNode.unfocus();
+    setState(() => _isStreaming = true);
 
     String bufferedText = '';
-    String pendingTTS = '';
-    bool hasStartedTTS = false;
 
     try {
       // 사용자 메시지 준비
-      final userMessage = <String, Object>{
-        'id': DateTime.now().toString(),
-        'session_id': _currentSession!.id,
-        'user_id': _userId!,
-        'text': content,
-        'isUser': true,
-        'timestamp': DateTime.now().toString(),
-        'type': 'text',
-        'role': Message.ROLE_USER,
-      };
+      final userMessage = Message(
+        id: DateTime.now().toIso8601String(),
+        sessionId: _currentSession!.id,
+        userId: _userId!,
+        content: content,
+        role: Message.ROLE_USER,
+        timestamp: DateTime.now(),
+      );
 
       // AI 응답 메시지 초기화
-      final aiMessage = <String, Object>{
-        'id': DateTime.now().toString(),
-        'session_id': _currentSession!.id,
-        'user_id': _userId!,
-        'text': '',
-        'isUser': false,
-        'timestamp': '',
-        'type': 'text',
-        'role': Message.ROLE_ASSISTANT,
-      };
+      final aiMessage = Message(
+        id: 'streaming',
+        sessionId: _currentSession!.id,
+        userId: _userId!,
+        content: '',
+        role: Message.ROLE_ASSISTANT,
+        timestamp: DateTime.now(),
+      );
 
       setState(() {
         _messages = [..._messages, userMessage, aiMessage];
@@ -214,253 +255,73 @@ class _ChatScreenState extends State<ChatScreen> {
         content: content,
         onProgress: (partialResponse) async {
           if (mounted && _messages.isNotEmpty) {
-            String newText = '';
             if (partialResponse.length > bufferedText.length) {
-              newText = partialResponse.substring(bufferedText.length);
               bufferedText = partialResponse;
-              pendingTTS += newText;
             }
-
             _updateMessage(partialResponse);
-
-            // TTS 처리 로직
-            if (!hasStartedTTS) {
-              if (isParagraphComplete(pendingTTS)) {
-                String completeParagraph = extractCompleteParagraph(pendingTTS);
-                if (completeParagraph.isNotEmpty) {
-                  hasStartedTTS = true;
-                  setState(() {
-                    _isPlaying = true;
-                  });
-                  await _ttsService.stop();
-                  await _ttsService.addToQueue(completeParagraph);
-                  pendingTTS = pendingTTS.substring(completeParagraph.length);
-                }
-              }
-            } else if (pendingTTS.isNotEmpty) {
-              String completeParagraph = extractCompleteParagraph(pendingTTS);
-              if (completeParagraph.isNotEmpty) {
-                await _ttsService.addToQueue(completeParagraph);
-                pendingTTS = pendingTTS.substring(completeParagraph.length);
-              }
-            }
           }
         },
       );
 
       if (mounted) {
         setState(() {
-          _messages[_messages.length - 1] = {
-            ..._messages[_messages.length - 1],
-            'text': response.content,
-            'timestamp': response.timestamp.toString(),
-          };
+          _messages[_messages.length - 1] = _messages[_messages.length - 1]
+              .copyWith(content: response.content);
           _isStreaming = false;
         });
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
         });
-
-        if (pendingTTS.isNotEmpty) {
-          await _ttsService.addToQueue(pendingTTS);
-        }
       }
+
+      // 부모 위젯의 콜백 호출
+      widget.onMessageSubmit?.call(content);
     } catch (e) {
       debugPrint('[ChatScreen] 메시지 전송 오류: $e');
       _showError('메시지 전송 중 오류가 발생했습니다');
       if (mounted && _messages.isNotEmpty) {
         setState(() {
           _messages.removeAt(_messages.length - 1);
-          _isPlaying = false;
           _isStreaming = false;
         });
       }
     }
   }
 
-  Future<void> _handleVoiceListen() async {
-    // TTS가 재생 중이면 먼저 중지
-    if (_isPlaying) {
-      await _ttsService.stop();
-      setState(() {
-        _isPlaying = false;
-      });
-      // TTS가 완전히 중지되도록 잠시 대기
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-
-    if (_sttService.isListening) {
-      await _sttService.stopListening();
-      setState(() {
-        _isListening = false;
-        _confirmedText = _displayText;
-        _pendingText = '';
-        _updateDisplayText();
-      });
-    } else {
-      setState(() {
-        _isListening = true;
-        _pendingText = '';
-        _updateDisplayText();
-      });
-
-      await _sttService.startListening(
-        onResult: (text, isFinal) {
-          if (mounted) {
-            setState(() {
-              if (isFinal) {
-                _confirmedText =
-                    _confirmedText.isEmpty ? text : '$_confirmedText $text';
-                _pendingText = '';
-              } else {
-                _pendingText = text;
-              }
-              _updateDisplayText();
-            });
-          }
-        },
-        onSpeechComplete: () {
-          if (mounted) {
-            setState(() {
-              _isListening = false;
-              _confirmedText = _displayText;
-              _pendingText = '';
-              _updateDisplayText();
-            });
-          }
-        },
-      );
-    }
-  }
-
-  void _updateDisplayText() {
-    String newDisplayText =
-        _confirmedText.isEmpty
-            ? _pendingText
-            : '$_confirmedText $_pendingText'.trim();
-
-    setState(() {
-      _displayText = newDisplayText;
-      _messageController.value = TextEditingValue(
-        text: newDisplayText,
-        selection: TextSelection.fromPosition(
-          TextPosition(offset: newDisplayText.length),
-        ),
-      );
-    });
-  }
-
-  void _handleTtsToggle() async {
-    setState(() {
-      _isPlaying = !_isPlaying;
-    });
-
-    // STT가 활성화되어 있으면 중지
-    if (_isListening) {
-      await _sttService.stopListening();
-      setState(() {
-        _isListening = false;
-        _confirmedText = _displayText;
-        _pendingText = '';
-        _updateDisplayText();
-      });
-    }
-
-    if (_isPlaying) {
-      await _ttsService.resume();
-    } else {
-      await _ttsService.pause();
-    }
-  }
-
-  void _onTextFieldTap() {
-    if (_isListening) {
-      _sttService.stopListening();
-      setState(() {
-        _isListening = false;
-        _confirmedText = _displayText;
-        _pendingText = '';
-        _updateDisplayText();
-      });
-    }
-  }
-
-  // 문단 완성 여부를 확인하는 함수
-  bool isParagraphComplete(String text) {
-    // 문장 종결 부호들
-    final endMarkers = ['다.', '요.', '죠.', '까?', '니다.', '세요.'];
-    return endMarkers.any((marker) => text.contains(marker));
-  }
-
-  // 문단을 추출하는 함수
-  String extractCompleteParagraph(String text) {
-    final endMarkers = ['다.', '요.', '죠.', '까?', '니다.', '세요.'];
-    int lastIndex = -1;
-
-    for (var marker in endMarkers) {
-      int index = text.lastIndexOf(marker);
-      if (index != -1 && index > lastIndex) {
-        lastIndex = index + marker.length;
-      }
-    }
-
-    if (lastIndex != -1) {
-      return text.substring(0, lastIndex);
-    }
-    return '';
-  }
-
   @override
   void dispose() {
-    // 세션 종료 처리 (/s/{session_id}/close)
     if (_currentSession != null) {
       _conversationService.endSession(_currentSession!.id);
     }
     _scrollController.dispose();
-    _messageController.dispose();
-    _focusNode.dispose();
     _ttsService.dispose();
-    if (_sttService.isListening) {
-      _sttService.stopListening();
-    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     return Scaffold(
-      body: Stack(
-        children: [
-          ChatMessageList(
-            messages: _messages,
-            scrollController: _scrollController,
-            isStreaming: _isStreaming,
-          ),
-          ChatFloatingBar(
-            isExpanded: _isExpanded,
-            onToggle: () {
-              setState(() {
-                _isExpanded = !_isExpanded;
-              });
-            },
-            onCollapse: () {
-              setState(() {
-                _isExpanded = false;
-              });
-            },
-            onSend: _handleMessageSend,
-            onVoiceInput: _handleVoiceListen,
-            isListening: _isListening,
-            isPlaying: _isPlaying,
-            controller: _messageController,
-            focusNode: _focusNode,
-          ),
-        ],
+      backgroundColor: const Color(0xFFF6F6F6),
+      body: SafeArea(
+        child:
+            _isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFF4F4F4F),
+                    ),
+                  ),
+                )
+                : MessageList(
+                  messages: _messages,
+                  scrollController: _scrollController,
+                  onTtsPlay: (message) async {
+                    // 수동 재생 시에는 전체 내용을 한 번에 재생
+                    await _ttsService.stop();
+                    await _ttsService.addToQueue(message.content);
+                  },
+                ),
       ),
     );
   }

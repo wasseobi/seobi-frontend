@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:seobi_app/ui/constants/app_colors.dart';
-import 'package:seobi_app/services/auth/auth_service.dart';
+import '../constants/app_colors.dart';
+import '../../services/auth/auth_service.dart';
 
 class GoogleSignInButton extends StatefulWidget {
   final String text;

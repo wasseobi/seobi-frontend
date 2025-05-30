@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:seobi_app/services/auth/auth_service.dart';
+import '../../services/auth/auth_service.dart';
 import 'text_placeholder.dart';
 import 'role_badge.dart';
 

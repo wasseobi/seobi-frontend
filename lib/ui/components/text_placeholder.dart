@@ -34,13 +34,9 @@ class _TextPlaceholderState extends State<TextPlaceholder>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    _animation = Tween<double>(
-      begin: -1.0,
-      end: 2.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.ease,
-    ));
+    _animation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.ease),
+    );
 
     if (widget.enableShimmer) {
       _animationController.repeat();
@@ -66,33 +62,33 @@ class _TextPlaceholderState extends State<TextPlaceholder>
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(widget.borderRadius ?? 4.0),
-        child: widget.enableShimmer
-            ? AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        stops: [
-                          _animation.value - 0.3,
-                          _animation.value,
-                          _animation.value + 0.3,
-                        ].map((stop) => stop.clamp(0.0, 1.0)).toList(),
-                        colors: [
-                          widget.color ?? Colors.grey[300]!,
-                          Colors.white.withOpacity(0.8),
-                          widget.color ?? Colors.grey[300]!,
-                        ],
+        child:
+            widget.enableShimmer
+                ? AnimatedBuilder(
+                  animation: _animation,
+                  builder: (context, child) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          stops:
+                              [
+                                _animation.value - 0.3,
+                                _animation.value,
+                                _animation.value + 0.3,
+                              ].map((stop) => stop.clamp(0.0, 1.0)).toList(),
+                          colors: [
+                            widget.color ?? Colors.grey[300]!,
+                            Colors.white.withOpacity(0.8),
+                            widget.color ?? Colors.grey[300]!,
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              )
-            : Container(
-                color: widget.color ?? Colors.grey[300],
-              ),
+                    );
+                  },
+                )
+                : Container(color: widget.color ?? Colors.grey[300]),
       ),
     );
   }

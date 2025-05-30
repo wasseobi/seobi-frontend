@@ -70,7 +70,7 @@ class AuthService extends ChangeNotifier {
           googleUser: googleUser,
           backendUser: user,
         );
-        _saveUserInfo(seobiUser);
+        await _saveUserInfo(seobiUser);
       } catch (error) {
         return AuthResult.failure('서버와의 통신 중 오류가 발생했습니다: $error');
       }
@@ -110,11 +110,40 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> checkLoginStatus() async {
-    await init();
+    if (!isLoggedIn) {
+      await init();
+    }
     return isLoggedIn;
   }
 
   Future<AuthResult> signInWithGoogle() async {
-    return signIn(silently: false);
+    try {
+      final result = await _googleSignIn.signInManually();
+      if (!result.success) {
+        return AuthResult.failure(result.message);
+      }
+
+      final googleUser = result.user;
+      if (googleUser == null) {
+        return AuthResult.failure('구글 사용자 정보가 없습니다.');
+      }
+
+      try {
+        final user = await _backend.postUserLogin(googleUser.idToken);
+
+        final seobiUser = SeobiUser.fromGoogleAndBackendUser(
+          googleUser: googleUser,
+          backendUser: user,
+        );
+        await _saveUserInfo(seobiUser);
+      } catch (error) {
+        return AuthResult.failure('서버와의 통신 중 오류가 발생했습니다: $error');
+      }
+
+      notifyListeners();
+      return AuthResult.success('구글 로그인 성공');
+    } catch (error) {
+      return AuthResult.failure('구글 로그인 중 오류가 발생했습니다: $error');
+    }
   }
 }

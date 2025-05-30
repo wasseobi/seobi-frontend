@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/dimensions/tab_dimensions.dart';
+import '../constants/dimensions/app_dimensions.dart';
 
 class CustomTabBar extends StatelessWidget {
   final int selectedIndex;
@@ -15,11 +16,14 @@ class CustomTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      margin: EdgeInsets.symmetric(
+        vertical: AppDimensions.spacing16,
+        horizontal: AppDimensions.spacing24,
+      ),
       padding: EdgeInsets.all(TabDimensions.padding),
       decoration: BoxDecoration(
         color: AppColors.navBox,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(AppDimensions.radius28),
       ),
       child: Stack(
         children: [
@@ -33,7 +37,7 @@ class CustomTabBar extends StatelessWidget {
               width: TabDimensions.size,
               height: TabDimensions.size,
               decoration: BoxDecoration(
-                color: AppColors.navSelectedLight,  // TODO: 어두운 테마 고려
+                color: AppColors.navSelectedLight, // TODO: 어두운 테마 고려
                 borderRadius: _getBorderRadius(selectedIndex),
               ),
             ),
@@ -66,9 +70,10 @@ class CustomTabBar extends StatelessWidget {
               child: Icon(
                 _getIcon(index),
                 key: ValueKey<bool>(selectedIndex == index),
-                color: selectedIndex == index
-                    ? AppColors.navIconSelectedLight
-                    : AppColors.navIcon,
+                color:
+                    selectedIndex == index
+                        ? AppColors.navIconSelectedLight
+                        : AppColors.navIcon,
                 size: TabDimensions.iconSize,
               ),
             ),

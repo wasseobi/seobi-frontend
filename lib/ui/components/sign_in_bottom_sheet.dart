@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:seobi_app/services/auth/auth_service.dart';
+import '../../services/auth/auth_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_fonts.dart';
 import 'google_sign_in_button.dart';
 
 class SignInBottomSheet extends StatefulWidget {
-  final VoidCallback? onSignInComplete;
-
-  const SignInBottomSheet({super.key, this.onSignInComplete});
+  const SignInBottomSheet({super.key});
 
   @override
   State<SignInBottomSheet> createState() => _SignInBottomSheetState();
@@ -30,30 +28,8 @@ class _SignInBottomSheetState extends State<SignInBottomSheet> {
 
   void _onAuthStateChanged() {
     if (_authService.isLoggedIn && mounted) {
-      if (widget.onSignInComplete != null) {
-        widget.onSignInComplete!();
-      }
+      // 로그인 성공 시 바텀 시트 닫기
       Navigator.of(context).pop();
-    }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    try {
-      await _authService.signInWithGoogle();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '로그인 중 오류가 발생했습니다: $e',
-              style: PretendardStyles.regular12.copyWith(
-                color: AppColors.white100,
-              ),
-            ),
-            backgroundColor: AppColors.gray100,
-          ),
-        );
-      }
     }
   }
 
@@ -65,7 +41,7 @@ class _SignInBottomSheetState extends State<SignInBottomSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white80,
+        color: const Color(0xFFF6F6F6),
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(12),
           topRight: const Radius.circular(12),
@@ -94,40 +70,29 @@ class _SignInBottomSheetState extends State<SignInBottomSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       '지금 시작해볼까요?',
-                      style: PretendardStyles.semiBold26.copyWith(
-                        color: AppColors.textLightPrimary,
+                      style: TextStyle(
+                        color: Color(0xFF4F4F4F),
+                        fontSize: 26,
+                        fontFamily: 'Pretendard',
+                        fontWeight: FontWeight.w600,
                         letterSpacing: -0.13,
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(
+                    const Text(
                       '바로 가입하고 AI 비서를 만나보세요',
-                      style: PretendardStyles.semiBold16.copyWith(
-                        color: AppColors.textLightSecondary,
+                      style: TextStyle(
+                        color: Color(0xFF7D7D7D),
+                        fontSize: 16,
+                        fontFamily: 'Pretendard',
+                        fontWeight: FontWeight.w600,
                         letterSpacing: -0.08,
                       ),
                     ),
                     const SizedBox(height: 24),
-                    GoogleSignInButton(
-                      onSuccess: widget.onSignInComplete,
-                      onFailure: () {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '로그인에 실패했습니다. 다시 시도해주세요.',
-                                style: PretendardStyles.regular12.copyWith(
-                                  color: AppColors.white100,
-                                ),
-                              ),
-                              backgroundColor: AppColors.gray100,
-                            ),
-                          );
-                        }
-                      },
-                    ),
+                    GoogleSignInButton(),
                   ],
                 ),
               ),

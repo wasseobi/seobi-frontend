@@ -1,33 +1,39 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
 import '../constants/dimensions/message_dimensions.dart';
+import '../constants/dimensions/app_dimensions.dart';
 
-class UserMessage extends StatelessWidget {
-  final String message;
-  final bool isSentByUser;
+class MessageUser extends StatelessWidget {
+  final String content;
 
-  const UserMessage({
-    super.key,
-    required this.message,
-    required this.isSentByUser,
-  });
+  const MessageUser({super.key, required this.content});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      padding: EdgeInsets.all(MessageDimensions.padding),
-      decoration: BoxDecoration(
-        color: isSentByUser ? AppColors.chatMsgBox : AppColors.white100,
-        borderRadius: BorderRadius.circular(12),
+      margin: EdgeInsets.symmetric(
+        vertical: AppDimensions.spacing8,
+        horizontal: AppDimensions.spacing16,
       ),
-      child: Text(
-        message,
-        style: TextStyle(
-          color: isSentByUser ? AppColors.textLight : AppColors.textLight,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Flexible(
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75, // 최대 75%
+              ),
+              padding: EdgeInsets.all(MessageDimensions.padding),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6200EA),
+                borderRadius: BorderRadius.circular(AppDimensions.radius12),
+              ),
+              child: Text(
+                content,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

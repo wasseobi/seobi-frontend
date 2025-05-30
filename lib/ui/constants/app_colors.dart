@@ -24,9 +24,11 @@ class AppColors {
   static const Color gray80 = Color(0xFF7D7D7D);
   static const Color gray60 = Color(0xFFADB3BC);
   static const Color gray40 = Color(0xFFE9E4E2);
+  static const Color gray20 = Color(0xFFF6F6F6);
   static const Color main100 = Color(0xFFFF7B34);
   static const Color main80 = Color(0xFFFFB289);
   static const Color green100 = Color(0xFF03C009);
+  static const Color error100 = Color(0xFFFF3B30);
 
   // general/text
   static const Color textDarkPrimary = white100;

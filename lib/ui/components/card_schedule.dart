@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/dimensions/message_dimensions.dart';
+import '../constants/app_fonts.dart';
 
 class ScheduleCard extends StatelessWidget {
   final String title;
@@ -31,15 +32,15 @@ class ScheduleCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                style: PretendardStyles.semiBold16.copyWith(
                   color: AppColors.black100,
                 ),
               ),
               Text(
                 time,
-                style: TextStyle(fontSize: 12, color: AppColors.gray80),
+                style: PretendardStyles.regular12.copyWith(
+                  color: AppColors.gray80,
+                ),
               ),
             ],
           ),
@@ -54,7 +55,9 @@ class ScheduleCard extends StatelessWidget {
               SizedBox(width: MessageDimensions.spacing),
               Text(
                 location,
-                style: TextStyle(fontSize: 12, color: AppColors.gray100),
+                style: PretendardStyles.regular12.copyWith(
+                  color: AppColors.gray100,
+                ),
               ),
             ],
           ),
