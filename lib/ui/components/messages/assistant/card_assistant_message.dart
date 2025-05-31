@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/dimensions/message_dimensions.dart';
-import '../../card_schedule.dart';
+import '../../common/card_schedule.dart';
 import 'base_assistant_message.dart';
 import 'message_styles.dart';
 
