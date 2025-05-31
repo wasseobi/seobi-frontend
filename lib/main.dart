@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/auth/auth_service.dart';
-import 'features/auth/sign_in_screen.dart';
-import 'features/home/home_screen.dart';
+import 'ui/screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,9 +14,7 @@ void main() async {
     final authService = AuthService();
     await authService.init();
 
-    runApp(MainApp(
-      initialRoute: authService.isLoggedIn ? '/home' : '/signin',
-    ));
+    runApp(MainApp(initialRoute: authService.isLoggedIn ? '/home' : '/signin'));
   } catch (e) {
     debugPrint('초기화 중 오류 발생: $e');
     // 에러 발생 시 로그인 화면으로 이동
@@ -27,11 +24,8 @@ void main() async {
 
 class MainApp extends StatelessWidget {
   final String initialRoute;
-  
-  const MainApp({
-    super.key,
-    required this.initialRoute,
-  });
+
+  const MainApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +37,7 @@ class MainApp extends StatelessWidget {
       initialRoute: initialRoute,
       routes: {
         '/home': (context) => const HomeScreen(),
-        '/signin': (context) => const SignInScreen(),
+        // '/signin': (context) => const SignInScreen(),
       },
     );
   }
