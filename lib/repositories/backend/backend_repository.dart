@@ -109,6 +109,25 @@ class BackendRepository implements IBackendRepository {
   }
 
   @override
+  Future<Message> postMessage({
+    required String sessionId,
+    required String userId,
+    String? content,
+    required String role,
+  }) {
+    return _http.post(
+      '/messages/',
+      {
+        'session_id': sessionId,
+        'user_id': userId,
+        'content': content,
+        'role': role, // API에는 문자열로 전송
+      },
+      (json) => Message.fromJson(json), // fromJson에서 MessageRole 변환 처리됨
+    );
+  }
+
+  @override
   Future<List<Message>> getMessagesBySessionId(String sessionId) {
     return _http.getList('/messages/session/$sessionId', Message.fromJson);
   }
@@ -116,6 +135,20 @@ class BackendRepository implements IBackendRepository {
   @override
   Future<List<Message>> getMessagesByUserId(String userId) {
     return _http.getList('/messages/user/$userId', Message.fromJson);
+  }
+
+  @override
+  Future<Message> postMessageLanggraphCompletion({
+    required String sessionId,
+    required String userId,
+    required String content,
+  }) {
+    return _http.post(
+      '/s/$sessionId/complete',
+      {'content': content},
+      Message.fromJson,
+      headers: {'user-id': userId},
+    );
   }
 
   @override
@@ -138,30 +171,108 @@ class BackendRepository implements IBackendRepository {
         )
         .map((chunk) {
           debugPrint('[BackendRepository] 청크 수신: $chunk');
-          if (chunk is! Map<String, dynamic>) {
-            throw FormatException('잘못된 청크 형식: $chunk');
-          }
           return chunk;
         })
         .where((chunk) {
           try {
             final type = chunk['type'];
-            if (type == 'answer') return true;
-            if (type == 'end') return true;
 
-            final content = chunk['content'];
-            final isValid = type == 'chunk' && content != null;
+            // 실제 백엔드 응답 타입에 맞춘 필터링
+            switch (type) {
+              case 'start':
+                // 스트리밍 시작 - UI에서 활용 가능
+                return true;
 
-            if (!isValid) {
-              debugPrint(
-                '[BackendRepository] 무시된 청크: type=$type, content=$content',
-              );
+              case 'tool_calls':
+                // AI가 도구를 사용할 때 - UI에서 "검색 중..." 표시용
+                debugPrint(
+                  '[BackendRepository] AI 도구 사용 시작: ${chunk['tool_calls']}',
+                );
+                return true;
+
+              case 'toolmessage':
+                // 도구 실행 결과 - UI에서 "검색 완료" 표시용
+                debugPrint('[BackendRepository] 도구 실행 결과 수신');
+                return true;
+
+              case 'chunk':
+                // AI 응답 텍스트 청크 - 메인 콘텐츠
+                final content = chunk['content'];
+                final isValid =
+                    content != null && content.toString().isNotEmpty;
+                if (!isValid) {
+                  debugPrint('[BackendRepository] 빈 청크 무시: $chunk');
+                }
+                return isValid;
+
+              case 'end':
+                // 스트리밍 종료 - UI 상태 업데이트용
+                return true;
+
+              case 'answer':
+                // 전체 답변 (있는 경우) - 백업용
+                return chunk['answer'] != null;
+
+              default:
+                // 알 수 없는 타입은 로그만 출력하고 무시
+                debugPrint('[BackendRepository] 알 수 없는 타입 무시: type=$type');
+                return false;
             }
-            return isValid;
           } catch (e) {
             debugPrint('[BackendRepository] 청크 필터링 오류: $e');
             return false;
           }
         });
+  }
+
+  // ========================================
+  // 향후 API 확장 준비 (swagger_new.json 대응)
+  // ========================================
+  // 아래 메서드들은 새로운 API 스펙이 활성화되면 구현될 예정입니다.
+  // 현재는 인터페이스만 정의하여 확장성을 확보합니다.
+
+  /// 자연어를 일정으로 파싱 (향후 구현 예정)
+  ///
+  /// 새로운 API: `POST /debug/schedule/parse`
+  /// 예: "6월 7일 오후 6시에 영화관에서 쇼케이스 보러가는 거 기억해줘"
+  @override
+  Future<Map<String, dynamic>>? parseScheduleFromText({
+    required String userId,
+    required String text,
+  }) {
+    // TODO: swagger_new.json 활성화 시 구현
+    debugPrint('[BackendRepository] Schedule API는 아직 미구현 상태입니다.');
+    return null;
+  }
+
+  /// 사용자의 일정 목록 조회 (향후 구현 예정)
+  ///
+  /// 새로운 API: `GET /debug/schedule/{user_id}`
+  @override
+  Future<List<Map<String, dynamic>>>? getUserSchedules(String userId) {
+    // TODO: swagger_new.json 활성화 시 구현
+    debugPrint('[BackendRepository] Schedule API는 아직 미구현 상태입니다.');
+    return null;
+  }
+
+  /// AI 인사이트 생성 (향후 구현 예정)
+  ///
+  /// 새로운 API: `POST /insights/generate`
+  /// 사용자의 대화 기록을 분석하여 인사이트 생성
+  @override
+  Future<Map<String, dynamic>>? generateInsight({required String userId}) {
+    // TODO: swagger_new.json 활성화 시 구현
+    debugPrint('[BackendRepository] Insights API는 아직 미구현 상태입니다.');
+    return null;
+  }
+
+  /// 인사이트 목록 조회 (향후 구현 예정)
+  ///
+  /// 새로운 API: `GET /insights/`
+  @override
+  Future<List<Map<String, dynamic>>>? getUserInsights(String userId) {
+    // TODO: swagger_new.json 활성화 시 구현
+    debugPrint('[BackendRepository] Insights API는 아직 미구현 상태입니다.');
+    return null;
   }
 }

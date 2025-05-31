@@ -6,7 +6,6 @@ import 'package:seobi_app/repositories/backend/models/session.dart' as backend;
 import 'package:seobi_app/repositories/local_database/local_database_repository.dart';
 import 'package:seobi_app/repositories/local_database/models/message.dart';
 import 'package:seobi_app/repositories/local_database/models/session.dart';
-import 'package:seobi_app/repositories/local_database/models/message_role.dart';
 
 class PullDbService {
   static final PullDbService _instance = PullDbService._internal();
@@ -87,20 +86,7 @@ extension MessageConverter on backend.Message {
     id: id,
     sessionId: sessionId,
     content: content,
-    role: _convertMessageRole(role),
+    role: role,
     timestamp: timestamp,
   );
-
-  MessageRole _convertMessageRole(String role) {
-    switch (role.toLowerCase()) {
-      case 'user':
-        return MessageRole.user;
-      case 'assistant':
-        return MessageRole.assistant;
-      case 'system':
-        return MessageRole.system;
-      default:
-        return MessageRole.user;
-    }
-  }
 }

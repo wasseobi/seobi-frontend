@@ -263,20 +263,75 @@ class HttpHelper {
 
           if (line.startsWith('data: ')) {
             final jsonStr = line.substring(6).trim();
-            if (jsonStr.isEmpty || jsonStr == '[DONE]') continue;
+            if (jsonStr.isEmpty || jsonStr == '[DONE]') {
+              // [DONE] 신호 처리
+              if (jsonStr == '[DONE]') {
+                debugPrint('[HttpHelper] 스트림 종료 신호 수신');
+              }
+              continue;
+            }
 
             try {
               final Map<String, dynamic> data = jsonDecode(jsonStr);
               debugPrint('[HttpHelper] 파싱된 데이터: $data');
 
-              // 청크 타입별 처리
+              // 실제 백엔드 응답 타입에 맞춘 처리
               final type = data['type'] as String?;
-              if (type == 'chunk' && data['content'] != null) {
-                yield {'type': 'chunk', 'content': data['content']};
-              } else if (type == 'end') {
-                yield {'type': 'end'};
-              } else if (type == 'answer' && data['answer'] != null) {
-                yield {'type': 'answer', 'answer': data['answer']};
+              switch (type) {
+                case 'start':
+                  // 스트리밍 시작 신호
+                  yield {'type': 'start', 'user_message': data['user_message']};
+                  break;
+
+                case 'tool_calls':
+                  // AI가 도구(검색 등)를 사용하는 신호
+                  yield {
+                    'type': 'tool_calls',
+                    'tool_calls': data['tool_calls'],
+                    'metadata': data['metadata'],
+                  };
+                  break;
+
+                case 'toolmessage':
+                  // 도구 실행 결과
+                  yield {
+                    'type': 'toolmessage',
+                    'content': data['content'],
+                    'metadata': data['metadata'],
+                  };
+                  break;
+
+                case 'chunk':
+                  // AI 응답 텍스트 청크 (메타데이터 포함)
+                  if (data['content'] != null) {
+                    yield {
+                      'type': 'chunk',
+                      'content': data['content'],
+                      'metadata': data['metadata'], // LangGraph 메타데이터 보존
+                    };
+                  }
+                  break;
+
+                case 'end':
+                  // 스트리밍 종료 신호
+                  yield {
+                    'type': 'end',
+                    'context_saved': data['context_saved'] ?? false,
+                  };
+                  break;
+
+                case 'answer':
+                  // 전체 답변 (있는 경우)
+                  if (data['answer'] != null) {
+                    yield {'type': 'answer', 'answer': data['answer']};
+                  }
+                  break;
+
+                default:
+                  // 알 수 없는 타입은 그대로 전달 (향후 확장성 고려)
+                  debugPrint('[HttpHelper] 알 수 없는 타입: $type');
+                  yield data;
+                  break;
               }
             } catch (e) {
               debugPrint('[HttpHelper] JSON 파싱 오류: $e');
@@ -292,8 +347,19 @@ class HttpHelper {
         if (jsonStr.isNotEmpty && jsonStr != '[DONE]') {
           try {
             final Map<String, dynamic> data = jsonDecode(jsonStr);
-            if (data['type'] == 'chunk' && data['content'] != null) {
-              yield {'type': 'chunk', 'content': data['content']};
+            final type = data['type'] as String?;
+
+            if (type == 'chunk' && data['content'] != null) {
+              yield {
+                'type': 'chunk',
+                'content': data['content'],
+                'metadata': data['metadata'],
+              };
+            } else if (type == 'end') {
+              yield {
+                'type': 'end',
+                'context_saved': data['context_saved'] ?? false,
+              };
             }
           } catch (e) {
             debugPrint('[HttpHelper] 최종 청크 파싱 오류: $e');
