@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
-import '../components/custom_navigation_bar.dart';
-import '../components/custom_drawer.dart';
-import '../components/sign_in_bottom_sheet.dart';
+import '../components/navigation/custom_navigation_bar.dart';
+import '../components/drawer/custom_drawer.dart';
+import '../components/auth/sign_in_bottom_sheet.dart';
 import '../../services/auth/auth_service.dart';
-import '../components/input_bar.dart';
+import '../components/input_bar/input_bar.dart';
 import '../components/messages/assistant/message_types.dart'; // MessageType enum import
-import '../components/measure_size.dart';
+import '../utils/measure_size.dart';
 import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {

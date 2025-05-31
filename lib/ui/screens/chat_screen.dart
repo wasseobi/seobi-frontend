@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../components/message_list.dart';
+import '../components/messages/message_list.dart';
 
 class ChatScreen extends StatelessWidget {
   final List<Map<String, dynamic>> messages;

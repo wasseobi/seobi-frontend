@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'messages/user/user_message.dart';
-import 'messages/assistant/assistant_message.dart';
-import 'messages/assistant/message_types.dart'; // MessageType enum import
+import 'user/user_message.dart';
+import 'assistant/assistant_message.dart';
+import 'assistant/message_types.dart'; // MessageType enum import
 
 class ChatMessageList extends StatelessWidget {
   final List<Map<String, dynamic>> messages; // 나중에 map에서 모델로 변경 예정

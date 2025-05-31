@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
-import '../constants/app_colors.dart';
-import 'custom_button.dart';
-import '../../services/tts/tts_service.dart';
-import '../../services/stt/stt_service.dart';
+import '../../constants/app_colors.dart';
+import '../common/custom_button.dart';
+import '../../../services/tts/tts_service.dart';
+import '../../../services/stt/stt_service.dart';
 
 class InputBar extends StatefulWidget {
   final TextEditingController controller;

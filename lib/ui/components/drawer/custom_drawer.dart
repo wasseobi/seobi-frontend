@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:seobi_app/ui/components/custom_button.dart';
+import 'package:seobi_app/ui/components/common/custom_button.dart';
 import 'package:seobi_app/services/auth/auth_service.dart';
-import '../constants/app_colors.dart';
-import 'profile_card.dart';
-import 'sign_in_bottom_sheet.dart';
+import '../../constants/app_colors.dart';
+import '../profile_card/profile_card.dart';
+import '../auth/sign_in_bottom_sheet.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});

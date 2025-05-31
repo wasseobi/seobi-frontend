@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
-import 'custom_button.dart';
+import '../common/custom_button.dart';
 import 'custom_tab_bar.dart';
 import 'date_indicator.dart';
 

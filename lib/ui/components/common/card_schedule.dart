@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
-import '../constants/dimensions/message_dimensions.dart';
+import '../../constants/app_colors.dart';
+import '../../constants/dimensions/message_dimensions.dart';
 
 class ScheduleCard extends StatelessWidget {
   final String title;

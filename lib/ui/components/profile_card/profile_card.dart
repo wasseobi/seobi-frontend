@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/services/auth/auth_service.dart';
-import 'text_placeholder.dart';
+import '../common/text_placeholder.dart';
 import 'role_badge.dart';
 
 class ProfileCard extends StatefulWidget {
