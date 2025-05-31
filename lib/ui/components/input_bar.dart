@@ -27,11 +27,12 @@ class _InputBarState extends State<InputBar> {
   final STTService _sttService = STTService();
   bool _isRecording = false;
   bool _isSendingAfterTts = false;
-  bool _isKeyboardVisible = false;
 
-  // 키보드 가시성 컨트롤러
-  late final KeyboardVisibilityController _keyboardVisibilityController;
-  late final StreamSubscription<bool> _keyboardSubscription;
+  // TextField에 대한 GlobalKey 추가
+  final GlobalKey<EditableTextState> _textFieldKey =
+      GlobalKey<EditableTextState>();
+
+  late final FocusNode _focusNode;
 
   @override
   void initState() {
@@ -39,26 +40,21 @@ class _InputBarState extends State<InputBar> {
     _sttService.initialize();
     widget.controller.addListener(_onTextChanged);
 
-    // 키보드 가시성 관련 초기화
-    _keyboardVisibilityController = KeyboardVisibilityController();
-    _isKeyboardVisible = _keyboardVisibilityController.isVisible;
-    _keyboardSubscription = _keyboardVisibilityController.onChange.listen((
-      visible,
-    ) {
-      setState(() {
-        _isKeyboardVisible = visible;
-      });
-    });
+    // FocusNode 초기화
+    _focusNode = widget.focusNode ?? FocusNode();
   }
 
   @override
   void dispose() {
+    // 외부에서 제공된 focusNode가 아닐 경우에만 dispose
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
     widget.controller.removeListener(_onTextChanged);
     _ttsService.dispose();
     if (_isRecording) {
       _sttService.stopListening();
     }
-    _keyboardSubscription.cancel();
     super.dispose();
   }
 
@@ -115,8 +111,9 @@ class _InputBarState extends State<InputBar> {
   // 텍스트 필드 빌드 메서드
   Widget _buildTextField(bool isEmpty) {
     return TextField(
+      key: _textFieldKey, // GlobalKey 할당
       controller: widget.controller,
-      focusNode: widget.focusNode,
+      focusNode: _focusNode,
       maxLines: 3, // 최대 3줄까지 표시 가능
       minLines: 1, // 최소 1줄
       keyboardType: TextInputType.multiline, // 여러 줄 입력 가능한 키보드
@@ -158,52 +155,16 @@ class _InputBarState extends State<InputBar> {
     );
   }
 
-  // 키보드가 보일 때 레이아웃 (세로 배치)
-  Widget _buildVerticalLayout(bool isEmpty) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          // 텍스트 필드 (1행 전체)
-          child: _buildTextField(isEmpty),
-        ),
-
-        const SizedBox(height: 8), // 행 간 간격
-
-        // 전송 버튼 (2행, 우측 정렬)
-        Align(
-          alignment: Alignment.centerRight,
-          child: _buildActionButton(isEmpty),
-        ),
-      ],
-    );
-  }
-
-  // 키보드가 안 보일 때 레이아웃 (가로 배치)
-  Widget _buildHorizontalLayout(bool isEmpty) {
-    return Row(
-      children: [
-        const SizedBox(width: 12),
-
-        // 텍스트 필드
-        Expanded(child: _buildTextField(isEmpty)),
-        const SizedBox(width: 8),
-        
-        // 동적 버튼 (음성 모드 또는 전송)
-        _buildActionButton(isEmpty),
-      ],
-    );
-  }
-
   // 컨테이너 스타일 관련 메서드들
-  EdgeInsetsGeometry _getContainerPadding() {
-    return _isKeyboardVisible
-        ? const EdgeInsets.only(top: 12) // 키보드가 보이면 좌우하단 패딩 없음
-        : const EdgeInsets.only(left: 12, right: 12, top: 12); // 기본 패딩
+  EdgeInsetsGeometry _getContainerPadding(bool isKeyboardVisible) {
+    return isKeyboardVisible
+        ? EdgeInsets
+            .zero // 키보드가 보이면 좌우하단 패딩 없음
+        : const EdgeInsets.only(left: 12, right: 12); // 기본 패딩
   }
 
-  BorderRadius _getContainerRadius() {
-    return _isKeyboardVisible
+  BorderRadius _getContainerRadius(bool isKeyboardVisible) {
+    return isKeyboardVisible
         ? const BorderRadius.only(
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
@@ -215,30 +176,43 @@ class _InputBarState extends State<InputBar> {
   Widget build(BuildContext context) {
     final bool isEmpty = widget.controller.text.isEmpty;
 
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: _getContainerPadding(),
-        child: Container(
-          width: double.infinity, // 화면 너비 전체를 차지
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: _getContainerRadius(),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
+    return KeyboardVisibilityBuilder(
+      builder: (context, isKeyboardVisible) {
+        debugPrint('키보드 상태: $isKeyboardVisible');
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: _getContainerPadding(isKeyboardVisible),
+            child: Container(
+              width: double.infinity, // 화면 너비 전체를 차지
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: _getContainerRadius(isKeyboardVisible),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
               ),
-            ],
+              child: Row(
+                children: [
+                  const SizedBox(width: 12),
+
+                  // 텍스트 필드
+                  Expanded(child: _buildTextField(isEmpty)),
+                  const SizedBox(width: 8),
+
+                  // 동적 버튼 (음성 모드 또는 전송)
+                  _buildActionButton(isEmpty),
+                ],
+              ), // 키보드가 안 보일 때: 가로 레이아웃
+            ),
           ),
-          child:
-              _isKeyboardVisible
-                  ? _buildVerticalLayout(isEmpty) // 키보드가 보일 때: 세로 레이아웃
-                  : _buildHorizontalLayout(isEmpty), // 키보드가 안 보일 때: 가로 레이아웃
-        ),
-      ),
+        );
+      },
     );
   }
 }
