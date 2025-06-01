@@ -6,7 +6,6 @@ import '../components/drawer/custom_drawer.dart';
 import '../components/auth/sign_in_bottom_sheet.dart';
 import '../../services/auth/auth_service.dart';
 import '../components/input_bar/input_bar.dart';
-import '../components/messages/assistant/message_types.dart'; // MessageType enum import
 import '../utils/measure_size.dart';
 import '../utils/chat_provider.dart';
 import 'chat_screen.dart';
@@ -23,17 +22,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final AuthService _authService = AuthService();
-
   // 입력창 관련
   final TextEditingController _chatController = TextEditingController();
-  // FocusNode를 final로 선언
   final FocusNode _focusNode = FocusNode();
 
-  // 메시지 리스트
-  final List<Map<String, dynamic>> _messages = [];
   // InputBar 관련 높이를 동적으로 추적하기 위한 변수
   double _inputBarHeight = 64; // 기본값 설정
-
   @override
   void initState() {
     super.initState();
@@ -290,8 +284,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: _pageController,
                       onPageChanged: _onPageChanged,
                       children: [
+                        // 채팅 화면
+                      onPageChanged: _onPageChanged,
+                      children: [
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
+                          child: const ChatScreen(),
+                        ),
+
+                        // 보관함 화면
                           child: Column(
                             children: [
                               Expanded(
@@ -310,6 +311,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
                           child: const Center(child: Text('보관함 화면')),
                         ),
+
+                        // 통계 화면
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
                           child: const Center(child: Text('통계 화면')),
@@ -335,7 +338,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: InputBar(
                     controller: _chatController,
                     focusNode: _focusNode,
-                    onSend: _handleSend,
                   ),
                 ),
               ),

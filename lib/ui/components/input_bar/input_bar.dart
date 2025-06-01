@@ -1,47 +1,36 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
-import '../../constants/app_colors.dart';
-import '../common/custom_button.dart';
-import '../../../services/tts/tts_service.dart';
-import '../../../services/stt/stt_service.dart';
+import 'package:provider/provider.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
+import 'package:seobi_app/ui/components/common/custom_button.dart';
+import 'input_bar_view_model.dart';
 
 class InputBar extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
-  final VoidCallback onSend;
 
-  const InputBar({
-    super.key,
-    required this.controller,
-    required this.onSend,
-    this.focusNode,
-  });
+  const InputBar({super.key, required this.controller, this.focusNode});
 
   @override
   State<InputBar> createState() => _InputBarState();
 }
 
 class _InputBarState extends State<InputBar> {
-  final TtsService _ttsService = TtsService();
-  final STTService _sttService = STTService();
-  bool _isRecording = false;
-  bool _isSendingAfterTts = false;
-
   // TextField에 대한 GlobalKey 추가
   final GlobalKey<EditableTextState> _textFieldKey =
       GlobalKey<EditableTextState>();
 
   late final FocusNode _focusNode;
+  late final InputBarViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-    _sttService.initialize();
-    widget.controller.addListener(_onTextChanged);
-
-    // FocusNode 초기화
     _focusNode = widget.focusNode ?? FocusNode();
+    _viewModel = InputBarViewModel(
+      textController: widget.controller,
+      focusNode: _focusNode,
+    );
   }
 
   @override
@@ -50,108 +39,57 @@ class _InputBarState extends State<InputBar> {
     if (widget.focusNode == null) {
       _focusNode.dispose();
     }
-    widget.controller.removeListener(_onTextChanged);
-    _ttsService.dispose();
-    if (_isRecording) {
-      _sttService.stopListening();
-    }
+    _viewModel.dispose();
     super.dispose();
   }
 
-  void _onTextChanged() {
-    // 상태가 변경될 때 UI 업데이트
-    setState(() {});
-  }
-
-  void _handleButtonPress() {
-    if (widget.controller.text.isEmpty) {
-      _startVoiceInput();
-    } else {
-      widget.onSend();
-    }
-  }
-
-  Future<void> _startVoiceInput() async {
-    setState(() {
-      _isRecording = true;
-    });
-
-    await _sttService.startListening(
-      onResult: (text, isFinal) {
-        widget.controller.text = text;
-
-        if (isFinal) {
-          setState(() {
-            _isRecording = false;
-            _isSendingAfterTts = true;
-          });
-
-          // TTS로 음성 피드백
-          _ttsService.addToQueue('음성 인식이 완료되었습니다. "${text}" 전송합니다.');
-
-          // TTS가 끝나면 자동으로 메시지 전송
-          Future.delayed(const Duration(seconds: 2), () {
-            if (_isSendingAfterTts && mounted) {
-              widget.onSend();
-              setState(() {
-                _isSendingAfterTts = false;
-              });
-            }
-          });
-        }
-      },
-      onSpeechComplete: () {
-        setState(() {
-          _isRecording = false;
-        });
-      },
-    );
-  }
-
   // 텍스트 필드 빌드 메서드
-  Widget _buildTextField(bool isEmpty) {
-    return TextField(
-      key: _textFieldKey, // GlobalKey 할당
-      controller: widget.controller,
-      focusNode: _focusNode,
-      maxLines: 3, // 최대 3줄까지 표시 가능
-      minLines: 1, // 최소 1줄
-      keyboardType: TextInputType.multiline, // 여러 줄 입력 가능한 키보드
-      textInputAction: TextInputAction.newline, // 엔터 키를 줄바꿈으로 처리
-      style: const TextStyle(fontSize: 16, color: AppColors.gray100),
-      decoration: InputDecoration(
-        hintText: _isRecording ? '듣고 있습니다. 말씀하세요...' : '메시지를 입력하세요',
-        border: InputBorder.none,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        // 텍스트가 있을 때만 지우기 버튼 표시
-        suffixIcon:
-            !isEmpty
-                ? IconButton(
-                  onPressed: () {
-                    widget.controller.clear();
-                    // textController를 비운 후 상태 업데이트
-                    setState(() {});
-                  },
-                  icon: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: AppColors.gray60,
-                  ),
-                )
-                : null,
+  Widget _buildTextField(BuildContext context, bool isEmpty, bool isRecording) {
+    final viewModel = Provider.of<InputBarViewModel>(context);
+    return IntrinsicHeight(
+      child: TextField(
+        key: _textFieldKey, // GlobalKey 할당
+        controller: widget.controller,
+        focusNode: _focusNode,
+        onTap: viewModel.handleTextFieldTap, // 텍스트 필드 터치 시 모드 전환
+        maxLines: 3, // 최대 3줄까지 표시 가능
+        minLines: 1, // 최소 1줄
+        keyboardType: TextInputType.multiline, // 여러 줄 입력 가능한 키보드
+        textInputAction: TextInputAction.newline, // 엔터 키를 줄바꿈으로 처리
+        style: const TextStyle(fontSize: 16, color: AppColors.gray100),
+        decoration: InputDecoration(
+          hintText: viewModel.hintText,
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12), // 세로 패딩 증가
+          // 텍스트가 있을 때만 지우기 버튼 표시
+          suffixIcon:
+              !isEmpty
+                  ? IconButton(
+                    onPressed: () {
+                      viewModel.clearText();
+                    },
+                    icon: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: AppColors.gray60,
+                    ),
+                  )
+                  : null,
+        ),
       ),
     );
   }
 
   // 전송/음성 버튼 빌드 메서드
-  Widget _buildActionButton(bool isEmpty) {
+  Widget _buildActionButton(BuildContext context, bool isEmpty) {
+    final viewModel = Provider.of<InputBarViewModel>(context);
     return CustomButton(
       type: CustomButtonType.circular,
-      icon: isEmpty ? Icons.mic : Icons.send,
-      backgroundColor: AppColors.main100,
+      icon: viewModel.actionButtonIcon,
+      backgroundColor: viewModel.actionButtonColor,
       iconColor: Colors.white,
-      onPressed: _handleButtonPress,
+      onPressed: viewModel.handleButtonPress,
     );
   }
 
@@ -174,45 +112,57 @@ class _InputBarState extends State<InputBar> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isEmpty = widget.controller.text.isEmpty;
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Consumer<InputBarViewModel>(
+        builder: (context, viewModel, _) {
+          return KeyboardVisibilityBuilder(
+            builder: (context, isKeyboardVisible) {
+              debugPrint('키보드 상태: $isKeyboardVisible');
+              return Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: _getContainerPadding(isKeyboardVisible),
+                  child: Container(
+                    width: double.infinity, // 화면 너비 전체를 차지
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: _getContainerRadius(isKeyboardVisible),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12), // 텍스트 필드
+                        Expanded(
+                          child: _buildTextField(
+                            context,
+                            viewModel.isEmpty,
+                            viewModel.isRecording,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
 
-    return KeyboardVisibilityBuilder(
-      builder: (context, isKeyboardVisible) {
-        debugPrint('키보드 상태: $isKeyboardVisible');
-        return Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: _getContainerPadding(isKeyboardVisible),
-            child: Container(
-              width: double.infinity, // 화면 너비 전체를 차지
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: _getContainerRadius(isKeyboardVisible),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
+                        // 동적 버튼 (모드와 상태에 따라 변경)
+                        _buildActionButton(context, viewModel.isEmpty),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-
-                  // 텍스트 필드
-                  Expanded(child: _buildTextField(isEmpty)),
-                  const SizedBox(width: 8),
-
-                  // 동적 버튼 (음성 모드 또는 전송)
-                  _buildActionButton(isEmpty),
-                ],
-              ), // 키보드가 안 보일 때: 가로 레이아웃
-            ),
-          ),
-        );
-      },
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
