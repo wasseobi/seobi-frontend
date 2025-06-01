@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../repositories/backend/backend_repository.dart';
 import '../../repositories/backend/models/session.dart';
 import '../../repositories/backend/models/message.dart';
+import '../../repositories/local_database/models/message_role.dart';
 import '../../services/auth/auth_service.dart';
 
 class ConversationService {
@@ -31,14 +32,17 @@ class ConversationService {
 
   /// 새로운 대화 세션을 생성합니다.
   ///
-  /// [title]과 [description]은 선택적 매개변수입니다.
-  Future<Session> createSession({bool isAIChat = false}) async {
+  /// Seobi는 AI 음성 어시스턴트 앱이므로 기본적으로 모든 세션이 AI 채팅입니다.
+  /// [type] 매개변수를 통해 향후 일정 관리나 인사이트 생성 세션도 지원합니다.
+  Future<Session> createSession({SessionType type = SessionType.chat}) async {
     try {
       final userId = await _getUserIdAndAuthenticate();
       final session = await _backendRepository.postSession(userId);
-      session.isAiChat = isAIChat;
-      debugPrint('새 ${isAIChat ? 'AI 채팅' : ''} 세션이 생성되었습니다: ${session.id}');
-      return session;
+      final updatedSession = session.copyWith(type: type);
+      debugPrint(
+        '새 ${type.toString().split('.').last} 세션이 생성되었습니다: ${updatedSession.id}',
+      );
+      return updatedSession;
     } catch (e) {
       debugPrint('세션 생성 오류: $e');
       rethrow;
@@ -49,11 +53,10 @@ class ConversationService {
   ///
   /// [sessionId] 현재 대화 세션 ID
   /// [content] 사용자 메시지 내용
-  /// [isAIChat] AI 채팅 여부
+  /// 세션 타입에 따라 적절한 AI 응답을 처리합니다.
   Future<Message> sendMessage({
     required String sessionId,
     required String content,
-    bool isAIChat = false,
   }) async {
     try {
       final userId = await _getUserIdAndAuthenticate();
@@ -64,15 +67,11 @@ class ConversationService {
         sessionId: sessionId,
         userId: userId,
         content: content,
-        role: Message.ROLE_USER,
+        role: MessageRole.user,
         timestamp: DateTime.now(),
       );
 
-      if (!isAIChat) {
-        return userMessage;
-      }
-
-      // AI 응답 생성 및 저장
+      // AI 응답 생성 및 저장 (세션 조회 제거)
       final StringBuffer buffer = StringBuffer();
       debugPrint('[ConversationService] AI 응답 스트리밍 시작');
 
@@ -102,7 +101,7 @@ class ConversationService {
         sessionId: sessionId,
         userId: 'assistant',
         content: aiResponse,
-        role: Message.ROLE_ASSISTANT,
+        role: MessageRole.assistant,
         timestamp: DateTime.now(),
       );
     } catch (e) {
@@ -112,10 +111,7 @@ class ConversationService {
   }
 
   /// 세션의 모든 메시지를 가져옵니다.
-  Future<List<Message>> getSessionMessages(
-    String sessionId, {
-    bool isAIChat = false,
-  }) async {
+  Future<List<Message>> getSessionMessages(String sessionId) async {
     try {
       await _getUserIdAndAuthenticate();
       return await _backendRepository.getMessagesBySessionId(sessionId);
@@ -162,13 +158,19 @@ class ConversationService {
   /// [sessionId] 현재 대화 세션 ID
   /// [content] 사용자 메시지 내용
   /// [onProgress] 스트리밍 응답을 받을 때마다 호출되는 콜백
+  /// [onToolUse] AI가 도구를 사용할 때 호출되는 콜백 (선택적)
   Future<Message> sendMessageStream({
     required String sessionId,
     required String content,
     required void Function(String partialResponse) onProgress,
+    void Function(String toolName)? onToolUse,
+    void Function()? onToolComplete,
   }) async {
     final StringBuffer buffer = StringBuffer();
     String? finalAnswer;
+    bool toolUsed = false; // 도구 사용 여부 추적
+    String? usedToolName; // 사용된 도구 이름
+    String? toolResult; // 도구 실행 결과
 
     try {
       final userId = await _getUserIdAndAuthenticate();
@@ -184,6 +186,37 @@ class ConversationService {
           final type = chunk['type'] as String;
 
           switch (type) {
+            case 'start':
+              debugPrint('[ConversationService] 스트리밍 시작');
+              break;
+
+            case 'tool_calls':
+              // AI가 도구 사용 시작 - UI에 "검색 중..." 표시
+              final toolCalls = chunk['tool_calls'] as List?;
+              if (toolCalls?.isNotEmpty == true) {
+                final toolName = toolCalls![0]['function']['name'] ?? '도구';
+                debugPrint('[ConversationService] AI 도구 사용: $toolName');
+                onToolUse?.call(toolName);
+                toolUsed = true;
+                usedToolName = toolName;
+              }
+              break;
+
+            case 'toolmessage':
+              // 도구 실행 완료 - UI에 "검색 완료" 표시
+              debugPrint('[ConversationService] 도구 실행 완료');
+              onToolComplete?.call();
+
+              // 도구 실행 결과 저장 (필요시 사용)
+              final content = chunk['content'] as String?;
+              if (content != null && content.isNotEmpty) {
+                toolResult = content;
+                debugPrint(
+                  '[ConversationService] 도구 실행 결과: ${content.length > 100 ? '${content.substring(0, 100)}...' : content}',
+                );
+              }
+              break;
+
             case 'chunk':
               final chunkContent = chunk['content'] as String;
               if (chunkContent.isNotEmpty) {
@@ -216,20 +249,69 @@ class ConversationService {
       debugPrint('[ConversationService] 최종 응답: $aiResponse');
 
       if (aiResponse.isEmpty && finalAnswer == null) {
+        // **도구 사용 후 응답이 비어있는 경우 대체 응답 생성**
+        if (toolUsed) {
+          final fallbackResponse = _generateToolFallbackResponse(
+            usedToolName,
+            toolResult,
+          );
+          debugPrint(
+            '[ConversationService] 도구 사용 후 대체 응답 생성: $fallbackResponse',
+          );
+
+          return Message(
+            id: DateTime.now().toIso8601String(),
+            sessionId: sessionId,
+            userId: 'assistant',
+            content: fallbackResponse,
+            role: MessageRole.assistant,
+            timestamp: DateTime.now(),
+          );
+        }
+
         throw Exception('AI 응답이 비어있습니다.');
+      }
+
+      if (toolUsed) {
+        toolResult = aiResponse;
+      } else {
+        finalAnswer = aiResponse;
       }
 
       return Message(
         id: DateTime.now().toIso8601String(),
         sessionId: sessionId,
         userId: 'assistant',
-        content: finalAnswer ?? aiResponse,
-        role: Message.ROLE_ASSISTANT,
+        content: finalAnswer ?? toolResult ?? aiResponse,
+        role: MessageRole.assistant,
         timestamp: DateTime.now(),
       );
     } catch (e) {
       debugPrint('[ConversationService] 스트리밍 오류: $e');
       rethrow;
+    }
+  }
+
+  /// 도구 사용 후 AI 응답이 비어있을 때 대체 응답을 생성합니다.
+  String _generateToolFallbackResponse(String? toolName, String? toolResult) {
+    switch (toolName) {
+      case 'search_web':
+        if (toolResult != null && toolResult.isNotEmpty) {
+          return '웹 검색을 완료했습니다. 검색 결과를 바탕으로 답변을 준비하고 있습니다.';
+        }
+        return '웹 검색을 수행했습니다. 잠시 후 결과를 정리해서 답변드리겠습니다.';
+
+      case 'get_weather':
+        return '날씨 정보를 조회했습니다. 결과를 정리해서 알려드리겠습니다.';
+
+      case 'calculator':
+        return '계산을 수행했습니다. 결과를 확인하고 답변드리겠습니다.';
+
+      default:
+        if (toolName != null) {
+          return '$toolName 도구를 사용하여 작업을 수행했습니다. 결과를 정리해서 답변드리겠습니다.';
+        }
+        return '요청하신 작업을 처리했습니다. 잠시 후 결과를 알려드리겠습니다.';
     }
   }
 }

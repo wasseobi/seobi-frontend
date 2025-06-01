@@ -7,7 +7,8 @@ import 'models/message.dart';
 import 'models/session.dart';
 
 class LocalDatabaseRepository {
-  static final LocalDatabaseRepository _instance = LocalDatabaseRepository._internal();
+  static final LocalDatabaseRepository _instance =
+      LocalDatabaseRepository._internal();
   static Database? _database;
 
   factory LocalDatabaseRepository() {
@@ -22,10 +23,11 @@ class LocalDatabaseRepository {
       await _database!.close();
       _database = null;
     }
-    
+
     await _initPlatformSpecific();
-    
-    final String path = databasePath ?? join(await getDatabasesPath(), 'seobi.db');
+
+    final String path =
+        databasePath ?? join(await getDatabasesPath(), 'seobi.db');
     _database = await openDatabase(
       path,
       version: 1,
@@ -54,7 +56,9 @@ class LocalDatabaseRepository {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     } else if (kIsWeb) {
-      throw UnsupportedError('Web platform is not supported by this database implementation');
+      throw UnsupportedError(
+        'Web platform is not supported by this database implementation',
+      );
     }
     // Android와 iOS는 기본 구현을 사용하므로 추가 초기화가 필요없음
   }
@@ -64,7 +68,6 @@ class LocalDatabaseRepository {
     await initialize();
     return _database!;
   }
-
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('PRAGMA foreign_keys = ON;');

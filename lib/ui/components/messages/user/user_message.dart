@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
-import '../constants/dimensions/message_dimensions.dart';
+import '../../../constants/app_colors.dart';
+import '../../../constants/dimensions/message_dimensions.dart';
 
 class UserMessage extends StatelessWidget {
   final String message;
@@ -15,7 +15,6 @@ class UserMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       padding: EdgeInsets.all(MessageDimensions.padding),
       decoration: BoxDecoration(
         color: isSentByUser ? AppColors.chatMsgBox : AppColors.white100,

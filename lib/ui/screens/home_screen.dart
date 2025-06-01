@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import '../components/custom_navigation_bar.dart';
-import '../components/custom_drawer.dart';
-import '../components/sign_in_bottom_sheet.dart';
+import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'package:provider/provider.dart';
+import '../components/navigation/custom_navigation_bar.dart';
+import '../components/drawer/custom_drawer.dart';
+import '../components/auth/sign_in_bottom_sheet.dart';
 import '../../services/auth/auth_service.dart';
-import '../components/fab.dart';
+import '../components/input_bar/input_bar.dart';
+import '../utils/measure_size.dart';
+import '../utils/chat_provider.dart';
 import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,42 +22,22 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final AuthService _authService = AuthService();
-
-  // 예시 메시지 데이터
-
-  bool _isChatExpanded = false;
+  // 입력창 관련
   final TextEditingController _chatController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
-  // FAB 관련 높이 설정
-  final double collapsedChatHeight = 88;
-  final double expandedChatHeight = 205;
-  final double fabMarginBottom = 28;
-
-  final List<Map<String, dynamic>> _messages = [
-    {
-      'isUser': false,
-      'text': '일정이 등록되었습니다.',
-      'type': 'card',
-      'card': {'title': '치과예약', 'time': '5월 12일 오후 6시', 'location': '김이안치과'},
-      'actions': [
-        {'icon': '📝', 'text': '노션에 저장했어요'},
-        {'icon': '🔔', 'text': '알림 설정함'},
-      ],
-      'timestamp': '2025.05.12 05:29 전송됨',
-    },
-    {'isUser': true, 'text': '치과 일정 등록해줘'},
-  ];
+  // InputBar 관련 높이를 동적으로 추적하기 위한 변수
+  double _inputBarHeight = 64; // 기본값 설정
 
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
-  }
 
-  void _checkLoginStatus() {
-    // 위젯이 빌드된 후에 로그인 상태 확인
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ChatProvider에서 샘플 메시지를 로드
+      context.read<ChatProvider>().loadSampleMessages();
+
+      // AuthService는 main에서 이미 초기화되었으므로 여기서는 상태만 확인합니다
       if (!_authService.isLoggedIn && mounted) {
         _showSignInBottomSheet();
       }
@@ -71,14 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _chatController.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
   void _onTabTapped(int index) {
     _pageController.animateToPage(
       index,
@@ -91,46 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  void _toggleChat() {
-    setState(() {
-      _isChatExpanded = !_isChatExpanded;
-    });
-
-    if (_isChatExpanded) {
-      Future.delayed(const Duration(milliseconds: 300), () {
-        FocusScope.of(context).requestFocus(_focusNode);
-      });
-    } else {
-      FocusScope.of(context).unfocus();
-    }
-  }
-
-  void _collapseChat() {
-    setState(() => _isChatExpanded = false);
-    FocusScope.of(context).unfocus();
-  }
-
-  void _handleSend() {
-    print("보낸 메시지: ${_chatController.text}");
-    _chatController.clear();
-    FocusScope.of(context).unfocus();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final double chatBarHeight =
-        (_isChatExpanded ? expandedChatHeight : collapsedChatHeight) +
-        fabMarginBottom;
-
-    return GestureDetector(
-      onTap: () {
-        if (_isChatExpanded) _collapseChat(); // 외부 탭하면 닫힘
-      },
+    return KeyboardDismissOnTap(
       child: Scaffold(
         key: _scaffoldKey,
         drawer: const CustomDrawer(),
         body: SafeArea(
-          // SafeArea를 Stack 밖으로 빼서 화면 전체를 안전 영역으로 감쌈
           child: Stack(
             children: [
               Column(
@@ -147,40 +90,60 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: _pageController,
                       onPageChanged: _onPageChanged,
                       children: [
+                        // 채팅 화면
                         Padding(
-                          padding: EdgeInsets.only(bottom: chatBarHeight),
-                          child: ChatScreen(messages: _messages),
+                          padding: EdgeInsets.only(bottom: _inputBarHeight),
+                          child: const ChatScreen(),
                         ),
-                        const Center(child: Text('보관함 화면')),
-                        const Center(child: Text('통계 화면')),
+
+                        // 보관함 화면
+                        Padding(
+                          padding: EdgeInsets.only(bottom: _inputBarHeight),
+                          child: const Center(child: Text('보관함 화면')),
+                        ),
+
+                        // 통계 화면
+                        Padding(
+                          padding: EdgeInsets.only(bottom: _inputBarHeight),
+                          child: const Center(child: Text('통계 화면')),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-
-              // 투명한 영역 클릭 시 닫힘 처리
-              IgnorePointer(
-                ignoring: !_isChatExpanded,
-                child: GestureDetector(
-                  onTap: _collapseChat,
-                  child: Container(color: Colors.transparent),
+              // 입력 바
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: MeasureSize(
+                  onChange: (size) {
+                    // 입력 바의 높이가 변경될 때 상태 업데이트
+                    if (mounted && size.height != _inputBarHeight) {
+                      setState(() {
+                        _inputBarHeight = size.height;
+                      });
+                    }
+                  },
+                  child: InputBar(
+                    controller: _chatController,
+                    focusNode: _focusNode,
+                  ),
                 ),
-              ),
-
-              // FAB (채팅 플로팅바)
-              ChatFloatingBar(
-                isExpanded: _isChatExpanded,
-                onToggle: _toggleChat,
-                onCollapse: _collapseChat,
-                onSend: _handleSend,
-                controller: _chatController,
-                focusNode: _focusNode,
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _chatController.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 }

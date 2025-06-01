@@ -63,7 +63,9 @@ class AuthService extends ChangeNotifier {
         return AuthResult.failure('구글 사용자 정보가 없습니다.');
       }
       try {
+        debugPrint('[GOOGLE ID TOKEN] ${googleUser.idToken}');
         final user = await _backend.postUserLogin(googleUser.idToken);
+        debugPrint('[JWT] ${user.accessToken}');
 
         final seobiUser = SeobiUser.fromGoogleAndBackendUser(
           googleUser: googleUser,

@@ -5,6 +5,7 @@ import 'i_backend_repository.dart';
 import 'models/user.dart';
 import 'models/session.dart';
 import 'models/message.dart';
+import '../local_database/models/message_role.dart';
 
 class StubBackendRepository implements IBackendRepository {
   static final StubBackendRepository _instance =
@@ -90,6 +91,22 @@ class StubBackendRepository implements IBackendRepository {
     );
   }
 
+  /// String 역할을 MessageRole enum으로 변환하는 헬퍼 함수
+  MessageRole _parseRoleFromString(String roleString) {
+    switch (roleString.toLowerCase()) {
+      case 'user':
+        return MessageRole.user;
+      case 'assistant':
+        return MessageRole.assistant;
+      case 'system':
+        return MessageRole.system;
+      case 'tool':
+        return MessageRole.tool;
+      default:
+        return MessageRole.user; // 기본값
+    }
+  }
+
   // 더미 세션 데이터 생성
   Session _createDummySession(String userId) {
     final sessionId = 'session_${_generateRandomString(8)}';
@@ -117,7 +134,7 @@ class StubBackendRepository implements IBackendRepository {
       sessionId: sessionId,
       userId: userId,
       content: content ?? '', // null일 경우 빈 문자열 사용
-      role: role,
+      role: _parseRoleFromString(role),
       timestamp: DateTime.now(),
       vector:
           role != 'user'
@@ -406,5 +423,82 @@ class StubBackendRepository implements IBackendRepository {
     yield {'type': 'end', 'context_saved': true};
 
     debugPrint('[StubBackend] LangGraph 스트리밍 완료');
+  }
+
+  // ========================================
+  // 향후 API 확장 준비 (swagger_new.json 대응)
+  // ========================================
+
+  @override
+  Future<Map<String, dynamic>>? parseScheduleFromText({
+    required String userId,
+    required String text,
+  }) async {
+    // Stub 구현: 테스트용 일정 데이터 반환
+    await Future.delayed(const Duration(milliseconds: 500));
+    return {
+      'id': 'schedule-${DateTime.now().millisecondsSinceEpoch}',
+      'title':
+          '파싱된 일정: ${text.substring(0, text.length > 20 ? 20 : text.length)}...',
+      'start_at': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+      'location': '파싱된 장소',
+      'status': 'undone',
+    };
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>>? getUserSchedules(String userId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    return [
+      {
+        'id': 'schedule-1',
+        'title': '영화 관람',
+        'start_at':
+            DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+        'location': 'CGV 강남',
+        'status': 'undone',
+      },
+      {
+        'id': 'schedule-2',
+        'title': '회의 참석',
+        'start_at':
+            DateTime.now().add(const Duration(days: 2)).toIso8601String(),
+        'location': '회사',
+        'status': 'done',
+      },
+    ];
+  }
+
+  @override
+  Future<Map<String, dynamic>>? generateInsight({
+    required String userId,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    return {
+      'id': 'insight-${DateTime.now().millisecondsSinceEpoch}',
+      'title': 'AI 인사이트: 최근 대화 패턴 분석',
+      'content': '사용자는 최근 영화와 일정 관리에 관심이 많으며, 효율적인 시간 관리를 추구하는 경향을 보입니다.',
+      'created_at': DateTime.now().toIso8601String(),
+      'type': 'chat',
+    };
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>>? getUserInsights(String userId) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    return [
+      {
+        'id': 'insight-1',
+        'title': 'AI 인사이트: 최근 대화 패턴 분석',
+        'created_at':
+            DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
+      },
+      {
+        'id': 'insight-2',
+        'title': 'AI 인사이트: 관심사 변화 트렌드',
+        'created_at':
+            DateTime.now().subtract(const Duration(days: 3)).toIso8601String(),
+      },
+    ];
   }
 }
