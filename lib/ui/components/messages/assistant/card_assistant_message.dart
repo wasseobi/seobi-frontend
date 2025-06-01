@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/dimensions/message_dimensions.dart';
-<<<<<<< HEAD
-import '../../common/card_schedule.dart';
-=======
 import '../../common/schedule_card.dart';
->>>>>>> origin/feature/integrate-ui-service
 import 'base_assistant_message.dart';
 import 'message_styles.dart';
 
@@ -52,28 +48,29 @@ class CardAssistantMessage extends BaseAssistantMessage {
   Widget _buildActions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: actions!
-          .map(
-            (action) => Padding(
-              padding: const EdgeInsets.only(
-                bottom: MessageDimensions.spacing,
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    action['icon'] ?? '',
-                    style: MessageStyles.actionIconStyle,
+      children:
+          actions!
+              .map(
+                (action) => Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: MessageDimensions.spacing,
                   ),
-                  const SizedBox(width: MessageDimensions.spacing),
-                  Text(
-                    action['text'] ?? '',
-                    style: MessageStyles.actionTextStyle,
+                  child: Row(
+                    children: [
+                      Text(
+                        action['icon'] ?? '',
+                        style: MessageStyles.actionIconStyle,
+                      ),
+                      const SizedBox(width: MessageDimensions.spacing),
+                      Text(
+                        action['text'] ?? '',
+                        style: MessageStyles.actionTextStyle,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          )
-          .toList(),
+                ),
+              )
+              .toList(),
     );
   }
 }

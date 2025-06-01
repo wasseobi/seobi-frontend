@@ -71,15 +71,7 @@ class ConversationService {
         timestamp: DateTime.now(),
       );
 
-      // 세션 정보를 가져와서 타입 확인
-      final session = await _backendRepository.getSessionById(sessionId);
-
-      // AI 채팅 세션이 아니면 사용자 메시지만 반환
-      if (session.type != SessionType.chat) {
-        return userMessage;
-      }
-
-      // AI 응답 생성 및 저장
+      // AI 응답 생성 및 저장 (세션 조회 제거)
       final StringBuffer buffer = StringBuffer();
       debugPrint('[ConversationService] AI 응답 스트리밍 시작');
 

@@ -65,7 +65,23 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<Session> postSession(String userId) {
-    return _http.post('/sessions/', {'user_id': userId}, Session.fromJson);
+    // swagger_new.json에 따른 올바른 API 호출: POST /s/open
+    return _http.post(
+      '/s/open',
+      {}, // 빈 본문
+      (json) {
+        // SessionResponse는 session_id만 포함하므로 Session 객체로 변환
+        final sessionId = json['session_id'] as String;
+        return Session(
+          id: sessionId,
+          userId: userId,
+          startAt: DateTime.now(),
+          type: SessionType.chat, // 기본값
+        );
+      },
+      headers: {'user-id': userId}, // user-id를 헤더로 전송
+      expectedStatus: 201, // 명세서에 따른 정확한 상태 코드
+    );
   }
 
   @override
@@ -167,7 +183,10 @@ class BackendRepository implements IBackendRepository {
         .postStream(
           endpoint,
           {'content': content},
-          headers: {'user-id': userId},
+          headers: {
+            'user-id': userId,
+            'Accept': 'text/event-stream', // swagger_new.json 명세서에 따른 필수 헤더
+          },
         )
         .map((chunk) {
           debugPrint('[BackendRepository] 청크 수신: $chunk');
