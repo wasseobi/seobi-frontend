@@ -64,3 +64,15 @@ A new Flutter project.
 1. 키스토어 파일과 비밀번호는 절대로 GitHub에 커밋하지 마세요.
 2. `keys/` 디렉토리와 `*.keystore` 파일은 .gitignore에 포함되어 있습니다.
 3. 키스토어 파일과 비밀번호는 안전한 곳에 백업해두세요.
+
+## 빌드
+
+### 디버그 빌드
+```pwsh
+flutter clean && flutter pub get && flutter build apk
+```
+
+### 릴리스 빌드
+```pwsh
+flutter clean && flutter pub get && flutter build apk --release
+```
