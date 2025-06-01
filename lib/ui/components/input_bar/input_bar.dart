@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../common/custom_button.dart';
-import '../../../services/tts/tts_service.dart';
-import '../../../services/stt/stt_service.dart';
+import 'view_models/input_bar_view_model.dart';
 
 class InputBar extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
-  final VoidCallback onSend;
 
   const InputBar({
     super.key,
     required this.controller,
-    required this.onSend,
     this.focusNode,
   });
 
@@ -23,25 +20,21 @@ class InputBar extends StatefulWidget {
 }
 
 class _InputBarState extends State<InputBar> {
-  final TtsService _ttsService = TtsService();
-  final STTService _sttService = STTService();
-  bool _isRecording = false;
-  bool _isSendingAfterTts = false;
-
   // TextField에 대한 GlobalKey 추가
   final GlobalKey<EditableTextState> _textFieldKey =
       GlobalKey<EditableTextState>();
 
   late final FocusNode _focusNode;
-
+  late final InputBarViewModel _viewModel;
+  
   @override
   void initState() {
     super.initState();
-    _sttService.initialize();
-    widget.controller.addListener(_onTextChanged);
-
-    // FocusNode 초기화
     _focusNode = widget.focusNode ?? FocusNode();
+    _viewModel = InputBarViewModel(
+      textController: widget.controller,
+      focusNode: _focusNode,
+    );
   }
 
   @override
@@ -50,66 +43,12 @@ class _InputBarState extends State<InputBar> {
     if (widget.focusNode == null) {
       _focusNode.dispose();
     }
-    widget.controller.removeListener(_onTextChanged);
-    _ttsService.dispose();
-    if (_isRecording) {
-      _sttService.stopListening();
-    }
+    _viewModel.dispose();
     super.dispose();
   }
-
-  void _onTextChanged() {
-    // 상태가 변경될 때 UI 업데이트
-    setState(() {});
-  }
-
-  void _handleButtonPress() {
-    if (widget.controller.text.isEmpty) {
-      _startVoiceInput();
-    } else {
-      widget.onSend();
-    }
-  }
-
-  Future<void> _startVoiceInput() async {
-    setState(() {
-      _isRecording = true;
-    });
-
-    await _sttService.startListening(
-      onResult: (text, isFinal) {
-        widget.controller.text = text;
-
-        if (isFinal) {
-          setState(() {
-            _isRecording = false;
-            _isSendingAfterTts = true;
-          });
-
-          // TTS로 음성 피드백
-          _ttsService.addToQueue('음성 인식이 완료되었습니다. "${text}" 전송합니다.');
-
-          // TTS가 끝나면 자동으로 메시지 전송
-          Future.delayed(const Duration(seconds: 2), () {
-            if (_isSendingAfterTts && mounted) {
-              widget.onSend();
-              setState(() {
-                _isSendingAfterTts = false;
-              });
-            }
-          });
-        }
-      },
-      onSpeechComplete: () {
-        setState(() {
-          _isRecording = false;
-        });
-      },
-    );
-  }
-
   // 텍스트 필드 빌드 메서드
-  Widget _buildTextField(bool isEmpty) {
+  Widget _buildTextField(BuildContext context, bool isEmpty, bool isRecording) {
+    final viewModel = Provider.of<InputBarViewModel>(context);
     return TextField(
       key: _textFieldKey, // GlobalKey 할당
       controller: widget.controller,
@@ -120,7 +59,7 @@ class _InputBarState extends State<InputBar> {
       textInputAction: TextInputAction.newline, // 엔터 키를 줄바꿈으로 처리
       style: const TextStyle(fontSize: 16, color: AppColors.gray100),
       decoration: InputDecoration(
-        hintText: _isRecording ? '듣고 있습니다. 말씀하세요...' : '메시지를 입력하세요',
+        hintText: isRecording ? '듣고 있습니다. 말씀하세요...' : '메시지를 입력하세요',
         border: InputBorder.none,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(vertical: 8),
@@ -129,9 +68,7 @@ class _InputBarState extends State<InputBar> {
             !isEmpty
                 ? IconButton(
                   onPressed: () {
-                    widget.controller.clear();
-                    // textController를 비운 후 상태 업데이트
-                    setState(() {});
+                    viewModel.clearText();
                   },
                   icon: const Icon(
                     Icons.close,
@@ -145,13 +82,14 @@ class _InputBarState extends State<InputBar> {
   }
 
   // 전송/음성 버튼 빌드 메서드
-  Widget _buildActionButton(bool isEmpty) {
+  Widget _buildActionButton(BuildContext context, bool isEmpty) {
+    final viewModel = Provider.of<InputBarViewModel>(context);
     return CustomButton(
       type: CustomButtonType.circular,
       icon: isEmpty ? Icons.mic : Icons.send,
       backgroundColor: AppColors.main100,
       iconColor: Colors.white,
-      onPressed: _handleButtonPress,
+      onPressed: viewModel.handleButtonPress,
     );
   }
 
@@ -162,7 +100,6 @@ class _InputBarState extends State<InputBar> {
             .zero // 키보드가 보이면 좌우하단 패딩 없음
         : const EdgeInsets.only(left: 12, right: 12); // 기본 패딩
   }
-
   BorderRadius _getContainerRadius(bool isKeyboardVisible) {
     return isKeyboardVisible
         ? const BorderRadius.only(
@@ -171,48 +108,61 @@ class _InputBarState extends State<InputBar> {
         ) // 키보드가 보이면 위쪽만 둥글게
         : BorderRadius.circular(16); // 모든 코너 둥글게
   }
-
-  @override
+    @override
   Widget build(BuildContext context) {
-    final bool isEmpty = widget.controller.text.isEmpty;
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Consumer<InputBarViewModel>(
+        builder: (context, viewModel, _) {
+          return KeyboardVisibilityBuilder(
+            builder: (context, isKeyboardVisible) {
+              debugPrint('키보드 상태: $isKeyboardVisible');
+              return Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: _getContainerPadding(isKeyboardVisible),
+                  child: Container(
+                    width: double.infinity, // 화면 너비 전체를 차지
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: _getContainerRadius(isKeyboardVisible),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12),
 
-    return KeyboardVisibilityBuilder(
-      builder: (context, isKeyboardVisible) {
-        debugPrint('키보드 상태: $isKeyboardVisible');
-        return Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: _getContainerPadding(isKeyboardVisible),
-            child: Container(
-              width: double.infinity, // 화면 너비 전체를 차지
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: _getContainerRadius(isKeyboardVisible),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
+                        // 텍스트 필드
+                        Expanded(
+                          child: _buildTextField(
+                            context,
+                            viewModel.isEmpty,
+                            viewModel.isRecording,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // 동적 버튼 (음성 모드 또는 전송)
+                        _buildActionButton(context, viewModel.isEmpty),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-
-                  // 텍스트 필드
-                  Expanded(child: _buildTextField(isEmpty)),
-                  const SizedBox(width: 8),
-
-                  // 동적 버튼 (음성 모드 또는 전송)
-                  _buildActionButton(isEmpty),
-                ],
-              ), // 키보드가 안 보일 때: 가로 레이아웃
-            ),
-          ),
-        );
-      },
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
