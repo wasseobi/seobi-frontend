@@ -1,11 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
+import 'date_indicator_view_model.dart';
 
-class DateIndicator extends StatelessWidget {
-  final String date;
-  final String dayOfWeek;
+class DateIndicator extends StatefulWidget {
+  const DateIndicator({super.key});
 
-  const DateIndicator({super.key, required this.date, required this.dayOfWeek});
+  @override
+  State<DateIndicator> createState() => _DateIndicatorState();
+}
+
+class _DateIndicatorState extends State<DateIndicator> {
+  late final DateIndicatorViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = DateIndicatorViewModel();
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,11 +30,10 @@ class DateIndicator extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
+        children: [          SizedBox(
             width: 78,
             child: Text(
-              date,
+              _viewModel.formattedDate,
               textAlign: TextAlign.right,
               style: const TextStyle(
                 color: AppColors.textLight,
@@ -32,7 +48,7 @@ class DateIndicator extends StatelessWidget {
           SizedBox(
             width: 78,
             child: Text(
-              dayOfWeek,
+              _viewModel.dayOfWeek,
               textAlign: TextAlign.right,
               style: const TextStyle(
                 color: AppColors.textLight,

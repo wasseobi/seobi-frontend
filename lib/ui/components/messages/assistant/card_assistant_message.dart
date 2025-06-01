@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../constants/dimensions/message_dimensions.dart';
+<<<<<<< HEAD
 import '../../common/card_schedule.dart';
+=======
+import '../../common/schedule_card.dart';
+>>>>>>> origin/feature/integrate-ui-service
 import 'base_assistant_message.dart';
 import 'message_styles.dart';
 

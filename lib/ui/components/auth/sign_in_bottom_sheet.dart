@@ -1,33 +1,76 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:seobi_app/services/auth/auth_service.dart';
 import 'google_sign_in_button.dart';
 
 class SignInBottomSheet extends StatefulWidget {
+=======
+import 'package:provider/provider.dart';
+import 'package:seobi_app/ui/components/auth/auth_viewmodel.dart';
+import 'google_sign_in_button.dart';
+
+class SignInBottomSheet extends StatelessWidget {
+>>>>>>> origin/feature/integrate-ui-service
   const SignInBottomSheet({
     super.key,
   });
 
   @override
+<<<<<<< HEAD
   State<SignInBottomSheet> createState() => _SignInBottomSheetState();
 }
 
 class _SignInBottomSheetState extends State<SignInBottomSheet> {
   final AuthService _authService = AuthService();
+=======
+  Widget build(BuildContext context) {
+    // 상위 위젯에서 제공하는 AuthViewModel을 사용합니다
+    return ChangeNotifierProvider(
+      create: (_) => AuthViewModel(),
+      child: const _SignInBottomSheetContent(),
+    );
+  }
+}
+
+class _SignInBottomSheetContent extends StatefulWidget {
+  const _SignInBottomSheetContent();
+
+  @override
+  State<_SignInBottomSheetContent> createState() => _SignInBottomSheetContentState();
+}
+
+class _SignInBottomSheetContentState extends State<_SignInBottomSheetContent> {
+  late AuthViewModel _viewModel;
+>>>>>>> origin/feature/integrate-ui-service
 
   @override
   void initState() {
     super.initState();
+<<<<<<< HEAD
     _authService.addListener(_onAuthStateChanged);
+=======
+    _viewModel = Provider.of<AuthViewModel>(context, listen: false);
+    _viewModel.addListener(_checkAuthState);
+>>>>>>> origin/feature/integrate-ui-service
   }
 
   @override
   void dispose() {
+<<<<<<< HEAD
     _authService.removeListener(_onAuthStateChanged);
     super.dispose();
   }
 
   void _onAuthStateChanged() {
     if (_authService.isLoggedIn && mounted) {
+=======
+    _viewModel.removeListener(_checkAuthState);
+    super.dispose();
+  }
+
+  void _checkAuthState() {
+    if (_viewModel.isLoggedIn && mounted) {
+>>>>>>> origin/feature/integrate-ui-service
       // 로그인 성공 시 바텀 시트 닫기
       Navigator.of(context).pop();
     }
@@ -92,7 +135,12 @@ class _SignInBottomSheetState extends State<SignInBottomSheet> {
                       ),
                     ),
                     const SizedBox(height: 24),
+<<<<<<< HEAD
                     GoogleSignInButton(),
+=======
+                    // ViewModel은 이미 Provider에 의해 제공됨
+                    const GoogleSignInButton(),
+>>>>>>> origin/feature/integrate-ui-service
                   ],
                 ),
               ),
