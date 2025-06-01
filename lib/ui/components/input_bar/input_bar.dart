@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:provider/provider.dart';
-import '../../constants/app_colors.dart';
-import '../common/custom_button.dart';
-import 'view_models/input_bar_view_model.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
+import 'package:seobi_app/ui/components/common/custom_button.dart';
+import 'input_bar_view_model.dart';
 
 class InputBar extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
 
-  const InputBar({
-    super.key,
-    required this.controller,
-    this.focusNode,
-  });
+  const InputBar({super.key, required this.controller, this.focusNode});
 
   @override
   State<InputBar> createState() => _InputBarState();
@@ -26,7 +22,7 @@ class _InputBarState extends State<InputBar> {
 
   late final FocusNode _focusNode;
   late final InputBarViewModel _viewModel;
-  
+
   @override
   void initState() {
     super.initState();
@@ -46,37 +42,41 @@ class _InputBarState extends State<InputBar> {
     _viewModel.dispose();
     super.dispose();
   }
+
   // 텍스트 필드 빌드 메서드
   Widget _buildTextField(BuildContext context, bool isEmpty, bool isRecording) {
     final viewModel = Provider.of<InputBarViewModel>(context);
-    return TextField(
-      key: _textFieldKey, // GlobalKey 할당
-      controller: widget.controller,
-      focusNode: _focusNode,
-      maxLines: 3, // 최대 3줄까지 표시 가능
-      minLines: 1, // 최소 1줄
-      keyboardType: TextInputType.multiline, // 여러 줄 입력 가능한 키보드
-      textInputAction: TextInputAction.newline, // 엔터 키를 줄바꿈으로 처리
-      style: const TextStyle(fontSize: 16, color: AppColors.gray100),
-      decoration: InputDecoration(
-        hintText: isRecording ? '듣고 있습니다. 말씀하세요...' : '메시지를 입력하세요',
-        border: InputBorder.none,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        // 텍스트가 있을 때만 지우기 버튼 표시
-        suffixIcon:
-            !isEmpty
-                ? IconButton(
-                  onPressed: () {
-                    viewModel.clearText();
-                  },
-                  icon: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: AppColors.gray60,
-                  ),
-                )
-                : null,
+    return IntrinsicHeight(
+      child: TextField(
+        key: _textFieldKey, // GlobalKey 할당
+        controller: widget.controller,
+        focusNode: _focusNode,
+        onTap: viewModel.handleTextFieldTap, // 텍스트 필드 터치 시 모드 전환
+        maxLines: 3, // 최대 3줄까지 표시 가능
+        minLines: 1, // 최소 1줄
+        keyboardType: TextInputType.multiline, // 여러 줄 입력 가능한 키보드
+        textInputAction: TextInputAction.newline, // 엔터 키를 줄바꿈으로 처리
+        style: const TextStyle(fontSize: 16, color: AppColors.gray100),
+        decoration: InputDecoration(
+          hintText: viewModel.hintText,
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12), // 세로 패딩 증가
+          // 텍스트가 있을 때만 지우기 버튼 표시
+          suffixIcon:
+              !isEmpty
+                  ? IconButton(
+                    onPressed: () {
+                      viewModel.clearText();
+                    },
+                    icon: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: AppColors.gray60,
+                    ),
+                  )
+                  : null,
+        ),
       ),
     );
   }
@@ -86,8 +86,8 @@ class _InputBarState extends State<InputBar> {
     final viewModel = Provider.of<InputBarViewModel>(context);
     return CustomButton(
       type: CustomButtonType.circular,
-      icon: isEmpty ? Icons.mic : Icons.send,
-      backgroundColor: AppColors.main100,
+      icon: viewModel.actionButtonIcon,
+      backgroundColor: viewModel.actionButtonColor,
       iconColor: Colors.white,
       onPressed: viewModel.handleButtonPress,
     );
@@ -100,6 +100,7 @@ class _InputBarState extends State<InputBar> {
             .zero // 키보드가 보이면 좌우하단 패딩 없음
         : const EdgeInsets.only(left: 12, right: 12); // 기본 패딩
   }
+
   BorderRadius _getContainerRadius(bool isKeyboardVisible) {
     return isKeyboardVisible
         ? const BorderRadius.only(
@@ -108,7 +109,8 @@ class _InputBarState extends State<InputBar> {
         ) // 키보드가 보이면 위쪽만 둥글게
         : BorderRadius.circular(16); // 모든 코너 둥글게
   }
-    @override
+
+  @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: _viewModel,
@@ -140,9 +142,7 @@ class _InputBarState extends State<InputBar> {
                     ),
                     child: Row(
                       children: [
-                        const SizedBox(width: 12),
-
-                        // 텍스트 필드
+                        const SizedBox(width: 12), // 텍스트 필드
                         Expanded(
                           child: _buildTextField(
                             context,
@@ -152,7 +152,7 @@ class _InputBarState extends State<InputBar> {
                         ),
                         const SizedBox(width: 8),
 
-                        // 동적 버튼 (음성 모드 또는 전송)
+                        // 동적 버튼 (모드와 상태에 따라 변경)
                         _buildActionButton(context, viewModel.isEmpty),
                       ],
                     ),
