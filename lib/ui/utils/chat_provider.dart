@@ -9,6 +9,7 @@ import '../components/messages/assistant/message_types.dart';
 ///
 /// Message 모델과 UI 간의 데이터 변환을 담당하며,
 /// ConversationService를 통해 실제 AI 대화를 처리합니다.
+/// InputBarViewModel과 연결하여 메시지 전송 이벤트를 처리합니다.
 class ChatProvider extends ChangeNotifier {
   final ConversationService _conversationService;
   final TtsService _ttsService;
@@ -22,6 +23,9 @@ class ChatProvider extends ChangeNotifier {
   String? _error;
   String? _currentSessionId;
 
+  // 글로벌 메시지 전송 핸들러 (정적 방법)
+  static ChatProvider? _globalInstance;
+
   // ========================================
   // 생성자
   // ========================================
@@ -32,6 +36,22 @@ class ChatProvider extends ChangeNotifier {
   }) : _conversationService = conversationService ?? ConversationService(),
        _ttsService = ttsService ?? TtsService() {
     debugPrint('[ChatProvider] 초기화 완료');
+    // 글로벌 인스턴스로 설정
+    _globalInstance = this;
+  }
+
+  // ========================================
+  // 글로벌 메시지 전송 핸들러
+  // ========================================
+
+  /// 전역에서 접근 가능한 메시지 전송 메서드
+  static void sendGlobalMessage(String message) {
+    if (_globalInstance != null) {
+      debugPrint('[ChatProvider] 글로벌 메시지 수신: "$message"');
+      _globalInstance!.sendMessage(message);
+    } else {
+      debugPrint('[ChatProvider] 글로벌 인스턴스가 없음');
+    }
   }
 
   // ========================================
@@ -74,6 +94,10 @@ class ChatProvider extends ChangeNotifier {
 
       debugPrint('[ChatProvider] 메시지 전송 시작: "$text"');
 
+      // **즉시 TTS 중단 (가장 먼저 실행)**
+      await _ttsService.stop();
+      debugPrint('[ChatProvider] 새 메시지 전송으로 인한 TTS 즉시 중단');
+
       // 세션이 없으면 새로 생성
       if (_currentSessionId == null) {
         debugPrint('[ChatProvider] 새 세션 생성 중...');
@@ -104,10 +128,7 @@ class ChatProvider extends ChangeNotifier {
       );
       _addMessage(aiMessage);
 
-      // 3. 기존 TTS 정지 (새 응답을 위해)
-      await _ttsService.stop();
-
-      // 4. 스트리밍 응답 요청 (실시간 UI 업데이트만)
+      // 3. 스트리밍 응답 요청 (실시간 UI 업데이트만)
       debugPrint('[ChatProvider] AI 응답 스트리밍 시작...');
       final aiResponse = await _conversationService.sendMessageStream(
         sessionId: _currentSessionId!,
@@ -131,15 +152,20 @@ class ChatProvider extends ChangeNotifier {
         },
       );
 
-      // 5. 최종 AI 메시지로 업데이트
+      // 4. 최종 AI 메시지로 업데이트
       final finalIndex = _messages.indexWhere((msg) => msg.id == aiMessageId);
       if (finalIndex != -1) {
         _messages[finalIndex] = aiResponse.copyWith(id: aiMessageId);
         notifyListeners();
       }
 
-      // 6. 완료된 AI 응답을 TTS로 읽기 (한 번에 전체)
+      // 5. **AI 응답 완료 후 TTS 시작**
       if (aiResponse.content != null && aiResponse.content!.isNotEmpty) {
+        // 잠시 대기 후 TTS 시작 (다른 TTS 호출과 충돌 방지)
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        // 한 번 더 TTS 중단 후 전체 응답 읽기
+        await _ttsService.stop();
         await _ttsService.addToQueue(aiResponse.content!);
         debugPrint(
           '[ChatProvider] AI 응답 TTS 시작: "${aiResponse.contentPreview}"',
@@ -178,13 +204,14 @@ class ChatProvider extends ChangeNotifier {
   /// 샘플 메시지들로 초기화 (테스트용)
   void loadSampleMessages() {
     _messages.clear();
-    _currentSessionId = _generateSessionId();
+    // 실제 세션 생성은 첫 메시지 전송 시에만 수행
+    _currentSessionId = null;
 
-    // 샘플 메시지들 생성
+    // 샘플 메시지들 생성 (임시 세션 ID 사용)
     final sampleMessages = _generateSampleMessages();
     _messages.addAll(sampleMessages);
 
-    debugPrint('[ChatProvider] ${sampleMessages.length}개 샘플 메시지 로드');
+    debugPrint('[ChatProvider] ${sampleMessages.length}개 샘플 메시지 로드 (세션 미생성)');
     notifyListeners();
   }
 
@@ -192,7 +219,7 @@ class ChatProvider extends ChangeNotifier {
   /// (home_screen에서 생성된 샘플 메시지 사용)
   void setMessages(List<Map<String, dynamic>> uiMessages) {
     _messages.clear();
-    _currentSessionId = null; // 실제 메시지 전송 시 백엔드에서 세션 생성
+    _currentSessionId = null; // 실제 메시지 전송 시 백엔드에서 새 세션 생성
 
     // UI 형태의 메시지를 Message 객체로 변환
     for (final uiMessage in uiMessages) {
@@ -200,7 +227,7 @@ class ChatProvider extends ChangeNotifier {
       _messages.add(message);
     }
 
-    debugPrint('[ChatProvider] ${uiMessages.length}개 메시지 설정 완료');
+    debugPrint('[ChatProvider] ${uiMessages.length}개 메시지 설정 완료 (세션 미생성)');
     notifyListeners();
   }
 
@@ -268,7 +295,8 @@ class ChatProvider extends ChangeNotifier {
 
     return Message(
       id: _generateMessageId(),
-      sessionId: _currentSessionId ?? 'temp_session', // 임시 세션 ID (실제 전송 시 변경됨)
+      sessionId:
+          'temp_session_${DateTime.now().millisecondsSinceEpoch}', // 임시 세션 ID (실제 전송 시 변경됨)
       content: text,
       role: isUser ? MessageRole.user : MessageRole.assistant,
       timestamp: parsedTimestamp,
@@ -325,14 +353,15 @@ class ChatProvider extends ChangeNotifier {
   /// 테스트용 샘플 메시지들 생성
   List<Message> _generateSampleMessages() {
     final now = DateTime.now();
-    final sessionId = _currentSessionId!;
+    final tempSessionId =
+        'sample_session_${DateTime.now().millisecondsSinceEpoch}'; // 임시 세션 ID
     final messages = <Message>[];
 
     // 사용자 메시지 1
     messages.add(
       Message(
         id: _generateMessageId(),
-        sessionId: sessionId,
+        sessionId: tempSessionId,
         content: '안녕하세요, 오늘 날씨가 어때요?',
         role: MessageRole.user,
         timestamp: now.subtract(const Duration(minutes: 5)),
@@ -343,7 +372,7 @@ class ChatProvider extends ChangeNotifier {
     messages.add(
       Message(
         id: _generateMessageId(),
-        sessionId: sessionId,
+        sessionId: tempSessionId,
         content: '안녕하세요! 오늘 서울 날씨는 맑고 기온은 22도입니다.',
         role: MessageRole.assistant,
         timestamp: now.subtract(const Duration(minutes: 4)),
@@ -355,7 +384,7 @@ class ChatProvider extends ChangeNotifier {
     messages.add(
       Message(
         id: _generateMessageId(),
-        sessionId: sessionId,
+        sessionId: tempSessionId,
         content: '오늘 뭐하지?',
         role: MessageRole.user,
         timestamp: now.subtract(const Duration(minutes: 3)),
@@ -366,7 +395,7 @@ class ChatProvider extends ChangeNotifier {
     messages.add(
       Message(
         id: _generateMessageId(),
-        sessionId: sessionId,
+        sessionId: tempSessionId,
         content: '오늘은 어떤 활동을 하고 싶으신가요?',
         role: MessageRole.assistant,
         timestamp: now.subtract(const Duration(minutes: 2)),
@@ -386,7 +415,7 @@ class ChatProvider extends ChangeNotifier {
     messages.add(
       Message(
         id: _generateMessageId(),
-        sessionId: sessionId,
+        sessionId: tempSessionId,
         content: '오늘 일정 알려줘',
         role: MessageRole.user,
         timestamp: now.subtract(const Duration(minutes: 1)),
@@ -397,7 +426,7 @@ class ChatProvider extends ChangeNotifier {
     messages.add(
       Message(
         id: _generateMessageId(),
-        sessionId: sessionId,
+        sessionId: tempSessionId,
         content: '오늘 일정은 다음과 같습니다:',
         role: MessageRole.assistant,
         timestamp: now,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:seobi_app/services/tts/tts_service.dart';
 import 'package:seobi_app/services/stt/stt_service.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
+import '../../utils/chat_provider.dart';
 
 /// 인풋 바의 모드 정의
 enum InputBarMode {
@@ -92,7 +93,16 @@ class InputBarViewModel extends ChangeNotifier {
   void sendMessage() {
     final text = textController.text.trim();
     if (text.isNotEmpty) {
-      // 메시지 전송 이벤트 발생 (단순 텍스트만 전달)
+      debugPrint('[InputBarViewModel] 메시지 전송: "$text"');
+
+      // **새로운 메시지 전송 시 기존 TTS 중단**
+      _ttsService.stop();
+      debugPrint('[InputBarViewModel] 새 메시지 전송으로 인한 TTS 중단');
+
+      // 1. 글로벌 ChatProvider로 메시지 전송 (주요 경로)
+      ChatProvider.sendGlobalMessage(text);
+
+      // 2. 기존 리스너들에게도 알림 (호환성 유지)
       for (final listener in _onMessageSentListeners) {
         listener(text);
       }
@@ -102,8 +112,13 @@ class InputBarViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
   // 모드 전환 메서드
   void switchToVoiceMode() {
+    // **음성 모드 전환 시 기존 TTS 중단**
+    _ttsService.stop();
+    debugPrint('[InputBarViewModel] 음성 모드 전환으로 인한 TTS 중단');
+
     _currentMode = InputBarMode.voice;
     debugPrint('InputBar: 음성 모드로 전환');
     textController.clear(); // 음성 모드로 전환 시 텍스트 필드 내용 초기화
@@ -142,36 +157,50 @@ class InputBarViewModel extends ChangeNotifier {
     textController.clear();
     notifyListeners();
   }
+
   Future<void> startVoiceInput() async {
+    // **음성 입력 시작 시 기존 TTS 중단 (추가 보장)**
+    await _ttsService.stop();
+    debugPrint('[InputBarViewModel] 음성 입력 시작으로 인한 TTS 중단');
+
     _isRecording = true;
     debugPrint('InputBar: 음성 인식 시작');
     notifyListeners();
 
     await _sttService.startListening(
       onResult: (text, isFinal) {
-        textController.text = text;        if (isFinal) {
+        textController.text = text;
+        if (isFinal) {
           _isRecording = false;
           _isSendingAfterTts = true;
           debugPrint('InputBar: 음성 인식 결과 최종 확정 - "${text}"');
           notifyListeners();
 
-          // TTS로 음성 피드백
-          _ttsService.addToQueue('음성 인식이 완료되었습니다. "${text}" 전송합니다.');          // TTS가 끝나면 자동으로 메시지 전송만 하고 텍스트 모드로는 전환하지 않음
-          Future.delayed(const Duration(seconds: 2), () {
-            if (_isSendingAfterTts) {
-              sendMessage();
-              _isSendingAfterTts = false;
-              notifyListeners();
-            }
+          // **STT 완료 시 기존 TTS 중단 후 피드백 제공**
+          _ttsService.stop().then((_) {
+            // TTS로 음성 피드백
+            _ttsService.addToQueue('음성 인식이 완료되었습니다. "${text}" 전송합니다.');
+            debugPrint('[InputBarViewModel] STT 완료 피드백 TTS 시작');
+
+            // TTS 피드백 후 메시지 전송
+            Future.delayed(const Duration(seconds: 2), () {
+              if (_isSendingAfterTts) {
+                sendMessage(); // 이 메서드에서 TTS를 다시 중단함
+                _isSendingAfterTts = false;
+                notifyListeners();
+              }
+            });
           });
         }
-      },      onSpeechComplete: () {
+      },
+      onSpeechComplete: () {
         _isRecording = false;
         debugPrint('InputBar: 음성 인식 완료');
         notifyListeners();
       },
     );
   }
+
   // 음성 입력 중지
   void stopVoiceInput() {
     if (_isRecording) {

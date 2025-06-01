@@ -168,6 +168,9 @@ class ConversationService {
   }) async {
     final StringBuffer buffer = StringBuffer();
     String? finalAnswer;
+    bool toolUsed = false; // 도구 사용 여부 추적
+    String? usedToolName; // 사용된 도구 이름
+    String? toolResult; // 도구 실행 결과
 
     try {
       final userId = await _getUserIdAndAuthenticate();
@@ -194,6 +197,8 @@ class ConversationService {
                 final toolName = toolCalls![0]['function']['name'] ?? '도구';
                 debugPrint('[ConversationService] AI 도구 사용: $toolName');
                 onToolUse?.call(toolName);
+                toolUsed = true;
+                usedToolName = toolName;
               }
               break;
 
@@ -201,6 +206,15 @@ class ConversationService {
               // 도구 실행 완료 - UI에 "검색 완료" 표시
               debugPrint('[ConversationService] 도구 실행 완료');
               onToolComplete?.call();
+
+              // 도구 실행 결과 저장 (필요시 사용)
+              final content = chunk['content'] as String?;
+              if (content != null && content.isNotEmpty) {
+                toolResult = content;
+                debugPrint(
+                  '[ConversationService] 도구 실행 결과: ${content.length > 100 ? '${content.substring(0, 100)}...' : content}',
+                );
+              }
               break;
 
             case 'chunk':
@@ -235,20 +249,69 @@ class ConversationService {
       debugPrint('[ConversationService] 최종 응답: $aiResponse');
 
       if (aiResponse.isEmpty && finalAnswer == null) {
+        // **도구 사용 후 응답이 비어있는 경우 대체 응답 생성**
+        if (toolUsed) {
+          final fallbackResponse = _generateToolFallbackResponse(
+            usedToolName,
+            toolResult,
+          );
+          debugPrint(
+            '[ConversationService] 도구 사용 후 대체 응답 생성: $fallbackResponse',
+          );
+
+          return Message(
+            id: DateTime.now().toIso8601String(),
+            sessionId: sessionId,
+            userId: 'assistant',
+            content: fallbackResponse,
+            role: MessageRole.assistant,
+            timestamp: DateTime.now(),
+          );
+        }
+
         throw Exception('AI 응답이 비어있습니다.');
+      }
+
+      if (toolUsed) {
+        toolResult = aiResponse;
+      } else {
+        finalAnswer = aiResponse;
       }
 
       return Message(
         id: DateTime.now().toIso8601String(),
         sessionId: sessionId,
         userId: 'assistant',
-        content: finalAnswer ?? aiResponse,
+        content: finalAnswer ?? toolResult ?? aiResponse,
         role: MessageRole.assistant,
         timestamp: DateTime.now(),
       );
     } catch (e) {
       debugPrint('[ConversationService] 스트리밍 오류: $e');
       rethrow;
+    }
+  }
+
+  /// 도구 사용 후 AI 응답이 비어있을 때 대체 응답을 생성합니다.
+  String _generateToolFallbackResponse(String? toolName, String? toolResult) {
+    switch (toolName) {
+      case 'search_web':
+        if (toolResult != null && toolResult.isNotEmpty) {
+          return '웹 검색을 완료했습니다. 검색 결과를 바탕으로 답변을 준비하고 있습니다.';
+        }
+        return '웹 검색을 수행했습니다. 잠시 후 결과를 정리해서 답변드리겠습니다.';
+
+      case 'get_weather':
+        return '날씨 정보를 조회했습니다. 결과를 정리해서 알려드리겠습니다.';
+
+      case 'calculator':
+        return '계산을 수행했습니다. 결과를 확인하고 답변드리겠습니다.';
+
+      default:
+        if (toolName != null) {
+          return '$toolName 도구를 사용하여 작업을 수행했습니다. 결과를 정리해서 답변드리겠습니다.';
+        }
+        return '요청하신 작업을 처리했습니다. 잠시 후 결과를 알려드리겠습니다.';
     }
   }
 }
