@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:seobi_app/ui/components/common/custom_button.dart';
-import 'package:seobi_app/services/auth/auth_service.dart';
 import '../../constants/app_colors.dart';
-import '../profile_card/profile_card.dart';
+import 'profile_card/profile_card.dart';
+import 'profile_card/profile_view_model.dart';
 import '../auth/sign_in_bottom_sheet.dart';
 
 class CustomDrawer extends StatefulWidget {
@@ -13,31 +14,18 @@ class CustomDrawer extends StatefulWidget {
 }
 
 class _CustomDrawerState extends State<CustomDrawer> {
-  final AuthService _authService = AuthService();
-  bool _isLoggedIn = false;
+  late ProfileViewModel _profileViewModel;
 
   @override
   void initState() {
     super.initState();
-    _loadAuthState();
-    _authService.addListener(_loadAuthState);
+    _profileViewModel = ProfileViewModel();
   }
 
   @override
   void dispose() {
-    _authService.removeListener(_loadAuthState);
+    _profileViewModel.dispose();
     super.dispose();
-  }
-
-  void _loadAuthState() async {
-    // 스토리지 업데이트가 완료될 때까지 잠시 대기
-    await Future.delayed(const Duration(milliseconds: 50));
-
-    if (mounted) {
-      setState(() {
-        _isLoggedIn = _authService.isLoggedIn;
-      });
-    }
   }
 
   Future<void> _handleSignIn() async {
@@ -52,7 +40,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   Future<void> _handleSignOut() async {
     // 로그아웃 처리
-    await _authService.signOut();
+    await _profileViewModel.signOut();
   }
 
   void _handleProfileTap() {
@@ -62,33 +50,40 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   @override
   Widget build(BuildContext context) {
-    return Drawer(
-      width: 340,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(bottomRight: Radius.circular(40)),
-      ),
-      backgroundColor: AppColors.containerLight,
-      child: SafeArea(
-        child: Column(
-          children: [
-            // 상단 여백을 위한 Spacer
-            const Expanded(child: SizedBox()),
-            // 구분선
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 33, vertical: 13),
-              child: Divider(height: 1, thickness: 1, color: AppColors.main80),
+    return ChangeNotifierProvider.value(
+      value: _profileViewModel,
+      child: Consumer<ProfileViewModel>(
+        builder: (context, viewModel, _) {
+          return Drawer(
+            width: 340,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(bottomRight: Radius.circular(40)),
             ),
-            // 최하단 프로필 카드
-            _buildBottomProfile(),
-            // 하단 여백을 위한 Spacer
-            SizedBox(height: 10),
-          ],
-        ),
+            backgroundColor: AppColors.containerLight,
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // 상단 여백을 위한 Spacer
+                  const Expanded(child: SizedBox()),
+                  // 구분선
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 33, vertical: 13),
+                    child: Divider(height: 1, thickness: 1, color: AppColors.main80),
+                  ),
+                  // 최하단 프로필 카드
+                  _buildBottomProfile(viewModel),
+                  // 하단 여백을 위한 Spacer
+                  SizedBox(height: 10),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildBottomProfile() {
+  Widget _buildBottomProfile(ProfileViewModel viewModel) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 33, vertical: 13),
       child: Row(
@@ -100,7 +95,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               onProfileTap: _handleProfileTap,
             ),
           ),
-          _isLoggedIn
+          viewModel.isLoggedIn
               ? CustomButton(
                 icon: Icons.logout,
                 onPressed: _handleSignOut,
