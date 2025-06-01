@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
 import '../common/custom_button.dart';
 import 'custom_tab_bar.dart';
-import 'date_indicator.dart';
+import 'date_indicator/date_indicator.dart';
 
 class CustomNavigationBar extends StatelessWidget {
   final int selectedTabIndex;
@@ -46,12 +46,10 @@ class CustomNavigationBar extends StatelessWidget {
               size: 50,
               iconSize: 24,
             ),
-          ),
-
-          // 우측 날짜 표시
+          ),          // 우측 날짜 표시
           Align(
             alignment: Alignment.centerRight,
-            child: DateIndicator(date: '5월 28일', dayOfWeek: '수요일'),
+            child: DateIndicator(),
           ),
         ],
       ),
