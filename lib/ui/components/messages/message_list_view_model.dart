@@ -10,6 +10,9 @@ import '../messages/assistant/message_types.dart';
 class MessageListViewModel extends ChangeNotifier {
   final ChatProvider _chatProvider;
   
+  /// 스크롤이 맨 아래에 위치하는지 여부
+  bool _isAnchored = true;
+  
   /// 생성자
   MessageListViewModel({
     required ChatProvider chatProvider,
@@ -44,6 +47,31 @@ class MessageListViewModel extends ChangeNotifier {
   
   /// 대화가 있는지 여부
   bool get hasMessages => _chatProvider.hasMessages;
+  
+  /// 스크롤이 맨 아래에 고정되어 있는지 여부
+  bool get isAnchored => _isAnchored;
+  
+  /// 스크롤 앵커 상태 설정
+  void setAnchored(bool value) {
+    if (_isAnchored != value) {
+      _isAnchored = value;
+      notifyListeners();
+      debugPrint('[MessageListViewModel] isAnchored 상태 변경: $_isAnchored');
+    }
+  }
+  
+  /// 스크롤이 맨 아래에서 얼마나 떨어져 있는지 확인하여 앵커 상태 갱신
+  void updateAnchoredState(ScrollController scrollController) {
+    if (!scrollController.hasClients) return;
+    
+    // 스크롤 위치가 맨 아래에서 20픽셀 이내인 경우 앵커된 것으로 간주
+    const threshold = 20.0;
+    final maxScroll = scrollController.position.maxScrollExtent;
+    final currentScroll = scrollController.offset;
+    final isAtBottom = maxScroll - currentScroll <= threshold;
+    
+    setAnchored(isAtBottom);
+  }
   
   /// 메시지 전송
   Future<void> sendMessage(String text) async {

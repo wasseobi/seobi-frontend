@@ -68,9 +68,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardDismissOnTap(      child: Scaffold(
+    return KeyboardDismissOnTap(
+      child: Scaffold(
         key: _scaffoldKey,
-        resizeToAvoidBottomInset: true,
         drawer: const CustomDrawer(),
         body: SafeArea(
           child: Stack(

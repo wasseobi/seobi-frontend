@@ -151,7 +151,6 @@ class _InputBarState extends State<InputBar> {
         builder: (context, viewModel, _) {
           return KeyboardVisibilityBuilder(
             builder: (context, isKeyboardVisible) {
-              debugPrint('키보드 상태: $isKeyboardVisible');
               // 레이아웃이 변경될 때마다 높이 측정
               _measureAndNotifyHeight();
               return Align(
