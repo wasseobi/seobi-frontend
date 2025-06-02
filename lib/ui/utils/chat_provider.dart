@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../repositories/backend/models/message.dart';
 import '../../repositories/local_database/models/message_role.dart';
 import '../../services/conversation/conversation_service.dart';
@@ -35,7 +36,11 @@ class ChatProvider extends ChangeNotifier {
     TtsService? ttsService,
   }) : _conversationService = conversationService ?? ConversationService(),
        _ttsService = ttsService ?? TtsService() {
-    debugPrint('[ChatProvider] 초기화 완료');
+    debugPrint('[ChatProvider] 🎯 ChatProvider 초기화 완료!');
+    debugPrint(
+      '[ChatProvider] 🎯 ConversationService: ${_conversationService.runtimeType}',
+    );
+    debugPrint('[ChatProvider] 🎯 TtsService: ${_ttsService.runtimeType}');
     // 글로벌 인스턴스로 설정
     _globalInstance = this;
   }
@@ -46,11 +51,12 @@ class ChatProvider extends ChangeNotifier {
 
   /// 전역에서 접근 가능한 메시지 전송 메서드
   static void sendGlobalMessage(String message) {
+    debugPrint('[ChatProvider] 🌍 전역 메시지 수신: "$message"');
     if (_globalInstance != null) {
-      debugPrint('[ChatProvider] 글로벌 메시지 수신: "$message"');
+      debugPrint('[ChatProvider] 🌍 글로벌 인스턴스로 메시지 전달');
       _globalInstance!.sendMessage(message);
     } else {
-      debugPrint('[ChatProvider] 글로벌 인스턴스가 없음');
+      debugPrint('[ChatProvider] ❌ 글로벌 인스턴스가 없음!');
     }
   }
 
@@ -83,6 +89,8 @@ class ChatProvider extends ChangeNotifier {
 
   /// 사용자 메시지 전송 및 AI 응답 요청
   Future<void> sendMessage(String text) async {
+    debugPrint('[ChatProvider] 🚀 ===== SEND MESSAGE 시작 ===== "$text"');
+
     if (text.trim().isEmpty) {
       debugPrint('[ChatProvider] 빈 메시지는 전송할 수 없습니다');
       return;
@@ -95,8 +103,10 @@ class ChatProvider extends ChangeNotifier {
       debugPrint('[ChatProvider] 메시지 전송 시작: "$text"');
 
       // **즉시 TTS 중단 (가장 먼저 실행)**
+      debugPrint('[ChatProvider] ===== TTS STOP 호출 직전 =====');
       await _ttsService.stop();
-      debugPrint('[ChatProvider] 새 메시지 전송으로 인한 TTS 즉시 중단');
+      debugPrint('[ChatProvider] 새 메시지 전송으로 인한 TTS 즉시 중단 완료');
+      debugPrint('[ChatProvider] ===== TTS STOP 호출 완료 =====');
 
       // 세션이 없으면 새로 생성
       if (_currentSessionId == null) {
@@ -128,48 +138,166 @@ class ChatProvider extends ChangeNotifier {
       );
       _addMessage(aiMessage);
 
-      // 3. 스트리밍 응답 요청 (실시간 UI 업데이트만)
+      // 도구 사용 상태를 추적하기 위한 변수
+      bool isToolLoading = false;
+
+      // **TTS 관련 변수 초기화**
+      // _lastTtsPosition = 0;
+      // _currentResponse = '';
+
+      // **스트리밍 TTS 모드 시작 - 제거**
+      // debugPrint('[ChatProvider] ===== 스트리밍 TTS 모드 시작 =====');
+      // _ttsService.startStreamingMode();
+      // debugPrint(
+      //   '[ChatProvider] 스트리밍 모드 설정 완료: ${_ttsService.isStreamingMode}',
+      // );
+
+      // 3. 스트리밍 응답 요청 (실시간 UI 업데이트만, TTS는 완료 후)
       debugPrint('[ChatProvider] AI 응답 스트리밍 시작...');
       final aiResponse = await _conversationService.sendMessageStream(
         sessionId: _currentSessionId!,
         content: text,
         onProgress: (partialResponse) {
-          // AI 메시지 내용 실시간 업데이트 (UI용만)
+          debugPrint(
+            '[ChatProvider] 📥 onProgress 호출 - 길이: ${partialResponse.length}, isToolLoading: $isToolLoading',
+          );
+
+          // 도구 로딩 중이 아닐 때만 실제 응답으로 업데이트
+          if (!isToolLoading) {
+            // _currentResponse = partialResponse; // 현재 응답 저장
+
+            final index = _messages.indexWhere((msg) => msg.id == aiMessageId);
+            if (index != -1) {
+              _messages[index] = _messages[index].copyWith(
+                content: partialResponse,
+              );
+              notifyListeners();
+            }
+            debugPrint('[ChatProvider] 실시간 업데이트: ${partialResponse.length}자');
+
+            // **실시간 TTS 제거 - UI 업데이트만**
+            // _processStreamingTts(partialResponse.trim());
+
+            // **마지막 문장을 위한 타이머 제거**
+            // finalTtsTimer?.cancel();
+            // finalTtsTimer = Timer(const Duration(seconds: 2), () {
+            //   _processRemainingText();
+            // });
+          } else {
+            debugPrint('[ChatProvider] ⏸️ 도구 로딩 중이므로 응답 처리 건너뜀');
+          }
+        },
+        onToolUse: (toolName) {
+          debugPrint(
+            '[ChatProvider] 🔧 AI 도구 사용 중: $toolName (isToolLoading: $isToolLoading → true)',
+          );
+
+          // 도구별 로딩 메시지 생성
+          String loadingMessage;
+          switch (toolName.toLowerCase()) {
+            case 'search_web':
+              loadingMessage = '🔍 웹 검색 중입니다...';
+              break;
+            case 'parse_schedule':
+              loadingMessage = '📅 일정을 분석하는 중입니다...';
+              break;
+            case 'create_schedule':
+              loadingMessage = '✨ 일정을 생성하는 중입니다...';
+              break;
+            case 'generate_insight':
+              loadingMessage = '💡 인사이트를 생성하는 중입니다...';
+              break;
+            case 'get_calendar':
+              loadingMessage = '📆 캘린더를 조회하는 중입니다...';
+              break;
+            default:
+              loadingMessage = '🔧 도구를 사용하는 중입니다...';
+          }
+
+          // 기존 AI 메시지의 내용을 로딩 메시지로 업데이트
           final index = _messages.indexWhere((msg) => msg.id == aiMessageId);
           if (index != -1) {
             _messages[index] = _messages[index].copyWith(
-              content: partialResponse,
+              content: loadingMessage,
+              extensions: {
+                'isToolLoading': true, // TTS 제외 표시
+                'toolName': toolName,
+              },
+            );
+            notifyListeners();
+            isToolLoading = true;
+          }
+        },
+        onToolComplete: () {
+          debugPrint(
+            '[ChatProvider] ✅ AI 도구 사용 완료 (isToolLoading: $isToolLoading → false)',
+          );
+
+          // 도구 로딩 상태 해제 (이후 onProgress에서 실제 응답으로 업데이트됨)
+          isToolLoading = false;
+
+          // 일시적으로 "분석 완료" 메시지로 업데이트 (선택적)
+          final index = _messages.indexWhere((msg) => msg.id == aiMessageId);
+          if (index != -1) {
+            final currentExtensions = _messages[index].extensions ?? {};
+            final toolName = currentExtensions['toolName'] as String?;
+
+            String completeMessage;
+            switch (toolName?.toLowerCase()) {
+              case 'search_web':
+                completeMessage = '🔍 웹 검색 완료, 답변을 생성하는 중입니다...';
+                break;
+              case 'parse_schedule':
+                completeMessage = '📅 일정 분석 완료, 답변을 생성하는 중입니다...';
+                break;
+              case 'create_schedule':
+                completeMessage = '✨ 일정 생성 완료, 답변을 생성하는 중입니다...';
+                break;
+              case 'generate_insight':
+                completeMessage = '💡 인사이트 생성 완료, 답변을 정리하는 중입니다...';
+                break;
+              case 'get_calendar':
+                completeMessage = '📆 캘린더 조회 완료, 답변을 생성하는 중입니다...';
+                break;
+              default:
+                completeMessage = '🔧 도구 실행 완료, 답변을 생성하는 중입니다...';
+            }
+
+            _messages[index] = _messages[index].copyWith(
+              content: completeMessage,
+              extensions: {
+                'isToolLoading': true, // 여전히 TTS 제외
+                'toolName': toolName,
+              },
             );
             notifyListeners();
           }
-          debugPrint('[ChatProvider] 실시간 업데이트: ${partialResponse.length}자');
-        },
-        onToolUse: (toolName) {
-          debugPrint('[ChatProvider] AI 도구 사용 중: $toolName');
-        },
-        onToolComplete: () {
-          debugPrint('[ChatProvider] AI 도구 사용 완료');
         },
       );
+
+      // **스트리밍 TTS 모드 종료 - 제거**
+      // _ttsService.stopStreamingMode();
 
       // 4. 최종 AI 메시지로 업데이트
       final finalIndex = _messages.indexWhere((msg) => msg.id == aiMessageId);
       if (finalIndex != -1) {
-        _messages[finalIndex] = aiResponse.copyWith(id: aiMessageId);
+        _messages[finalIndex] = aiResponse.copyWith(
+          id: aiMessageId,
+          extensions: null, // 로딩 관련 확장 필드 제거
+        );
         notifyListeners();
       }
 
-      // 5. **AI 응답 완료 후 TTS 시작**
+      // 5. **AI 응답 완료 후 전체 TTS 처리**
       if (aiResponse.content != null && aiResponse.content!.isNotEmpty) {
-        // 잠시 대기 후 TTS 시작 (다른 TTS 호출과 충돌 방지)
-        await Future.delayed(const Duration(milliseconds: 300));
+        final finalContent = aiResponse.content!.trim();
 
-        // 한 번 더 TTS 중단 후 전체 응답 읽기
-        await _ttsService.stop();
-        await _ttsService.addToQueue(aiResponse.content!);
         debugPrint(
-          '[ChatProvider] AI 응답 TTS 시작: "${aiResponse.contentPreview}"',
+          '[ChatProvider] 🎤 AI 응답 완료 - 즉시 TTS 시작: ${finalContent.length}자',
         );
+
+        // **백그라운드에서 마크다운 변환 및 TTS 실행 (비동기)**
+        _processTtsInBackground(finalContent);
       }
 
       debugPrint('[ChatProvider] AI 응답 완료: "${aiResponse.contentPreview}"');
@@ -446,6 +574,80 @@ class ChatProvider extends ChangeNotifier {
     );
 
     return messages;
+  }
+
+  // ========================================
+  // 백그라운드 TTS 처리
+  // ========================================
+
+  /// 백그라운드에서 마크다운 변환 및 TTS 처리 (빠른 실행)
+  void _processTtsInBackground(String content) {
+    // 백그라운드에서 비동기 실행 (UI 차단 없음)
+    Future.microtask(() async {
+      try {
+        // **빠른 마크다운 변환**
+        final ttsText = _convertMarkdownToTtsText(content);
+
+        debugPrint('[ChatProvider] 🧹 마크다운 변환 완료: ${ttsText.length}자');
+        debugPrint(
+          '[ChatProvider] 📝 TTS 텍스트: "${ttsText.length > 50 ? '${ttsText.substring(0, 50)}...' : ttsText}"',
+        );
+
+        // **즉시 TTS 큐에 추가 (await 없이)**
+        if (ttsText.isNotEmpty) {
+          _ttsService.addToQueue(ttsText);
+          debugPrint('[ChatProvider] 🚀 TTS 백그라운드 실행 완료');
+        } else {
+          debugPrint('[ChatProvider] ⚠️ 마크다운 정리 후 텍스트가 비어있음');
+        }
+      } catch (e) {
+        debugPrint('[ChatProvider] ❌ 백그라운드 TTS 처리 오류: $e');
+      }
+    });
+  }
+
+  // ========================================
+  // TTS용 마크다운 정리 헬퍼 메서드
+  // ========================================
+
+  /// 마크다운 텍스트를 TTS에 적합한 일반 텍스트로 변환 (최적화됨)
+  String _convertMarkdownToTtsText(String markdown) {
+    String text = markdown;
+
+    // 1. 링크 처리: [텍스트](URL) → 텍스트
+    final linkRegex = RegExp(r'\[([^\]]+)\]\([^)]+\)');
+    text = text.replaceAllMapped(linkRegex, (match) => match.group(1) ?? '');
+
+    // 2. 단독 URL 제거
+    text = text.replaceAll(RegExp(r'https?://[^\s\n]+'), '');
+
+    // 3. 볼드 처리: **텍스트** → 텍스트
+    final boldRegex = RegExp(r'\*\*([^*\n]+?)\*\*');
+    text = text.replaceAllMapped(boldRegex, (match) => match.group(1) ?? '');
+
+    // 4. 이탤릭 처리: *텍스트* → 텍스트
+    final italicRegex = RegExp(r'(?<!\s)\*([^*\n\s][^*\n]*?)\*(?!\s)');
+    text = text.replaceAllMapped(italicRegex, (match) => match.group(1) ?? '');
+
+    // 5. 헤딩 처리: ### 텍스트 → 텍스트
+    final headingRegex = RegExp(r'^#{1,6}\s*(.+)$', multiLine: true);
+    text = text.replaceAllMapped(headingRegex, (match) => match.group(1) ?? '');
+
+    // 6. 리스트 마커 제거
+    text = text.replaceAll(RegExp(r'^[\s]*[-*+]\s*', multiLine: true), '');
+    text = text.replaceAll(RegExp(r'^\s*\d+\.\s*', multiLine: true), '');
+
+    // 7. 코드 블록 제거
+    text = text.replaceAll(RegExp(r'```[^`]*```', dotAll: true), '');
+    text = text.replaceAll(RegExp(r'`([^`]+)`'), '');
+
+    // 8. 기타 정리
+    text = text.replaceAll(RegExp(r'\*+'), ''); // 남은 * 제거
+    text = text.replaceAll(RegExp(r'\$\d+'), ''); // 정규식 잔여물 제거
+    text = text.replaceAll(RegExp(r'\s+'), ' '); // 공백 정리
+    text = text.trim();
+
+    return text;
   }
 
   // ========================================
