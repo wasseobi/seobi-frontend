@@ -6,7 +6,6 @@ import '../components/drawer/custom_drawer.dart';
 import '../components/auth/sign_in_bottom_sheet.dart';
 import '../../services/auth/auth_service.dart';
 import '../components/input_bar/input_bar.dart';
-import '../utils/measure_size.dart';
 import '../utils/chat_provider.dart';
 import 'chat_screen.dart';
 
@@ -69,9 +68,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardDismissOnTap(
-      child: Scaffold(
+    return KeyboardDismissOnTap(      child: Scaffold(
         key: _scaffoldKey,
+        resizeToAvoidBottomInset: true,
         drawer: const CustomDrawer(),
         body: SafeArea(
           child: Stack(
@@ -111,25 +110,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ],
-              ),
-              // 입력 바
+              ),              // 입력 바
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
-                child: MeasureSize(
-                  onChange: (size) {
+                child: InputBar(
+                  controller: _chatController,
+                  focusNode: _focusNode,
+                  onHeightChanged: (height) {
                     // 입력 바의 높이가 변경될 때 상태 업데이트
-                    if (mounted && size.height != _inputBarHeight) {
+                    if (mounted && height != _inputBarHeight) {
                       setState(() {
-                        _inputBarHeight = size.height;
+                        _inputBarHeight = height;
                       });
                     }
                   },
-                  child: InputBar(
-                    controller: _chatController,
-                    focusNode: _focusNode,
-                  ),
                 ),
               ),
             ],

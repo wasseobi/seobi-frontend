@@ -8,8 +8,14 @@ import 'input_bar_view_model.dart';
 class InputBar extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
+  final Function(double height)? onHeightChanged;
 
-  const InputBar({super.key, required this.controller, this.focusNode});
+  const InputBar({
+    super.key, 
+    required this.controller, 
+    this.focusNode,
+    this.onHeightChanged,
+  });
 
   @override
   State<InputBar> createState() => _InputBarState();
@@ -22,7 +28,6 @@ class _InputBarState extends State<InputBar> {
 
   late final FocusNode _focusNode;
   late final InputBarViewModel _viewModel;
-
   @override
   void initState() {
     super.initState();
@@ -31,10 +36,25 @@ class _InputBarState extends State<InputBar> {
       textController: widget.controller,
       focusNode: _focusNode,
     );
+    
+    // 텍스트 변경 리스너 추가
+    widget.controller.addListener(_onTextChanged);
   }
-
+  
+  void _onTextChanged() {
+    // 텍스트가 변경될 때마다 높이를 다시 측정
+    if (mounted) {
+      setState(() {
+        // setState를 호출하여 빌드 메서드가 다시 실행되도록 함
+        // 이렇게 하면 _measureAndNotifyHeight가 다시 호출됨
+      });
+    }
+  }
   @override
   void dispose() {
+    // 텍스트 변경 리스너 제거
+    widget.controller.removeListener(_onTextChanged);
+    
     // 외부에서 제공된 focusNode가 아닐 경우에만 dispose
     if (widget.focusNode == null) {
       _focusNode.dispose();
@@ -109,6 +129,19 @@ class _InputBarState extends State<InputBar> {
         ) // 키보드가 보이면 위쪽만 둥글게
         : BorderRadius.circular(16); // 모든 코너 둥글게
   }
+  // 높이 측정을 위한 GlobalKey
+  final GlobalKey _containerKey = GlobalKey();
+  
+  // 높이 측정 및 콜백 호출 메서드
+  void _measureAndNotifyHeight() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final RenderBox? renderBox = _containerKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null && widget.onHeightChanged != null) {
+        final size = renderBox.size;
+        widget.onHeightChanged!(size.height);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,11 +152,14 @@ class _InputBarState extends State<InputBar> {
           return KeyboardVisibilityBuilder(
             builder: (context, isKeyboardVisible) {
               debugPrint('키보드 상태: $isKeyboardVisible');
+              // 레이아웃이 변경될 때마다 높이 측정
+              _measureAndNotifyHeight();
               return Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
                   padding: _getContainerPadding(isKeyboardVisible),
                   child: Container(
+                    key: _containerKey,
                     width: double.infinity, // 화면 너비 전체를 차지
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
