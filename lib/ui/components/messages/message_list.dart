@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'dart:async'; // Timer 사용을 위해 추가
 import 'user/user_message.dart';
 import 'assistant/assistant_message.dart';
 import 'message_list_view_model.dart';
+import '../common/scroll_to_bottom_button.dart'; // 새로운 버튼 위젯 임포트
 
 class MessageList extends StatefulWidget {
   const MessageList({super.key});
@@ -15,6 +17,8 @@ class MessageList extends StatefulWidget {
 class _MessageListState extends State<MessageList> {
   final ScrollController _scrollController = ScrollController();
   late KeyboardVisibilityController _keyboardVisibilityController;
+  bool _showScrollToBottomButton = false;
+  Timer? _scrollButtonTimer; // 디바운싱을 위한 타이머 추가
 
   @override
   void initState() {
@@ -39,6 +43,7 @@ class _MessageListState extends State<MessageList> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _scrollButtonTimer?.cancel(); // 타이머 해제
     super.dispose();
   }
   /// 키보드 표시 상태가 변경될 때 호출됨
@@ -86,6 +91,31 @@ class _MessageListState extends State<MessageList> {
   void _onScroll() {
     final viewModel = Provider.of<MessageListViewModel>(context, listen: false);
     viewModel.updateAnchoredState(_scrollController);
+    
+    // 디바운싱 처리 - 마지막 스크롤 이벤트로부터 200ms 후에 버튼 상태 업데이트
+    _scrollButtonTimer?.cancel();
+    _scrollButtonTimer = Timer(const Duration(milliseconds: 200), () {
+      _updateScrollToBottomButtonVisibility();
+    });
+  }
+  
+  /// 스크롤 위치에 따라 맨 아래로 내려가기 버튼 표시 여부를 업데이트
+  void _updateScrollToBottomButtonVisibility() {
+    if (!_scrollController.hasClients) return;
+    
+    const threshold = 150.0; // 스크롤이 맨 아래에서 150픽셀 이상 떨어지면 버튼 표시 (버퍼 증가)
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.offset;
+    final isAtBottom = maxScroll - currentScroll <= threshold;
+    
+    final shouldShowButton = !isAtBottom && maxScroll > 0;
+    
+    // 상태가 실제로 변경될 때만 setState() 호출
+    if (_showScrollToBottomButton != shouldShowButton && mounted) {
+      setState(() {
+        _showScrollToBottomButton = shouldShowButton;
+      });
+    }
   }
 
   /// 스크롤을 맨 아래로 이동
@@ -99,6 +129,13 @@ class _MessageListState extends State<MessageList> {
       duration: duration,
       curve: Curves.easeOut,
     );
+    
+    // 스크롤 후 버튼 숨기기
+    if (_showScrollToBottomButton) {
+      setState(() {
+        _showScrollToBottomButton = false;
+      });
+    }
   }
 
   @override
@@ -117,54 +154,68 @@ class _MessageListState extends State<MessageList> {
           }
         });
 
-        return ListView.separated(
-          controller: _scrollController,
-          padding: const EdgeInsets.only(
-            bottom: 80,
-            top: 16,
-            left: 32,
-            right: 32,
-          ),
-          itemCount: messages.length,
-          reverse: false,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final message = viewModel.getMessageAtIndex(index) ?? {};
-            final isUser = viewModel.isUserMessage(message);
-
-            // 성능 최적화를 위해 메시지 유형에 따라 다른 위젯 사용
-            final messageWidget =
-                isUser
-                    ? UserMessage(
-                      key: ValueKey('user_$index'),
-                      message: message['text'] as String? ?? '',
-                      isSentByUser: true,
-                    )
-                    : AssistantMessage(
-                      key: ValueKey('ai_$index'),
-                      message: message['text'] as String? ?? '',
-                      type: viewModel.getMessageType(message),
-                      actions: message['actions'],
-                      card: message['card'],
-                      timestamp: message['timestamp'] as String? ?? '',
-                    );
-
-            return Align(
-              alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 100),
-                transitionBuilder:
-                    (child, animation) => SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 0.1),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                child: messageWidget,
+        return Stack(
+          children: [
+            ListView.separated(
+              controller: _scrollController,
+              padding: const EdgeInsets.only(
+                bottom: 80,
+                top: 16,
+                left: 32,
+                right: 32,
               ),
-            );
-          },
+              itemCount: messages.length,
+              reverse: false,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final message = viewModel.getMessageAtIndex(index) ?? {};
+                final isUser = viewModel.isUserMessage(message);
+
+                // 성능 최적화를 위해 메시지 유형에 따라 다른 위젯 사용
+                final messageWidget =
+                    isUser
+                        ? UserMessage(
+                          key: ValueKey('user_$index'),
+                          message: message['text'] as String? ?? '',
+                          isSentByUser: true,
+                        )
+                        : AssistantMessage(
+                          key: ValueKey('ai_$index'),
+                          message: message['text'] as String? ?? '',
+                          type: viewModel.getMessageType(message),
+                          actions: message['actions'],
+                          card: message['card'],
+                          timestamp: message['timestamp'] as String? ?? '',
+                        );
+
+                return Align(
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 100),
+                    transitionBuilder:
+                        (child, animation) => SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.1),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                    child: messageWidget,
+                  ),
+                );
+              },
+            ),
+            
+            // 맨 아래로 내려가기 버튼
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: ScrollToBottomButton(
+                visible: _showScrollToBottomButton && messages.isNotEmpty,
+                onPressed: () => _scrollToBottom(),
+              ),
+            ),
+          ],
         );
       },
     );
