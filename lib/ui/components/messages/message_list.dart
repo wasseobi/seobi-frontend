@@ -158,12 +158,7 @@ class _MessageListState extends State<MessageList> {
           children: [
             ListView.separated(
               controller: _scrollController,
-              padding: const EdgeInsets.only(
-                bottom: 80,
-                top: 16,
-                left: 32,
-                right: 32,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               itemCount: messages.length,
               reverse: false,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
