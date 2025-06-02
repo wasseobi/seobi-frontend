@@ -1,5 +1,5 @@
-import 'lib/repositories/backend/models/message.dart';
-import 'lib/repositories/local_database/models/message_role.dart';
+import '../lib/repositories/backend/models/message.dart';
+import '../lib/repositories/local_database/models/message_role.dart';
 
 // MessageType enum 정의 (UI에서 사용하는 것과 동일)
 enum MessageType { text, action, card }
