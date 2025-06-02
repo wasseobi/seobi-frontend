@@ -192,13 +192,33 @@ class ConversationService {
 
             case 'tool_calls':
               // AI가 도구 사용 시작 - UI에 "검색 중..." 표시
+              debugPrint('[ConversationService] 🔧 tool_calls 원본 데이터: $chunk');
+
               final toolCalls = chunk['tool_calls'] as List?;
+              debugPrint(
+                '[ConversationService] 📋 toolCalls 파싱 결과: $toolCalls',
+              );
+
               if (toolCalls?.isNotEmpty == true) {
-                final toolName = toolCalls![0]['function']['name'] ?? '도구';
-                debugPrint('[ConversationService] AI 도구 사용: $toolName');
+                final firstCall = toolCalls![0];
+                debugPrint('[ConversationService] 🎯 첫 번째 도구 호출: $firstCall');
+
+                final function = firstCall['function'];
+                debugPrint('[ConversationService] ⚙️ function 데이터: $function');
+
+                final rawToolName = function?['name'];
+                debugPrint(
+                  '[ConversationService] 📝 원본 도구명: "$rawToolName" (타입: ${rawToolName.runtimeType})',
+                );
+
+                final toolName = rawToolName?.toString() ?? '알 수 없는 도구';
+                debugPrint('[ConversationService] ✅ 최종 도구명: "$toolName"');
+
                 onToolUse?.call(toolName);
                 toolUsed = true;
                 usedToolName = toolName;
+              } else {
+                debugPrint('[ConversationService] ⚠️ toolCalls가 비어있거나 null입니다');
               }
               break;
 

@@ -83,6 +83,25 @@ class ChatProvider extends ChangeNotifier {
   /// 대화가 진행 중인지 확인
   bool get hasMessages => _messages.isNotEmpty;
 
+  /// 도구 메시지만 필터링한 목록 (UI용)
+  List<Map<String, dynamic>> get toolMessages {
+    return _messages
+        .where((msg) => msg.extensions?['isToolMessage'] == true)
+        .map(_messageToUIFormat)
+        .toList();
+  }
+
+  /// LLM 응답 메시지만 필터링한 목록 (UI용)
+  List<Map<String, dynamic>> get llmResponseMessages {
+    return _messages
+        .where((msg) => msg.extensions?['messageType'] == 'llm_response')
+        .map(_messageToUIFormat)
+        .toList();
+  }
+
+  /// 최근 사용된 도구 이름 목록 (UI용)
+  List<String> get recentToolNames => getRecentlyUsedTools();
+
   // ========================================
   // 핵심 기능들
   // ========================================
@@ -127,180 +146,139 @@ class ChatProvider extends ChangeNotifier {
 
       _addMessage(userMessage);
 
-      // 2. AI 응답을 위한 빈 메시지 생성 (실시간 업데이트용)
-      final aiMessageId = _generateMessageId();
-      final aiMessage = Message(
-        id: aiMessageId,
-        sessionId: _currentSessionId!,
-        content: '',
-        role: MessageRole.assistant,
-        timestamp: DateTime.now(),
-      );
-      _addMessage(aiMessage);
+      // 2. 스트리밍 응답 처리 - 각 타입별로 별도 메시지 생성
+      String? toolCallMessageId; // 도구 호출 메시지 ID
+      String? toolResponseMessageId; // 도구 응답 메시지 ID
+      String? llmResponseMessageId; // LLM 응답 메시지 ID
 
-      // 도구 사용 상태를 추적하기 위한 변수
-      bool isToolLoading = false;
+      // 중복 도구 호출 방지를 위한 플래그
+      bool hasToolCallMessage = false;
+      String? lastToolName; // 마지막 도구명 추적
 
-      // **TTS 관련 변수 초기화**
-      // _lastTtsPosition = 0;
-      // _currentResponse = '';
-
-      // **스트리밍 TTS 모드 시작 - 제거**
-      // debugPrint('[ChatProvider] ===== 스트리밍 TTS 모드 시작 =====');
-      // _ttsService.startStreamingMode();
-      // debugPrint(
-      //   '[ChatProvider] 스트리밍 모드 설정 완료: ${_ttsService.isStreamingMode}',
-      // );
-
-      // 3. 스트리밍 응답 요청 (실시간 UI 업데이트만, TTS는 완료 후)
       debugPrint('[ChatProvider] AI 응답 스트리밍 시작...');
       final aiResponse = await _conversationService.sendMessageStream(
         sessionId: _currentSessionId!,
         content: text,
         onProgress: (partialResponse) {
-          debugPrint(
-            '[ChatProvider] 📥 onProgress 호출 - 길이: ${partialResponse.length}, isToolLoading: $isToolLoading',
-          );
-
-          // 도구 로딩 중이 아닐 때만 실제 응답으로 업데이트
-          if (!isToolLoading) {
-            // _currentResponse = partialResponse; // 현재 응답 저장
-
-            final index = _messages.indexWhere((msg) => msg.id == aiMessageId);
+          // **LLM 응답 메시지 생성 및 업데이트**
+          if (llmResponseMessageId == null) {
+            // 첫 번째 청크일 때 LLM 응답 메시지 생성
+            llmResponseMessageId = _generateMessageId();
+            final llmResponseMessage = Message(
+              id: llmResponseMessageId!,
+              sessionId: _currentSessionId!,
+              content: partialResponse,
+              role: MessageRole.assistant,
+              timestamp: DateTime.now(),
+              extensions: {'messageType': 'llm_response'},
+            );
+            _addMessage(llmResponseMessage);
+            debugPrint(
+              '[ChatProvider] 📝 LLM 응답 메시지 생성: ${partialResponse.length}자',
+            );
+          } else {
+            // 기존 LLM 응답 메시지 업데이트
+            final index = _messages.indexWhere(
+              (msg) => msg.id == llmResponseMessageId,
+            );
             if (index != -1) {
               _messages[index] = _messages[index].copyWith(
                 content: partialResponse,
               );
               notifyListeners();
+              debugPrint(
+                '[ChatProvider] 📝 LLM 응답 업데이트: ${partialResponse.length}자',
+              );
             }
-            debugPrint('[ChatProvider] 실시간 업데이트: ${partialResponse.length}자');
-
-            // **실시간 TTS 제거 - UI 업데이트만**
-            // _processStreamingTts(partialResponse.trim());
-
-            // **마지막 문장을 위한 타이머 제거**
-            // finalTtsTimer?.cancel();
-            // finalTtsTimer = Timer(const Duration(seconds: 2), () {
-            //   _processRemainingText();
-            // });
-          } else {
-            debugPrint('[ChatProvider] ⏸️ 도구 로딩 중이므로 응답 처리 건너뜀');
           }
         },
         onToolUse: (toolName) {
-          debugPrint(
-            '[ChatProvider] 🔧 AI 도구 사용 중: $toolName (isToolLoading: $isToolLoading → true)',
+          debugPrint('[ChatProvider] 🔧 AI 도구 사용 신호 수신: "$toolName"');
+
+          // **중복 도구 호출 메시지 생성 방지**
+          if (hasToolCallMessage && lastToolName == toolName) {
+            debugPrint('[ChatProvider] ⚠️ 중복 도구 호출 메시지 생성 방지: $toolName');
+            return;
+          }
+
+          // **도구명 정리 및 검증**
+          final cleanedToolName = toolName.trim();
+          if (cleanedToolName.isEmpty ||
+              cleanedToolName == 'null' ||
+              cleanedToolName == '도구' ||
+              cleanedToolName == '알 수 없는 도구' ||
+              cleanedToolName.length < 3) {
+            // 너무 짧은 도구명 제외
+            debugPrint('[ChatProvider] ⚠️ 유효하지 않은 도구명 무시: "$toolName"');
+            return;
+          }
+
+          // **도구 호출 메시지 생성 (별도 메시지)**
+          toolCallMessageId = _generateMessageId();
+          final toolCallMessage = Message(
+            id: toolCallMessageId!,
+            sessionId: _currentSessionId!,
+            content: _getToolCallMessage(cleanedToolName),
+            role: MessageRole.assistant,
+            timestamp: DateTime.now(),
+            extensions: {
+              'messageType': 'tool_call',
+              'toolName': cleanedToolName,
+              'isToolMessage': true,
+            },
           );
+          _addMessage(toolCallMessage);
 
-          // 도구별 로딩 메시지 생성
-          String loadingMessage;
-          switch (toolName.toLowerCase()) {
-            case 'search_web':
-              loadingMessage = '🔍 웹 검색 중입니다...';
-              break;
-            case 'parse_schedule':
-              loadingMessage = '📅 일정을 분석하는 중입니다...';
-              break;
-            case 'create_schedule':
-              loadingMessage = '✨ 일정을 생성하는 중입니다...';
-              break;
-            case 'generate_insight':
-              loadingMessage = '💡 인사이트를 생성하는 중입니다...';
-              break;
-            case 'get_calendar':
-              loadingMessage = '📆 캘린더를 조회하는 중입니다...';
-              break;
-            default:
-              loadingMessage = '🔧 도구를 사용하는 중입니다...';
-          }
+          // 플래그 설정
+          hasToolCallMessage = true;
+          lastToolName = cleanedToolName;
 
-          // 기존 AI 메시지의 내용을 로딩 메시지로 업데이트
-          final index = _messages.indexWhere((msg) => msg.id == aiMessageId);
-          if (index != -1) {
-            _messages[index] = _messages[index].copyWith(
-              content: loadingMessage,
-              extensions: {
-                'isToolLoading': true, // TTS 제외 표시
-                'toolName': toolName,
-              },
-            );
-            notifyListeners();
-            isToolLoading = true;
-          }
+          debugPrint('[ChatProvider] ✅ 도구 호출 메시지 생성 완료: $cleanedToolName');
         },
         onToolComplete: () {
-          debugPrint(
-            '[ChatProvider] ✅ AI 도구 사용 완료 (isToolLoading: $isToolLoading → false)',
-          );
+          debugPrint('[ChatProvider] ✅ AI 도구 사용 완료');
 
-          // 도구 로딩 상태 해제 (이후 onProgress에서 실제 응답으로 업데이트됨)
-          isToolLoading = false;
-
-          // 일시적으로 "분석 완료" 메시지로 업데이트 (선택적)
-          final index = _messages.indexWhere((msg) => msg.id == aiMessageId);
-          if (index != -1) {
-            final currentExtensions = _messages[index].extensions ?? {};
-            final toolName = currentExtensions['toolName'] as String?;
-
-            String completeMessage;
-            switch (toolName?.toLowerCase()) {
-              case 'search_web':
-                completeMessage = '🔍 웹 검색 완료, 답변을 생성하는 중입니다...';
-                break;
-              case 'parse_schedule':
-                completeMessage = '📅 일정 분석 완료, 답변을 생성하는 중입니다...';
-                break;
-              case 'create_schedule':
-                completeMessage = '✨ 일정 생성 완료, 답변을 생성하는 중입니다...';
-                break;
-              case 'generate_insight':
-                completeMessage = '💡 인사이트 생성 완료, 답변을 정리하는 중입니다...';
-                break;
-              case 'get_calendar':
-                completeMessage = '📆 캘린더 조회 완료, 답변을 생성하는 중입니다...';
-                break;
-              default:
-                completeMessage = '🔧 도구 실행 완료, 답변을 생성하는 중입니다...';
-            }
-
-            _messages[index] = _messages[index].copyWith(
-              content: completeMessage,
+          // **도구 응답 메시지 생성 (한 번만)**
+          if (toolResponseMessageId == null) {
+            toolResponseMessageId = _generateMessageId();
+            final toolResponseMessage = Message(
+              id: toolResponseMessageId!,
+              sessionId: _currentSessionId!,
+              content: '✅ 도구 실행이 완료되었습니다. 답변을 생성하는 중입니다...',
+              role: MessageRole.assistant,
+              timestamp: DateTime.now(),
               extensions: {
-                'isToolLoading': true, // 여전히 TTS 제외
-                'toolName': toolName,
+                'messageType': 'tool_response',
+                'isToolMessage': true,
               },
             );
-            notifyListeners();
+            _addMessage(toolResponseMessage);
+            debugPrint('[ChatProvider] ✅ 도구 응답 메시지 생성 완료');
+          } else {
+            debugPrint('[ChatProvider] ⚠️ 도구 응답 메시지 이미 존재함 - 중복 생성 방지');
           }
         },
       );
 
-      // **스트리밍 TTS 모드 종료 - 제거**
-      // _ttsService.stopStreamingMode();
-
-      // 4. 최종 AI 메시지로 업데이트
-      final finalIndex = _messages.indexWhere((msg) => msg.id == aiMessageId);
-      if (finalIndex != -1) {
-        _messages[finalIndex] = aiResponse.copyWith(
-          id: aiMessageId,
-          extensions: null, // 로딩 관련 확장 필드 제거
-        );
-        notifyListeners();
-      }
-
-      // 5. **AI 응답 완료 후 전체 TTS 처리**
+      // 3. **AI 응답 완료 후 TTS 처리**
       if (aiResponse.content != null && aiResponse.content!.isNotEmpty) {
         final finalContent = aiResponse.content!.trim();
-
         debugPrint(
           '[ChatProvider] 🎤 AI 응답 완료 - 즉시 TTS 시작: ${finalContent.length}자',
         );
-
-        // **백그라운드에서 마크다운 변환 및 TTS 실행 (비동기)**
         _processTtsInBackground(finalContent);
       }
 
       debugPrint('[ChatProvider] AI 응답 완료: "${aiResponse.contentPreview}"');
+
+      // **도구 사용 현황 분석 (디버깅용)**
+      analyzeToolMessages();
+      final usedTools = getRecentlyUsedTools();
+      if (usedTools.isNotEmpty) {
+        debugPrint('[ChatProvider] 🔧 이번 대화에서 사용된 도구들: $usedTools');
+      } else {
+        debugPrint('[ChatProvider] 🔧 이번 대화에서 도구가 사용되지 않았습니다.');
+      }
     } catch (e) {
       _setError('메시지 전송 실패: $e');
       debugPrint('[ChatProvider] 메시지 전송 오류: $e');
@@ -365,6 +343,12 @@ class ChatProvider extends ChangeNotifier {
 
   /// Message 객체를 UI에서 사용하는 Map 형태로 변환
   Map<String, dynamic> _messageToUIFormat(Message message) {
+    // 새로운 메시지 타입 확인
+    final messageTypeFromExtensions =
+        message.extensions?['messageType'] as String?;
+    final isToolMessage =
+        message.extensions?['isToolMessage'] as bool? ?? false;
+
     return {
       'isUser': message.role == MessageRole.user,
       'text': message.content ?? '',
@@ -375,6 +359,11 @@ class ChatProvider extends ChangeNotifier {
       // 추가 정보들
       'id': message.id,
       'sessionId': message.sessionId,
+      // 새로운 메시지 타입 정보 추가
+      'messageSubType':
+          messageTypeFromExtensions, // tool_call, tool_response, llm_response 등
+      'isToolMessage': isToolMessage,
+      'toolName': message.extensions?['toolName'],
     };
   }
 
@@ -574,6 +563,118 @@ class ChatProvider extends ChangeNotifier {
     );
 
     return messages;
+  }
+
+  // ========================================
+  // 디버깅 및 분석 메서드들
+  // ========================================
+
+  /// 현재 메시지 목록에서 도구 관련 메시지들을 분석
+  void analyzeToolMessages() {
+    debugPrint('[ChatProvider] ===== 도구 메시지 분석 시작 =====');
+
+    final toolMessages =
+        _messages
+            .where(
+              (msg) =>
+                  msg.extensions?['isToolMessage'] == true ||
+                  msg.extensions?['messageType'] != null,
+            )
+            .toList();
+
+    debugPrint('[ChatProvider] 전체 메시지 수: ${_messages.length}');
+    debugPrint('[ChatProvider] 도구 관련 메시지 수: ${toolMessages.length}');
+
+    for (int i = 0; i < toolMessages.length; i++) {
+      final msg = toolMessages[i];
+      final messageType = msg.extensions?['messageType'];
+      final toolName = msg.extensions?['toolName'];
+      final isToolMessage = msg.extensions?['isToolMessage'];
+
+      debugPrint('[ChatProvider] 도구 메시지 ${i + 1}:');
+      debugPrint('  - ID: ${msg.id}');
+      debugPrint(
+        '  - 내용: "${msg.content?.substring(0, msg.content!.length > 50 ? 50 : msg.content!.length)}..."',
+      );
+      debugPrint('  - 메시지 타입: $messageType');
+      debugPrint('  - 도구명: $toolName');
+      debugPrint('  - 도구 메시지 여부: $isToolMessage');
+      debugPrint('  - 역할: ${msg.role}');
+      debugPrint('  - 타임스탬프: ${msg.timestamp}');
+    }
+
+    // 도구별 사용 횟수 통계
+    final toolUsageMap = <String, int>{};
+    for (final msg in toolMessages) {
+      final toolName = msg.extensions?['toolName'] as String?;
+      if (toolName != null) {
+        toolUsageMap[toolName] = (toolUsageMap[toolName] ?? 0) + 1;
+      }
+    }
+
+    debugPrint('[ChatProvider] 도구 사용 통계:');
+    for (final entry in toolUsageMap.entries) {
+      debugPrint('  - ${entry.key}: ${entry.value}회 사용');
+    }
+
+    debugPrint('[ChatProvider] ===== 도구 메시지 분석 완료 =====');
+  }
+
+  /// 최근 대화에서 사용된 도구 목록 반환
+  List<String> getRecentlyUsedTools() {
+    final toolMessages =
+        _messages.where((msg) => msg.extensions?['toolName'] != null).toList();
+
+    final toolNames =
+        toolMessages
+            .map((msg) => msg.extensions?['toolName'] as String?)
+            .where((name) => name != null)
+            .cast<String>()
+            .toSet()
+            .toList();
+
+    return toolNames;
+  }
+
+  // ========================================
+  // 메시지 분리를 위한 헬퍼 메서드들
+  // ========================================
+
+  /// 도구 이름에 따른 호출 메시지 생성
+  String _getToolCallMessage(String toolName) {
+    // 도구명 정리 및 검증
+    final cleanedName = toolName.trim().toLowerCase();
+
+    debugPrint(
+      '[ChatProvider] 도구 메시지 생성 - 원본: "$toolName", 정리된 이름: "$cleanedName"',
+    );
+
+    switch (cleanedName) {
+      case 'search_web':
+      case 'websearch':
+      case 'web_search':
+        return '🔍 웹 검색을 시작합니다...';
+      case 'parse_schedule':
+      case 'schedule_parse':
+        return '📅 일정을 분석하고 있습니다...';
+      case 'create_schedule':
+      case 'schedule_create':
+        return '✨ 새로운 일정을 생성하고 있습니다...';
+      case 'generate_insight':
+      case 'insight_generate':
+        return '💡 인사이트를 생성하고 있습니다...';
+      case 'get_calendar':
+      case 'calendar_get':
+        return '📆 캘린더 정보를 조회하고 있습니다...';
+      case '':
+      case 'null':
+      case 'undefined':
+        debugPrint('[ChatProvider] ⚠️ 빈 도구명 감지 - 기본 메시지 사용');
+        return '🔧 AI가 도구를 사용하고 있습니다...';
+      default:
+        debugPrint('[ChatProvider] ⚠️ 알 수 없는 도구명: "$cleanedName" - 기본 메시지 사용');
+        return '🔧 AI가 "$toolName" 도구를 사용하고 있습니다...';
+    }
   }
 
   // ========================================
