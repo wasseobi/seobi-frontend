@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'services/auth/auth_service.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/utils/chat_provider.dart';
+import 'ui/components/messages/message_list_view_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,11 +25,23 @@ void main() async {
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
-
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ChatProvider(),
+    return MultiProvider(
+      providers: [
+        // ChatProvider 등록
+        ChangeNotifierProvider(
+          create: (context) => ChatProvider(),
+        ),
+        // MessageListViewModel 등록 (ChatProvider에 의존)
+        ChangeNotifierProxyProvider<ChatProvider, MessageListViewModel>(
+          create: (context) => MessageListViewModel(
+            chatProvider: Provider.of<ChatProvider>(context, listen: false),
+          ),
+          update: (context, chatProvider, previousViewModel) => 
+            previousViewModel ?? MessageListViewModel(chatProvider: chatProvider),
+        ),
+      ],
       child: MaterialApp(
         theme: ThemeData(
           primarySwatch: Colors.blue,

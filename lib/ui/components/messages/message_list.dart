@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'user/user_message.dart';
 import 'assistant/assistant_message.dart';
-import '../../utils/chat_provider.dart';
+import 'message_list_view_model.dart';
 
-class ChatMessageList extends StatelessWidget {
-  const ChatMessageList({super.key});
+class MessageList extends StatelessWidget {
+  const MessageList({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ChatProvider>(
-      builder: (context, chatProvider, child) {
-        final messages = chatProvider.messages;
+    return Consumer<MessageListViewModel>(
+      builder: (context, viewModel, child) {
+        final messages = viewModel.messages;
 
-        debugPrint('ChatMessageList - ChatProvider 메시지 개수: ${messages.length}');
+        debugPrint('MessageList - 메시지 개수: ${messages.length}');
 
         return ListView.separated(
           padding: const EdgeInsets.only(
@@ -26,8 +26,8 @@ class ChatMessageList extends StatelessWidget {
           reverse: false,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            final message = messages[index];
-            final isUser = message['isUser'] as bool? ?? false;
+            final message = viewModel.getMessageAtIndex(index) ?? {};
+            final isUser = viewModel.isUserMessage(message);
 
             // 성능 최적화를 위해 메시지 유형에 따라 다른 위젯 사용
             final messageWidget =
@@ -40,7 +40,7 @@ class ChatMessageList extends StatelessWidget {
                     : AssistantMessage(
                       key: ValueKey('ai_$index'),
                       message: message['text'] as String? ?? '',
-                      type: message['messageType'],
+                      type: viewModel.getMessageType(message),
                       actions: message['actions'],
                       card: message['card'],
                       timestamp: message['timestamp'] as String? ?? '',
@@ -49,7 +49,7 @@ class ChatMessageList extends StatelessWidget {
             return Align(
               alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 100),
                 transitionBuilder:
                     (child, animation) => SlideTransition(
                       position: Tween<Offset>(
