@@ -26,8 +26,6 @@ body:
         2. '...' 버튼 클릭
         3. '...' 입력
         4. 오류 발생
-    validations:
-      required: true
 
   - type: textarea
     id: expected-behavior
@@ -35,8 +33,6 @@ body:
       label: 예상 동작
       description: 원래 어떻게 동작해야 하나요?
       placeholder: 정상적인 경우 기대되는 동작을 설명해 주세요.
-    validations:
-      required: true
 
   - type: dropdown
     id: platform
@@ -51,8 +47,6 @@ body:
         - Windows
         - macOS
         - Linux
-    validations:
-      required: true
 
   - type: input
     id: version
@@ -60,8 +54,6 @@ body:
       label: 앱 버전
       description: 버그가 발생한 앱 버전을 입력해 주세요
       placeholder: 예) 1.0.0
-    validations:
-      required: true
 
   - type: textarea
     id: additional-info
