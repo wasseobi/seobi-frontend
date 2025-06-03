@@ -43,7 +43,7 @@ class _SignInBottomSheetContentState extends State<_SignInBottomSheetContent> {
   void _checkAuthState() {
     if (_viewModel.isLoggedIn && mounted) {
       // 로그인 성공 시 바텀 시트 닫기
-      Navigator.of(context).pop();
+      Navigator.popUntil(context, (route) => route.isFirst);
     }
   }
 
