@@ -50,17 +50,11 @@ class BackendRepository implements IBackendRepository {
   @override
   Future<User> postUserLogin(String googleIdToken) async {
     return _http.post(
-      '/users/login',
+      '/auth/sign',
       {'id_token': googleIdToken},
       User.fromJson,
       expectedStatus: 200,
     );
-  }
-
-  // Session related methods
-  @override
-  Future<List<Session>> getSessions() {
-    return _http.getList('/sessions/', Session.fromJson);
   }
 
   @override
@@ -85,28 +79,9 @@ class BackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<Session> getSessionById(String id) {
-    return _http.get('/sessions/$id', Session.fromJson);
-  }
-
-  @override
-  Future<Session> putSessionById(String id, Session updatedSession) {
-    return _http.put(
-      '/sessions/$id',
-      updatedSession.toJson(),
-      Session.fromJson,
-    );
-  }
-
-  @override
-  Future<void> deleteSessionById(String id) {
-    return _http.delete('/sessions/$id');
-  }
-
-  @override
   Future<Session> postSessionFinish(String id) {
     return _http.post(
-      '/sessions/$id/finish',
+      '/s/$id/finish',
       {},
       Session.fromJson,
       expectedStatus: 200,
@@ -115,13 +90,7 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<List<Session>> getSessionsByUserId(String userId) {
-    return _http.getList('/sessions/user/$userId', Session.fromJson);
-  }
-
-  // Message related methods
-  @override
-  Future<List<Message>> getMessages() {
-    return _http.getList('/messages', Message.fromJson);
+    return _http.getList('/s/$userId', Session.fromJson);
   }
 
   @override
@@ -145,26 +114,12 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<List<Message>> getMessagesBySessionId(String sessionId) {
-    return _http.getList('/messages/session/$sessionId', Message.fromJson);
+    return _http.getList('/s/$sessionId/m', Message.fromJson);
   }
 
   @override
   Future<List<Message>> getMessagesByUserId(String userId) {
-    return _http.getList('/messages/user/$userId', Message.fromJson);
-  }
-
-  @override
-  Future<Message> postMessageLanggraphCompletion({
-    required String sessionId,
-    required String userId,
-    required String content,
-  }) {
-    return _http.post(
-      '/s/$sessionId/complete',
-      {'content': content},
-      Message.fromJson,
-      headers: {'user-id': userId},
-    );
+    return _http.getList('/m/$userId', Message.fromJson);
   }
 
   @override
