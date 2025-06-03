@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import '../../repositories/backend/i_backend_repository.dart';
-import '../../repositories/backend/backend_repository_factory.dart';
 import '../../repositories/local_database/local_database_repository.dart';
 import '../../services/auth/auth_service.dart';
 import '../../repositories/backend/backend_repository.dart';
@@ -10,7 +9,7 @@ class UpdateDbService {
   static final UpdateDbService _instance = UpdateDbService._internal();
   factory UpdateDbService() => _instance;
   final LocalDatabaseRepository _localDb = LocalDatabaseRepository();
-  final IBackendRepository _backend = BackendRepositoryFactory.instance;
+  final IBackendRepository _backend = BackendRepository();
   final BackendRepository _backendImpl = BackendRepository();
   final AuthService _authService = AuthService();
 

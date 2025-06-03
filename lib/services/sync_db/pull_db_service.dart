@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:seobi_app/repositories/backend/backend_repository_factory.dart';
+import 'package:seobi_app/repositories/backend/backend_repository.dart';
 import 'package:seobi_app/repositories/backend/i_backend_repository.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart' as backend;
 import 'package:seobi_app/repositories/backend/models/session.dart' as backend;
@@ -10,9 +10,7 @@ import 'package:seobi_app/repositories/local_database/models/session.dart';
 class PullDbService {
   static final PullDbService _instance = PullDbService._internal();
   factory PullDbService() => _instance;
-
-  final IBackendRepository _backendRepository =
-      BackendRepositoryFactory.instance;
+  final IBackendRepository _backendRepository = BackendRepository();
   final LocalDatabaseRepository _localRepository = LocalDatabaseRepository();
 
   PullDbService._internal();
