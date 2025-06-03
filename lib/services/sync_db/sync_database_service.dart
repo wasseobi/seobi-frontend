@@ -263,6 +263,45 @@ class SyncDatabaseService {
     }
   }
 
+  /// 로컬 데이터베이스에 새로운 세션을 추가합니다.
+  /// 
+  /// 백엔드 동기화 없이 로컬에만 저장됩니다.
+  Future<void> addLocalSession(local.Session session) async {
+    try {
+      debugPrint('[SyncDB] 로컬 세션 추가: ${session.id}');
+      await _localDb.insertSession(session);
+    } catch (e) {
+      debugPrint('[SyncDB] 로컬 세션 추가 오류: $e');
+      rethrow;
+    }
+  }
+
+  /// 로컬 데이터베이스에 새로운 메시지를 추가합니다.
+  /// 
+  /// 백엔드 동기화 없이 로컬에만 저장됩니다.
+  Future<void> addLocalMessage(local.Message message) async {
+    try {
+      debugPrint('[SyncDB] 로컬 메시지 추가: ${message.id}');
+      await _localDb.insertMessage(message);
+    } catch (e) {
+      debugPrint('[SyncDB] 로컬 메시지 추가 오류: $e');
+      rethrow;
+    }
+  }
+
+  /// 로컬 데이터베이스에 여러 메시지를 한 번에 추가합니다.
+  /// 
+  /// 백엔드 동기화 없이 로컬에만 저장됩니다.
+  Future<void> addLocalMessages(List<local.Message> messages) async {
+    try {
+      debugPrint('[SyncDB] 로컬 메시지 일괄 추가: ${messages.length}개');
+      await _localDb.insertMessages(messages);
+    } catch (e) {
+      debugPrint('[SyncDB] 로컬 메시지 일괄 추가 오류: $e');
+      rethrow;
+    }
+  }
+
   // ========================================
   // Private Helper Methods
   // ========================================
