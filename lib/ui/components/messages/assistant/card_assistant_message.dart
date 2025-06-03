@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../constants/dimensions/message_dimensions.dart';
 import '../../common/schedule_card.dart';
+import '../../box/schedules/schedule_card_model.dart';
+import '../../box/schedules/schedule_types.dart';
 import 'base_assistant_message.dart';
 import 'message_styles.dart';
 
@@ -19,6 +21,16 @@ class CardAssistantMessage extends BaseAssistantMessage {
 
   @override
   Widget buildMessageContent(BuildContext context) {
+    // Create ScheduleCardModel from card data
+    final scheduleModel = ScheduleCardModel(
+      id: int.parse(card['id'] ?? '0'),
+      title: card['title'] ?? '',
+      time: card['time'] ?? '',
+      location: card['location'] ?? '',
+      type: ScheduleType.message,
+      registeredTime: card['registeredTime'] ?? DateTime.now().toString(),
+    );
+
     return Container(
       decoration: MessageDecorations.leftBorderDecoration,
       child: Padding(
@@ -27,9 +39,10 @@ class CardAssistantMessage extends BaseAssistantMessage {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ScheduleCard(
-              title: card['title'] ?? '',
-              time: card['time'] ?? '',
-              location: card['location'] ?? '',
+              schedule: scheduleModel,
+              onTap: () {
+                // Handle card tap if needed
+              },
             ),
             if (actions != null && actions!.isNotEmpty)
               Padding(

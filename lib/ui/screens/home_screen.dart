@@ -9,6 +9,7 @@ import '../components/input_bar/input_bar.dart';
 import '../utils/measure_size.dart';
 import '../utils/chat_provider.dart';
 import 'chat_screen.dart';
+import 'box_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -99,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         // 보관함 화면
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
-                          child: const Center(child: Text('보관함 화면')),
+                          child: const BoxScreen(),
                         ),
 
                         // 통계 화면

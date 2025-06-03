@@ -1,63 +1,111 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
-import '../../constants/dimensions/message_dimensions.dart';
+import '../../constants/dimensions/schedule_card_dimensions.dart';
+import '../../constants/app_fonts.dart';
+import '../box/schedules/schedule_card_model.dart';
+import '../box/schedules/schedule_types.dart';
 
 class ScheduleCard extends StatelessWidget {
-  final String title;
-  final String time;
-  final String location;
+  final ScheduleCardModel schedule;
+  final VoidCallback? onTap;
 
-  const ScheduleCard({
-    super.key,
-    required this.title,
-    required this.time,
-    required this.location,
-  });
+  const ScheduleCard({super.key, required this.schedule, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white100,
-        borderRadius: BorderRadius.circular(MessageDimensions.radius),
-        border: Border.all(color: AppColors.gray40),
+        borderRadius: BorderRadius.circular(ScheduleCardDimensions.radius),
+        border: Border.all(
+          color: AppColors.gray40,
+          width: ScheduleCardDimensions.borderWidth,
+        ),
       ),
-      padding: EdgeInsets.all(MessageDimensions.padding),
-      child: Column(
+      padding: EdgeInsets.only(
+        top: ScheduleCardDimensions.paddingTop,
+        left: ScheduleCardDimensions.paddingLeft,
+        right: ScheduleCardDimensions.paddingRight,
+        bottom: ScheduleCardDimensions.paddingBottom,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.black100,
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        schedule.title,
+                        style: PretendardStyles.semiBold16.copyWith(
+                          color: AppColors.black100,
+                        ),
+                      ),
+                      SizedBox(height: ScheduleCardDimensions.spacingSmall),
+                      Text(
+                        schedule.time,
+                        style: PretendardStyles.medium12.copyWith(
+                          color: AppColors.gray80,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: ScheduleCardDimensions.spacingLarge),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: ScheduleCardDimensions.iconSize,
+                        color: AppColors.gray60,
+                      ),
+                      SizedBox(width: ScheduleCardDimensions.spacingMedium),
+                      Text(
+                        schedule.location,
+                        style: PretendardStyles.medium12.copyWith(
+                          color: AppColors.gray100,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              SizedBox(height: ScheduleCardDimensions.spacingMedium),
+              if (schedule.type == ScheduleType.list)
+                Text(
+                  schedule.registeredTime,
+                  textAlign: TextAlign.center,
+                  style: PretendardStyles.medium10.copyWith(
+                    color: AppColors.gray60,
+                  ),
                 ),
-              ),
-              Text(
-                time,
-                style: TextStyle(fontSize: 12, color: AppColors.gray80),
-              ),
             ],
           ),
-          SizedBox(height: MessageDimensions.spacing * 1.5),
-          Row(
-            children: [
-              Icon(
-                Icons.location_on,
-                size: MessageDimensions.iconSize,
+          if (schedule.type == ScheduleType.list)
+            Container(
+              width: ScheduleCardDimensions.iconContainerSize,
+              height: ScheduleCardDimensions.iconContainerSize,
+              child: Icon(
+                Icons.open_in_new,
+                size: ScheduleCardDimensions.iconSize,
                 color: AppColors.gray60,
               ),
-              SizedBox(width: MessageDimensions.spacing),
-              Text(
-                location,
-                style: TextStyle(fontSize: 12, color: AppColors.gray100),
-              ),
-            ],
-          ),
+            ),
         ],
       ),
     );
