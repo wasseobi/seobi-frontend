@@ -5,7 +5,7 @@ import '../../repositories/local_database/models/message_role.dart';
 import '../../services/conversation/conversation_service.dart';
 import '../../services/tts/tts_service.dart';
 import '../components/messages/assistant/message_types.dart';
-import 'chat_tts_manager.dart';
+import '../../services/tts/chat_tts_manager.dart';
 
 /// 채팅 상태를 관리하는 Provider
 ///

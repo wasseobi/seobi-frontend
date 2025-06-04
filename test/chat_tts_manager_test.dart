@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import '../lib/ui/utils/chat_tts_manager.dart';
+import '../lib/services/tts/chat_tts_manager.dart';
 
 /// MockTtsService for testing - TtsService 인터페이스를 구현
 class MockTtsService {
