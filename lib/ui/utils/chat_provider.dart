@@ -5,18 +5,26 @@ import '../../repositories/local_database/models/message_role.dart';
 import '../../services/conversation/conversation_service.dart';
 import '../../services/tts/tts_service.dart';
 import '../components/messages/assistant/message_types.dart';
+import '../../services/tts/chat_tts_manager.dart';
 
 /// 채팅 상태를 관리하는 Provider
 ///
-/// Message 모델과 UI 간의 데이터 변환을 담당하며,
-/// ConversationService를 통해 실제 AI 대화를 처리합니다.
-/// InputBarViewModel과 연결하여 메시지 전송 이벤트를 처리합니다.
+/// **주요 역할:**
+/// - Message 모델과 UI 간 데이터 변환
+/// - AI 대화 처리 (ConversationService 연동)
+/// - 실시간 TTS 스트리밍 관리
+/// - 메시지 상태 관리 및 업데이트
+///
+/// **연동 서비스:**
+/// - ConversationService: AI 대화 처리
+/// - ChatTtsManager: TTS 기능 관리
+/// - InputBarViewModel: 메시지 전송 이벤트 처리
 class ChatProvider extends ChangeNotifier {
   final ConversationService _conversationService;
-  final TtsService _ttsService;
+  final ChatTtsManager _ttsManager;
 
   // ========================================
-  // 상태 변수들
+  // 🗂️ 상태 관리 변수들
   // ========================================
 
   List<Message> _messages = [];
@@ -24,66 +32,69 @@ class ChatProvider extends ChangeNotifier {
   String? _error;
   String? _currentSessionId;
 
-  // 글로벌 메시지 전송 핸들러 (정적 방법)
+  // 🌍 글로벌 메시지 전송 핸들러
   static ChatProvider? _globalInstance;
 
   // ========================================
-  // 생성자
+  // 🏗️ 생성자 및 초기화
   // ========================================
 
   ChatProvider({
     ConversationService? conversationService,
     TtsService? ttsService,
   }) : _conversationService = conversationService ?? ConversationService(),
-       _ttsService = ttsService ?? TtsService() {
-    debugPrint('[ChatProvider] 🎯 ChatProvider 초기화 완료!');
-    debugPrint(
-      '[ChatProvider] 🎯 ConversationService: ${_conversationService.runtimeType}',
-    );
-    debugPrint('[ChatProvider] 🎯 TtsService: ${_ttsService.runtimeType}');
-    // 글로벌 인스턴스로 설정
-    _globalInstance = this;
+       _ttsManager = ChatTtsManager(ttsService: ttsService) {
+    debugPrint('[ChatProvider] 🎯 ChatProvider 초기화 완료');
+    debugPrint('[ChatProvider] 🎯 서비스: ${_conversationService.runtimeType}');
+    debugPrint('[ChatProvider] 🎯 TTS 매니저 연결 완료');
+    _globalInstance = this; // 글로벌 인스턴스 설정
   }
 
   // ========================================
-  // 글로벌 메시지 전송 핸들러
+  // 🌍 글로벌 메시지 전송
   // ========================================
 
-  /// 전역에서 접근 가능한 메시지 전송 메서드
+  /// **전역 메시지 전송**
+  ///
+  /// 앱 어디서든 메시지를 전송할 수 있는 정적 메서드
   static void sendGlobalMessage(String message) {
     debugPrint('[ChatProvider] 🌍 전역 메시지 수신: "$message"');
     if (_globalInstance != null) {
-      debugPrint('[ChatProvider] 🌍 글로벌 인스턴스로 메시지 전달');
+      debugPrint('[ChatProvider] 🌍 글로벌 인스턴스로 전달');
       _globalInstance!.sendMessage(message);
     } else {
-      debugPrint('[ChatProvider] ❌ 글로벌 인스턴스가 없음!');
+      debugPrint('[ChatProvider] ❌ 글로벌 인스턴스 없음!');
     }
   }
 
   // ========================================
-  // Getter들 (UI에서 구독)
+  // 📊 상태 확인 프로퍼티들 (UI에서 구독)
   // ========================================
 
-  /// UI에서 사용할 메시지 목록 (Map 형태로 변환됨)
+  /// **UI용 메시지 목록** (Map 형태로 변환됨)
   List<Map<String, dynamic>> get messages =>
       _messages.map(_messageToUIFormat).toList();
 
-  /// 현재 로딩 상태
+  /// **현재 로딩 상태**
   bool get isLoading => _isLoading;
 
-  /// 현재 에러 메시지
+  /// **현재 에러 메시지**
   String? get error => _error;
 
-  /// 메시지 개수
+  /// **메시지 개수**
   int get messageCount => _messages.length;
 
-  /// 현재 세션 ID
+  /// **현재 세션 ID**
   String? get currentSessionId => _currentSessionId;
 
-  /// 대화가 진행 중인지 확인
+  /// **대화 진행 여부**
   bool get hasMessages => _messages.isNotEmpty;
 
-  /// 도구 메시지만 필터링한 목록 (UI용)
+  // ========================================
+  // 🔧 필터링된 메시지 목록들
+  // ========================================
+
+  /// **도구 메시지만 필터링** (UI용)
   List<Map<String, dynamic>> get toolMessages {
     return _messages
         .where((msg) => msg.extensions?['isToolMessage'] == true)
@@ -91,7 +102,7 @@ class ChatProvider extends ChangeNotifier {
         .toList();
   }
 
-  /// LLM 응답 메시지만 필터링한 목록 (UI용)
+  /// **LLM 응답 메시지만 필터링** (UI용)
   List<Map<String, dynamic>> get llmResponseMessages {
     return _messages
         .where((msg) => msg.extensions?['messageType'] == 'llm_response')
@@ -99,19 +110,27 @@ class ChatProvider extends ChangeNotifier {
         .toList();
   }
 
-  /// 최근 사용된 도구 이름 목록 (UI용)
+  /// **최근 사용된 도구 이름 목록** (UI용)
   List<String> get recentToolNames => getRecentlyUsedTools();
 
   // ========================================
-  // 핵심 기능들
+  // 🚀 핵심 메시지 처리 기능들
   // ========================================
 
-  /// 사용자 메시지 전송 및 AI 응답 요청
+  /// **사용자 메시지 전송 및 AI 응답 요청**
+  ///
+  /// **처리 흐름:**
+  /// 1. 입력 검증 및 TTS 중단
+  /// 2. 세션 생성/확인
+  /// 3. 사용자 메시지 추가
+  /// 4. AI 스트리밍 응답 처리
+  /// 5. 도구 사용 처리
+  /// 6. 최종 TTS 처리
   Future<void> sendMessage(String text) async {
-    debugPrint('[ChatProvider] 🚀 ===== SEND MESSAGE 시작 ===== "$text"');
+    debugPrint('[ChatProvider] 🚀 메시지 전송 시작: "$text"');
 
     if (text.trim().isEmpty) {
-      debugPrint('[ChatProvider] 빈 메시지는 전송할 수 없습니다');
+      debugPrint('[ChatProvider] ⚠️ 빈 메시지는 전송 불가');
       return;
     }
 
@@ -119,231 +138,287 @@ class ChatProvider extends ChangeNotifier {
       _setLoading(true);
       _clearError();
 
-      debugPrint('[ChatProvider] 메시지 전송 시작: "$text"');
+      // 1️⃣ TTS 즉시 중단 (가장 먼저 실행)
+      await _ttsManager.stopTts();
 
-      // **즉시 TTS 중단 (가장 먼저 실행)**
-      debugPrint('[ChatProvider] ===== TTS STOP 호출 직전 =====');
-      await _ttsService.stop();
-      debugPrint('[ChatProvider] 새 메시지 전송으로 인한 TTS 즉시 중단 완료');
-      debugPrint('[ChatProvider] ===== TTS STOP 호출 완료 =====');
+      // 2️⃣ 세션 확인/생성
+      await _ensureSessionExists();
 
-      // 세션이 없으면 새로 생성
-      if (_currentSessionId == null) {
-        debugPrint('[ChatProvider] 새 세션 생성 중...');
-        final session = await _conversationService.createSession();
-        _currentSessionId = session.id;
-        debugPrint('[ChatProvider] 새 세션 생성 완료: $_currentSessionId');
-      }
-
-      // 1. 사용자 메시지 즉시 추가
-      final userMessage = Message(
-        id: _generateMessageId(),
-        sessionId: _currentSessionId!,
-        content: text,
-        role: MessageRole.user,
-        timestamp: DateTime.now(),
-      );
-
+      // 3️⃣ 사용자 메시지 추가
+      final userMessage = _createUserMessage(text);
       _addMessage(userMessage);
 
-      // 2. 스트리밍 응답 처리 - 각 타입별로 별도 메시지 생성
-      String? toolCallMessageId; // 도구 호출 메시지 ID
-      String? toolResponseMessageId; // 도구 응답 메시지 ID
-      String? llmResponseMessageId; // LLM 응답 메시지 ID
+      // 4️⃣ AI 스트리밍 응답 처리
+      final aiResponse = await _processAiStreamingResponse(text);
 
-      // 중복 도구 호출 방지를 위한 플래그
-      bool hasToolCallMessage = false;
-      String? lastToolName; // 마지막 도구명 추적
+      // 5️⃣ 최종 TTS 처리
+      await _processFinalTts(aiResponse);
 
-      debugPrint('[ChatProvider] AI 응답 스트리밍 시작...');
-      final aiResponse = await _conversationService.sendMessageStream(
-        sessionId: _currentSessionId!,
-        content: text,
-        onProgress: (partialResponse) {
-          // **LLM 응답 메시지 생성 및 업데이트**
-          if (llmResponseMessageId == null) {
-            // 첫 번째 청크일 때 LLM 응답 메시지 생성
-            llmResponseMessageId = _generateMessageId();
-            final llmResponseMessage = Message(
-              id: llmResponseMessageId!,
-              sessionId: _currentSessionId!,
-              content: partialResponse,
-              role: MessageRole.assistant,
-              timestamp: DateTime.now(),
-              extensions: {'messageType': 'llm_response'},
-            );
-            _addMessage(llmResponseMessage);
-            debugPrint(
-              '[ChatProvider] 📝 LLM 응답 메시지 생성: ${partialResponse.length}자',
-            );
-          } else {
-            // 기존 LLM 응답 메시지 업데이트
-            final index = _messages.indexWhere(
-              (msg) => msg.id == llmResponseMessageId,
-            );
-            if (index != -1) {
-              _messages[index] = _messages[index].copyWith(
-                content: partialResponse,
-              );
-              notifyListeners();
-              debugPrint(
-                '[ChatProvider] 📝 LLM 응답 업데이트: ${partialResponse.length}자',
-              );
-            }
-          }
-        },
-        onToolUse: (toolName) {
-          debugPrint('[ChatProvider] 🔧 AI 도구 사용 신호 수신: "$toolName"');
-
-          // **중복 도구 호출 메시지 생성 방지**
-          if (hasToolCallMessage && lastToolName == toolName) {
-            debugPrint('[ChatProvider] ⚠️ 중복 도구 호출 메시지 생성 방지: $toolName');
-            return;
-          }
-
-          // **도구명 정리 및 검증**
-          final cleanedToolName = toolName.trim();
-          if (cleanedToolName.isEmpty ||
-              cleanedToolName == 'null' ||
-              cleanedToolName == '도구' ||
-              cleanedToolName == '알 수 없는 도구' ||
-              cleanedToolName.length < 3) {
-            // 너무 짧은 도구명 제외
-            debugPrint('[ChatProvider] ⚠️ 유효하지 않은 도구명 무시: "$toolName"');
-            return;
-          }
-
-          // **도구 호출 메시지 생성 (별도 메시지)**
-          toolCallMessageId = _generateMessageId();
-          final toolCallMessage = Message(
-            id: toolCallMessageId!,
-            sessionId: _currentSessionId!,
-            content: _getToolCallMessage(cleanedToolName),
-            role: MessageRole.assistant,
-            timestamp: DateTime.now(),
-            extensions: {
-              'messageType': 'tool_call',
-              'toolName': cleanedToolName,
-              'isToolMessage': true,
-            },
-          );
-          _addMessage(toolCallMessage);
-
-          // 플래그 설정
-          hasToolCallMessage = true;
-          lastToolName = cleanedToolName;
-
-          debugPrint('[ChatProvider] ✅ 도구 호출 메시지 생성 완료: $cleanedToolName');
-        },
-        onToolComplete: () {
-          debugPrint('[ChatProvider] ✅ AI 도구 사용 완료');
-
-          // **도구 응답 메시지 생성 (한 번만)**
-          if (toolResponseMessageId == null) {
-            toolResponseMessageId = _generateMessageId();
-            final toolResponseMessage = Message(
-              id: toolResponseMessageId!,
-              sessionId: _currentSessionId!,
-              content: '✅ 도구 실행이 완료되었습니다. 답변을 생성하는 중입니다...',
-              role: MessageRole.assistant,
-              timestamp: DateTime.now(),
-              extensions: {
-                'messageType': 'tool_response',
-                'isToolMessage': true,
-              },
-            );
-            _addMessage(toolResponseMessage);
-            debugPrint('[ChatProvider] ✅ 도구 응답 메시지 생성 완료');
-          } else {
-            debugPrint('[ChatProvider] ⚠️ 도구 응답 메시지 이미 존재함 - 중복 생성 방지');
-          }
-        },
-      );
-
-      // 3. **AI 응답 완료 후 TTS 처리**
-      if (aiResponse.content != null && aiResponse.content!.isNotEmpty) {
-        final finalContent = aiResponse.content!.trim();
-        debugPrint(
-          '[ChatProvider] 🎤 AI 응답 완료 - 즉시 TTS 시작: ${finalContent.length}자',
-        );
-        _processTtsInBackground(finalContent);
-      }
-
-      debugPrint('[ChatProvider] AI 응답 완료: "${aiResponse.contentPreview}"');
-
-      // **도구 사용 현황 분석 (디버깅용)**
-      analyzeToolMessages();
-      final usedTools = getRecentlyUsedTools();
-      if (usedTools.isNotEmpty) {
-        debugPrint('[ChatProvider] 🔧 이번 대화에서 사용된 도구들: $usedTools');
-      } else {
-        debugPrint('[ChatProvider] 🔧 이번 대화에서 도구가 사용되지 않았습니다.');
-      }
+      // 6️⃣ 도구 사용 분석 (디버깅)
+      _analyzeToolUsage();
     } catch (e) {
       _setError('메시지 전송 실패: $e');
-      debugPrint('[ChatProvider] 메시지 전송 오류: $e');
+      debugPrint('[ChatProvider] ❌ 메시지 전송 오류: $e');
     } finally {
       _setLoading(false);
     }
   }
 
-  /// 메시지 목록 지우기 (새 대화 시작)
+  /// **세션 존재 확인 및 생성**
+  Future<void> _ensureSessionExists() async {
+    if (_currentSessionId == null) {
+      debugPrint('[ChatProvider] 🆕 새 세션 생성 중...');
+      final session = await _conversationService.createSession();
+      _currentSessionId = session.id;
+      debugPrint('[ChatProvider] ✅ 새 세션 생성: $_currentSessionId');
+    }
+  }
+
+  /// **사용자 메시지 생성**
+  Message _createUserMessage(String text) {
+    return Message(
+      id: _generateMessageId(),
+      sessionId: _currentSessionId!,
+      content: text,
+      role: MessageRole.user,
+      timestamp: DateTime.now(),
+    );
+  }
+
+  /// **AI 스트리밍 응답 처리**
+  Future<dynamic> _processAiStreamingResponse(String text) async {
+    // 메시지 ID들 (각 타입별 별도 메시지)
+    String? toolCallMessageId;
+    String? toolResponseMessageId;
+    String? llmResponseMessageId;
+
+    // 중복 방지 플래그들
+    bool hasToolCallMessage = false;
+    String? lastToolName;
+
+    debugPrint('[ChatProvider] 🤖 AI 스트리밍 응답 시작...');
+
+    final aiResponse = await _conversationService.sendMessageStream(
+      sessionId: _currentSessionId!,
+      content: text,
+      onProgress: (partialResponse) {
+        llmResponseMessageId = _handleLlmResponse(
+          llmResponseMessageId,
+          partialResponse,
+        );
+        _ttsManager.processStreamingResponse(partialResponse); // 🚀 실시간 TTS
+      },
+      onToolUse: (toolName) {
+        final result = _handleToolUse(
+          toolName,
+          hasToolCallMessage,
+          lastToolName,
+        );
+        if (result != null) {
+          toolCallMessageId = result['messageId'];
+          hasToolCallMessage = result['hasMessage'];
+          lastToolName = result['toolName'];
+        }
+      },
+      onToolComplete: () {
+        toolResponseMessageId = _handleToolComplete(toolResponseMessageId);
+      },
+    );
+
+    return aiResponse;
+  }
+
+  /// **LLM 응답 메시지 처리**
+  String? _handleLlmResponse(String? messageId, String partialResponse) {
+    if (messageId == null) {
+      // 첫 번째 청크일 때 LLM 응답 메시지 생성
+      final newMessageId = _generateMessageId();
+      final llmMessage = Message(
+        id: newMessageId,
+        sessionId: _currentSessionId!,
+        content: partialResponse,
+        role: MessageRole.assistant,
+        timestamp: DateTime.now(),
+        extensions: {'messageType': 'llm_response'},
+      );
+      _addMessage(llmMessage);
+      debugPrint('[ChatProvider] 📝 LLM 응답 메시지 생성: ${partialResponse.length}자');
+      return newMessageId;
+    } else {
+      // 기존 LLM 응답 메시지 업데이트
+      final index = _messages.indexWhere((msg) => msg.id == messageId);
+      if (index != -1) {
+        _messages[index] = _messages[index].copyWith(content: partialResponse);
+        notifyListeners();
+        debugPrint('[ChatProvider] 📝 LLM 응답 업데이트: ${partialResponse.length}자');
+      }
+      return messageId;
+    }
+  }
+
+  /// **도구 사용 처리**
+  Map<String, dynamic>? _handleToolUse(
+    String toolName,
+    bool hasToolCallMessage,
+    String? lastToolName,
+  ) {
+    debugPrint('[ChatProvider] 🔧 도구 사용 신호: "$toolName"');
+
+    // 중복 도구 호출 방지
+    if (hasToolCallMessage && lastToolName == toolName) {
+      debugPrint('[ChatProvider] ⚠️ 중복 도구 호출 방지: $toolName');
+      return null;
+    }
+
+    // 도구명 검증
+    final cleanedToolName = _validateToolName(toolName);
+    if (cleanedToolName == null) return null;
+
+    // 도구 호출 메시지 생성
+    final messageId = _generateMessageId();
+    final toolMessage = Message(
+      id: messageId,
+      sessionId: _currentSessionId!,
+      content: _getToolCallMessage(cleanedToolName),
+      role: MessageRole.assistant,
+      timestamp: DateTime.now(),
+      extensions: {
+        'messageType': 'tool_call',
+        'toolName': cleanedToolName,
+        'isToolMessage': true,
+      },
+    );
+    _addMessage(toolMessage);
+
+    debugPrint('[ChatProvider] ✅ 도구 호출 메시지 생성: $cleanedToolName');
+
+    return {
+      'messageId': messageId,
+      'hasMessage': true,
+      'toolName': cleanedToolName,
+    };
+  }
+
+  /// **도구명 검증**
+  String? _validateToolName(String toolName) {
+    final cleanedName = toolName.trim();
+
+    if (cleanedName.isEmpty ||
+        cleanedName == 'null' ||
+        cleanedName == '도구' ||
+        cleanedName == '알 수 없는 도구' ||
+        cleanedName.length < 3) {
+      debugPrint('[ChatProvider] ⚠️ 유효하지 않은 도구명 무시: "$toolName"');
+      return null;
+    }
+
+    return cleanedName;
+  }
+
+  /// **도구 완료 처리**
+  String? _handleToolComplete(String? messageId) {
+    debugPrint('[ChatProvider] ✅ 도구 사용 완료');
+
+    if (messageId == null) {
+      final newMessageId = _generateMessageId();
+      final toolResponseMessage = Message(
+        id: newMessageId,
+        sessionId: _currentSessionId!,
+        content: '✅ 도구 실행이 완료되었습니다. 답변을 생성하는 중입니다...',
+        role: MessageRole.assistant,
+        timestamp: DateTime.now(),
+        extensions: {'messageType': 'tool_response', 'isToolMessage': true},
+      );
+      _addMessage(toolResponseMessage);
+      debugPrint('[ChatProvider] ✅ 도구 응답 메시지 생성');
+      return newMessageId;
+    } else {
+      debugPrint('[ChatProvider] ⚠️ 도구 응답 메시지 이미 존재 - 중복 방지');
+      return messageId;
+    }
+  }
+
+  /// **최종 TTS 처리**
+  Future<void> _processFinalTts(dynamic aiResponse) async {
+    if (aiResponse.content != null && aiResponse.content!.isNotEmpty) {
+      final finalContent = aiResponse.content!.trim();
+      debugPrint(
+        '[ChatProvider] 🎤 AI 응답 완료 - TTS 시작: ${finalContent.length}자',
+      );
+      _ttsManager.processResponseForTts(finalContent);
+    }
+  }
+
+  /// **도구 사용 현황 분석** (디버깅용)
+  void _analyzeToolUsage() {
+    analyzeToolMessages();
+    final usedTools = getRecentlyUsedTools();
+    if (usedTools.isNotEmpty) {
+      debugPrint('[ChatProvider] 🔧 사용된 도구들: $usedTools');
+    } else {
+      debugPrint('[ChatProvider] 🔧 도구 사용 없음');
+    }
+  }
+
+  // ========================================
+  // 🗂️ 메시지 관리 메서드들
+  // ========================================
+
+  /// **메시지 목록 초기화** (새 대화 시작)
   void clearMessages() {
     _messages.clear();
     _currentSessionId = null;
     _clearError();
-    debugPrint('[ChatProvider] 메시지 목록 초기화');
+    debugPrint('[ChatProvider] 🧹 메시지 목록 초기화');
     notifyListeners();
   }
 
-  /// 특정 메시지 삭제
+  /// **특정 메시지 삭제**
   void removeMessage(String messageId) {
     final originalLength = _messages.length;
     _messages.removeWhere((message) => message.id == messageId);
 
     if (_messages.length != originalLength) {
-      debugPrint('[ChatProvider] 메시지 삭제: $messageId');
+      debugPrint('[ChatProvider] 🗑️ 메시지 삭제: $messageId');
       notifyListeners();
     }
   }
 
-  /// 샘플 메시지들로 초기화 (테스트용)
+  /// **샘플 메시지 로드** (테스트용)
   void loadSampleMessages() {
     _messages.clear();
-    // 실제 세션 생성은 첫 메시지 전송 시에만 수행
-    _currentSessionId = null;
+    _currentSessionId = null; // 실제 전송 시 새 세션 생성
 
-    // 샘플 메시지들 생성 (임시 세션 ID 사용)
     final sampleMessages = _generateSampleMessages();
     _messages.addAll(sampleMessages);
 
-    debugPrint('[ChatProvider] ${sampleMessages.length}개 샘플 메시지 로드 (세션 미생성)');
+    debugPrint('[ChatProvider] 📋 ${sampleMessages.length}개 샘플 메시지 로드');
     notifyListeners();
   }
 
-  /// 외부에서 생성된 UI 형태의 메시지 리스트를 설정
-  /// (home_screen에서 생성된 샘플 메시지 사용)
+  /// **외부 UI 메시지 설정**
+  ///
+  /// home_screen에서 생성된 샘플 메시지를 받아서 설정합니다.
   void setMessages(List<Map<String, dynamic>> uiMessages) {
     _messages.clear();
-    _currentSessionId = null; // 실제 메시지 전송 시 백엔드에서 새 세션 생성
+    _currentSessionId = null; // 실제 전송 시 새 세션 생성
 
-    // UI 형태의 메시지를 Message 객체로 변환
+    // UI 형태 → Message 객체 변환
     for (final uiMessage in uiMessages) {
       final message = _uiFormatToMessage(uiMessage);
       _messages.add(message);
     }
 
-    debugPrint('[ChatProvider] ${uiMessages.length}개 메시지 설정 완료 (세션 미생성)');
+    debugPrint('[ChatProvider] 📥 ${uiMessages.length}개 메시지 설정 완료');
     notifyListeners();
   }
 
   // ========================================
-  // 내부 헬퍼 메서드들
+  // 🔄 데이터 변환 메서드들
   // ========================================
 
-  /// Message 객체를 UI에서 사용하는 Map 형태로 변환
+  /// **Message → UI Map 변환**
   Map<String, dynamic> _messageToUIFormat(Message message) {
-    // 새로운 메시지 타입 확인
     final messageTypeFromExtensions =
         message.extensions?['messageType'] as String?;
     final isToolMessage =
@@ -359,7 +434,6 @@ class ChatProvider extends ChangeNotifier {
       // 추가 정보들
       'id': message.id,
       'sessionId': message.sessionId,
-      // 새로운 메시지 타입 정보 추가
       'messageSubType':
           messageTypeFromExtensions, // tool_call, tool_response, llm_response 등
       'isToolMessage': isToolMessage,
@@ -367,7 +441,7 @@ class ChatProvider extends ChangeNotifier {
     };
   }
 
-  /// Message에서 MessageType enum 추출
+  /// **Message에서 MessageType enum 추출**
   MessageType _extractMessageType(Message message) {
     final typeString = message.extensions?['messageType'] as String?;
 
@@ -383,16 +457,16 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  /// UI Map 형태를 Message 객체로 변환
+  /// **UI Map → Message 변환**
   Message _uiFormatToMessage(Map<String, dynamic> uiMessage) {
     final isUser = uiMessage['isUser'] as bool? ?? false;
     final text = uiMessage['text'] as String? ?? '';
     final messageType =
         uiMessage['messageType'] as MessageType? ?? MessageType.text;
 
-    // timestamp 문자열을 DateTime으로 파싱 (간단하게 현재 시간 사용)
+    // 기존 메시지 수만큼 이전 시간으로 설정
     final parsedTimestamp = DateTime.now().subtract(
-      Duration(minutes: _messages.length), // 기존 메시지 수만큼 이전 시간
+      Duration(minutes: _messages.length),
     );
 
     // extensions 생성
@@ -400,12 +474,9 @@ class ChatProvider extends ChangeNotifier {
       'messageType': messageType.toString().split('.').last,
     };
 
-    // actions가 있으면 추가
     if (uiMessage.containsKey('actions')) {
       extensions['actions'] = uiMessage['actions'];
     }
-
-    // card가 있으면 추가
     if (uiMessage.containsKey('card')) {
       extensions['card'] = uiMessage['card'];
     }
@@ -413,7 +484,7 @@ class ChatProvider extends ChangeNotifier {
     return Message(
       id: _generateMessageId(),
       sessionId:
-          'temp_session_${DateTime.now().millisecondsSinceEpoch}', // 임시 세션 ID (실제 전송 시 변경됨)
+          'temp_session_${DateTime.now().millisecondsSinceEpoch}', // 임시 세션 ID
       content: text,
       role: isUser ? MessageRole.user : MessageRole.assistant,
       timestamp: parsedTimestamp,
@@ -425,7 +496,7 @@ class ChatProvider extends ChangeNotifier {
   void _addMessage(Message message) {
     _messages.add(message);
     notifyListeners();
-    debugPrint('[ChatProvider] 메시지 추가: ${message.contentPreview}');
+    debugPrint('[ChatProvider] ➕ 메시지 추가: ${message.contentPreview}');
   }
 
   /// 로딩 상태 변경
@@ -433,7 +504,7 @@ class ChatProvider extends ChangeNotifier {
     if (_isLoading != loading) {
       _isLoading = loading;
       notifyListeners();
-      debugPrint('[ChatProvider] 로딩 상태: $loading');
+      debugPrint('[ChatProvider] ⏳ 로딩 상태: $loading');
     }
   }
 
@@ -441,7 +512,7 @@ class ChatProvider extends ChangeNotifier {
   void _setError(String error) {
     _error = error;
     notifyListeners();
-    debugPrint('[ChatProvider] 에러 설정: $error');
+    debugPrint('[ChatProvider] ❌ 에러 설정: $error');
   }
 
   /// 에러 상태 지우기
@@ -449,7 +520,7 @@ class ChatProvider extends ChangeNotifier {
     if (_error != null) {
       _error = null;
       notifyListeners();
-      debugPrint('[ChatProvider] 에러 상태 클리어');
+      debugPrint('[ChatProvider] ✅ 에러 상태 클리어');
     }
   }
 
@@ -464,17 +535,17 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // ========================================
-  // 샘플 데이터 생성 (테스트용)
+  // 📋 샘플 데이터 생성 (테스트용)
   // ========================================
 
-  /// 테스트용 샘플 메시지들 생성
+  /// **테스트용 샘플 메시지들 생성**
   List<Message> _generateSampleMessages() {
     final now = DateTime.now();
     final tempSessionId =
-        'sample_session_${DateTime.now().millisecondsSinceEpoch}'; // 임시 세션 ID
+        'sample_session_${DateTime.now().millisecondsSinceEpoch}';
     final messages = <Message>[];
 
-    // 사용자 메시지 1
+    // 🙋‍♂️ 사용자 메시지 1
     messages.add(
       Message(
         id: _generateMessageId(),
@@ -485,7 +556,7 @@ class ChatProvider extends ChangeNotifier {
       ),
     );
 
-    // AI 텍스트 응답
+    // 🤖 AI 텍스트 응답
     messages.add(
       Message(
         id: _generateMessageId(),
@@ -497,7 +568,7 @@ class ChatProvider extends ChangeNotifier {
       ),
     );
 
-    // 사용자 메시지 2
+    // 🙋‍♂️ 사용자 메시지 2
     messages.add(
       Message(
         id: _generateMessageId(),
@@ -508,7 +579,7 @@ class ChatProvider extends ChangeNotifier {
       ),
     );
 
-    // AI 액션 응답
+    // 🤖 AI 액션 응답
     messages.add(
       Message(
         id: _generateMessageId(),
@@ -528,7 +599,7 @@ class ChatProvider extends ChangeNotifier {
       ),
     );
 
-    // 사용자 메시지 3
+    // 🙋‍♂️ 사용자 메시지 3
     messages.add(
       Message(
         id: _generateMessageId(),
@@ -539,7 +610,7 @@ class ChatProvider extends ChangeNotifier {
       ),
     );
 
-    // AI 카드 응답
+    // 🤖 AI 카드 응답
     messages.add(
       Message(
         id: _generateMessageId(),
@@ -566,12 +637,12 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // ========================================
-  // 디버깅 및 분석 메서드들
+  // 🔍 디버깅 및 분석 메서드들
   // ========================================
 
-  /// 현재 메시지 목록에서 도구 관련 메시지들을 분석
+  /// **현재 메시지 목록에서 도구 관련 메시지들을 분석**
   void analyzeToolMessages() {
-    debugPrint('[ChatProvider] ===== 도구 메시지 분석 시작 =====');
+    debugPrint('[ChatProvider] ===== 🔧 도구 메시지 분석 시작 =====');
 
     final toolMessages =
         _messages
@@ -582,8 +653,9 @@ class ChatProvider extends ChangeNotifier {
             )
             .toList();
 
-    debugPrint('[ChatProvider] 전체 메시지 수: ${_messages.length}');
-    debugPrint('[ChatProvider] 도구 관련 메시지 수: ${toolMessages.length}');
+    debugPrint(
+      '[ChatProvider] 📊 전체: ${_messages.length}, 도구 관련: ${toolMessages.length}',
+    );
 
     for (int i = 0; i < toolMessages.length; i++) {
       final msg = toolMessages[i];
@@ -591,16 +663,15 @@ class ChatProvider extends ChangeNotifier {
       final toolName = msg.extensions?['toolName'];
       final isToolMessage = msg.extensions?['isToolMessage'];
 
-      debugPrint('[ChatProvider] 도구 메시지 ${i + 1}:');
+      debugPrint('[ChatProvider] 🔧 도구 메시지 ${i + 1}:');
       debugPrint('  - ID: ${msg.id}');
       debugPrint(
         '  - 내용: "${msg.content?.substring(0, msg.content!.length > 50 ? 50 : msg.content!.length)}..."',
       );
-      debugPrint('  - 메시지 타입: $messageType');
+      debugPrint('  - 타입: $messageType');
       debugPrint('  - 도구명: $toolName');
-      debugPrint('  - 도구 메시지 여부: $isToolMessage');
+      debugPrint('  - 도구메시지: $isToolMessage');
       debugPrint('  - 역할: ${msg.role}');
-      debugPrint('  - 타임스탬프: ${msg.timestamp}');
     }
 
     // 도구별 사용 횟수 통계
@@ -612,15 +683,15 @@ class ChatProvider extends ChangeNotifier {
       }
     }
 
-    debugPrint('[ChatProvider] 도구 사용 통계:');
+    debugPrint('[ChatProvider] 📈 도구 사용 통계:');
     for (final entry in toolUsageMap.entries) {
-      debugPrint('  - ${entry.key}: ${entry.value}회 사용');
+      debugPrint('  - ${entry.key}: ${entry.value}회');
     }
 
-    debugPrint('[ChatProvider] ===== 도구 메시지 분석 완료 =====');
+    debugPrint('[ChatProvider] ===== 🔧 도구 메시지 분석 완료 =====');
   }
 
-  /// 최근 대화에서 사용된 도구 목록 반환
+  /// **최근 대화에서 사용된 도구 목록 반환**
   List<String> getRecentlyUsedTools() {
     final toolMessages =
         _messages.where((msg) => msg.extensions?['toolName'] != null).toList();
@@ -636,18 +707,11 @@ class ChatProvider extends ChangeNotifier {
     return toolNames;
   }
 
-  // ========================================
-  // 메시지 분리를 위한 헬퍼 메서드들
-  // ========================================
-
-  /// 도구 이름에 따른 호출 메시지 생성
+  /// **도구 이름에 따른 호출 메시지 생성**
   String _getToolCallMessage(String toolName) {
-    // 도구명 정리 및 검증
     final cleanedName = toolName.trim().toLowerCase();
 
-    debugPrint(
-      '[ChatProvider] 도구 메시지 생성 - 원본: "$toolName", 정리된 이름: "$cleanedName"',
-    );
+    debugPrint('[ChatProvider] 🔧 도구 메시지 생성: "$toolName" → "$cleanedName"');
 
     switch (cleanedName) {
       case 'search_web':
@@ -669,96 +733,23 @@ class ChatProvider extends ChangeNotifier {
       case '':
       case 'null':
       case 'undefined':
-        debugPrint('[ChatProvider] ⚠️ 빈 도구명 감지 - 기본 메시지 사용');
+        debugPrint('[ChatProvider] ⚠️ 빈 도구명 - 기본 메시지 사용');
         return '🔧 AI가 도구를 사용하고 있습니다...';
       default:
-        debugPrint('[ChatProvider] ⚠️ 알 수 없는 도구명: "$cleanedName" - 기본 메시지 사용');
+        debugPrint('[ChatProvider] ⚠️ 알 수 없는 도구명: "$cleanedName"');
         return '🔧 AI가 "$toolName" 도구를 사용하고 있습니다...';
     }
   }
 
   // ========================================
-  // 백그라운드 TTS 처리
-  // ========================================
-
-  /// 백그라운드에서 마크다운 변환 및 TTS 처리 (빠른 실행)
-  void _processTtsInBackground(String content) {
-    // 백그라운드에서 비동기 실행 (UI 차단 없음)
-    Future.microtask(() async {
-      try {
-        // **빠른 마크다운 변환**
-        final ttsText = _convertMarkdownToTtsText(content);
-
-        debugPrint('[ChatProvider] 🧹 마크다운 변환 완료: ${ttsText.length}자');
-        debugPrint(
-          '[ChatProvider] 📝 TTS 텍스트: "${ttsText.length > 50 ? '${ttsText.substring(0, 50)}...' : ttsText}"',
-        );
-
-        // **즉시 TTS 큐에 추가 (await 없이)**
-        if (ttsText.isNotEmpty) {
-          _ttsService.addToQueue(ttsText);
-          debugPrint('[ChatProvider] 🚀 TTS 백그라운드 실행 완료');
-        } else {
-          debugPrint('[ChatProvider] ⚠️ 마크다운 정리 후 텍스트가 비어있음');
-        }
-      } catch (e) {
-        debugPrint('[ChatProvider] ❌ 백그라운드 TTS 처리 오류: $e');
-      }
-    });
-  }
-
-  // ========================================
-  // TTS용 마크다운 정리 헬퍼 메서드
-  // ========================================
-
-  /// 마크다운 텍스트를 TTS에 적합한 일반 텍스트로 변환 (최적화됨)
-  String _convertMarkdownToTtsText(String markdown) {
-    String text = markdown;
-
-    // 1. 링크 처리: [텍스트](URL) → 텍스트
-    final linkRegex = RegExp(r'\[([^\]]+)\]\([^)]+\)');
-    text = text.replaceAllMapped(linkRegex, (match) => match.group(1) ?? '');
-
-    // 2. 단독 URL 제거
-    text = text.replaceAll(RegExp(r'https?://[^\s\n]+'), '');
-
-    // 3. 볼드 처리: **텍스트** → 텍스트
-    final boldRegex = RegExp(r'\*\*([^*\n]+?)\*\*');
-    text = text.replaceAllMapped(boldRegex, (match) => match.group(1) ?? '');
-
-    // 4. 이탤릭 처리: *텍스트* → 텍스트
-    final italicRegex = RegExp(r'(?<!\s)\*([^*\n\s][^*\n]*?)\*(?!\s)');
-    text = text.replaceAllMapped(italicRegex, (match) => match.group(1) ?? '');
-
-    // 5. 헤딩 처리: ### 텍스트 → 텍스트
-    final headingRegex = RegExp(r'^#{1,6}\s*(.+)$', multiLine: true);
-    text = text.replaceAllMapped(headingRegex, (match) => match.group(1) ?? '');
-
-    // 6. 리스트 마커 제거
-    text = text.replaceAll(RegExp(r'^[\s]*[-*+]\s*', multiLine: true), '');
-    text = text.replaceAll(RegExp(r'^\s*\d+\.\s*', multiLine: true), '');
-
-    // 7. 코드 블록 제거
-    text = text.replaceAll(RegExp(r'```[^`]*```', dotAll: true), '');
-    text = text.replaceAll(RegExp(r'`([^`]+)`'), '');
-
-    // 8. 기타 정리
-    text = text.replaceAll(RegExp(r'\*+'), ''); // 남은 * 제거
-    text = text.replaceAll(RegExp(r'\$\d+'), ''); // 정규식 잔여물 제거
-    text = text.replaceAll(RegExp(r'\s+'), ' '); // 공백 정리
-    text = text.trim();
-
-    return text;
-  }
-
-  // ========================================
-  // 정리
+  // 🧹 리소스 정리
   // ========================================
 
   @override
   void dispose() {
-    debugPrint('[ChatProvider] dispose 호출');
-    _ttsService.dispose();
+    debugPrint('[ChatProvider] 🧹 리소스 정리 시작');
+    _ttsManager.dispose();
     super.dispose();
+    debugPrint('[ChatProvider] ✅ 정리 완료');
   }
 }
