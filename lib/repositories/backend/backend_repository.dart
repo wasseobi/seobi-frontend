@@ -50,7 +50,7 @@ class BackendRepository implements IBackendRepository {
   @override
   Future<User> postUserLogin(String googleIdToken) async {
     return _http.post(
-      '/users/login',
+      '/auth/sign',
       {'id_token': googleIdToken},
       User.fromJson,
       expectedStatus: 200,
