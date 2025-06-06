@@ -48,10 +48,10 @@ class BackendRepository implements IBackendRepository {
   }
 
   @override
-  Future<User> postUserLogin(String googleIdToken) async {
+  Future<User> postUserLogin(String email, String? displayName) async {
     return _http.post(
       '/auth/sign',
-      {'id_token': googleIdToken},
+      {'email': email, if (displayName != null) 'username': displayName},
       User.fromJson,
       expectedStatus: 200,
     );
