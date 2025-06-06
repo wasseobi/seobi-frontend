@@ -270,13 +270,14 @@ class MessageListViewModel extends ChangeNotifier {
   void updateAnchoredState(ScrollController scrollController) {
     if (!scrollController.hasClients) return;
     
-    const threshold = 50.0;
+    const threshold = 20.0;  // 더 작은 threshold 값으로 수정
     final maxScroll = scrollController.position.maxScrollExtent;
     final currentScroll = scrollController.offset;
     final isAtBottom = maxScroll - currentScroll <= threshold;
     
     if (_isAnchored != isAtBottom) {
       _isAnchored = isAtBottom;
+      debugPrint('앵커 상태 변경: $_isAnchored (maxScroll: $maxScroll, currentScroll: $currentScroll)');
       notifyListeners();
     }
   }

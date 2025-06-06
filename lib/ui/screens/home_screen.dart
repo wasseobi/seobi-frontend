@@ -69,6 +69,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    if (bottomInset > 0) {
+      debugPrint('IME/키보드 표시됨 - 높이: $bottomInset');
+    }
+    
     return KeyboardDismissOnTap(
       child: Scaffold(
         key: _scaffoldKey,
