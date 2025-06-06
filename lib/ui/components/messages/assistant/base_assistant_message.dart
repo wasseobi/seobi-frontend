@@ -11,13 +11,8 @@ abstract class BaseAssistantMessage extends StatelessWidget {
     : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.only(
-        left: 0,
-        right: MessageStyles.rightPadding,
-      ),
-      constraints: const BoxConstraints(maxWidth: MessageStyles.maxWidth),
+  Widget build(BuildContext context) {    return Container(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
