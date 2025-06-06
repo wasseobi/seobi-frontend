@@ -64,7 +64,10 @@ class AuthService extends ChangeNotifier {
       }
       try {
         debugPrint('[GOOGLE ID TOKEN] ${googleUser.idToken}');
-        final user = await _backend.postUserLogin(googleUser.idToken);
+        final user = await _backend.postUserLogin(
+          googleUser.email,
+          googleUser.displayName,
+        );
         debugPrint('[JWT] ${user.accessToken}');
 
         final seobiUser = SeobiUser.fromGoogleAndBackendUser(

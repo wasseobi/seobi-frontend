@@ -4,7 +4,7 @@ import 'models/message.dart';
 
 abstract class IBackendRepository {
   String get baseUrl;
-  Future<User> postUserLogin(String googleIdToken);
+  Future<User> postUserLogin(String email, String? displayName);
 
   // Session related methods
   Future<List<Session>> getSessions();
