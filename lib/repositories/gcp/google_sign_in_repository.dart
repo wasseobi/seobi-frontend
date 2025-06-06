@@ -10,7 +10,7 @@ class GoogleSignInRepository {
 
   GoogleSignInRepository._internal();
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   Future<GoogleSignInResult> signInManually() async {
     try {

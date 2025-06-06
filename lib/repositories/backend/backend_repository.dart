@@ -86,7 +86,7 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<Session> getSessionById(String id) {
-    return _http.get('/sessions/$id', Session.fromJson);
+    return _http.get('/s/$id', Session.fromJson);
   }
 
   @override
@@ -115,7 +115,7 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<List<Session>> getSessionsByUserId(String userId) {
-    return _http.getList('/sessions/user/$userId', Session.fromJson);
+    return _http.getList('/s/$userId', Session.fromJson);
   }
 
   // Message related methods
@@ -145,12 +145,12 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<List<Message>> getMessagesBySessionId(String sessionId) {
-    return _http.getList('/messages/session/$sessionId', Message.fromJson);
+    return _http.getList('/s/$sessionId/m', Message.fromJson);
   }
 
   @override
   Future<List<Message>> getMessagesByUserId(String userId) {
-    return _http.getList('/messages/user/$userId', Message.fromJson);
+    return _http.getList('/m/$userId', Message.fromJson);
   }
 
   @override
@@ -242,6 +242,21 @@ class BackendRepository implements IBackendRepository {
             return false;
           }
         });
+  }
+  Stream<Map<String, dynamic>> postSendMessage({
+    required String sessionId,
+    required String userId,
+    required String content,
+  }) {
+    final endpoint = '/s/$sessionId/send';
+    debugPrint('[BackendRepository] postSendMessage 시작: $endpoint');
+    debugPrint('[BackendRepository] 요청 본문: {content: $content}');
+
+    return _http.postSse(
+      endpoint,
+      {'content': content},
+      headers: {'user-id': userId},
+    );
   }
 
   // ========================================

@@ -75,6 +75,9 @@ class AuthService extends ChangeNotifier {
           backendUser: user,
         );
         await _saveUserInfo(seobiUser);
+        
+        // 사용자 정보 저장 후 상태 변화 알림
+        notifyListeners();
       } catch (error) {
         return AuthResult.failure('서버와의 통신 중 오류가 발생했습니다: $error');
       }

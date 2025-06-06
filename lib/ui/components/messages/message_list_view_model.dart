@@ -1,127 +1,317 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../utils/chat_provider.dart';
-import '../messages/assistant/message_types.dart';
+import 'package:seobi_app/services/conversation/history_service.dart';
+import 'package:seobi_app/services/conversation/models/session.dart';
+import 'package:seobi_app/services/conversation/models/message.dart';
+import 'package:seobi_app/repositories/local_database/models/message_role.dart';
+import 'assistant/message_types.dart';
 
-/// 메시지 리스트 표시를 위한 ViewModel
-///
-/// ChatProvider의 기능을 활용해 메시지 리스트 표시에 필요한
-/// 데이터와 기능을 제공합니다. 이 클래스는 UI와 데이터 레이어 사이의
-/// 중간 계층 역할을 수행합니다.
+/// 리스트 아이템의 기본 추상 클래스
+abstract class ListItem {}
+
+/// 메시지 아이템
+class MessageItem extends ListItem {
+  final Message message;
+  final String sessionId;
+  
+  MessageItem({required this.message, required this.sessionId});
+}
+
+/// 세션 구분선 아이템
+class SessionDividerItem extends ListItem {
+  final String sessionId;
+  final String? sessionTitle;
+  
+  SessionDividerItem({required this.sessionId, this.sessionTitle});
+}
+
+/// 세션 요약 아이템 (종료된 세션에 표시)
+class SessionSummaryItem extends ListItem {
+  final String sessionId;
+  final String? title;
+  final String? description;
+  final DateTime? startAt;
+  final DateTime? finishAt;
+  
+  SessionSummaryItem({
+    required this.sessionId,
+    this.title,
+    this.description,
+    this.startAt,
+    this.finishAt,
+  });
+}
+
+/// 대기 중인 사용자 메시지 아이템
+class PendingUserMessageItem extends ListItem {
+  final String content;
+  
+  PendingUserMessageItem({required this.content});
+}
+
+/// 메시지 리스트 뷰모델
 class MessageListViewModel extends ChangeNotifier {
-  final ChatProvider _chatProvider;
+  final HistoryService _historyService = HistoryService();
   
-  /// 스크롤이 맨 아래에 위치하는지 여부
-  bool _isAnchored = true;
+  List<ListItem> _flattenedList = [];
+  bool _isLoading = false;
+  bool _isAnchored = true; // 스크롤이 맨 아래에 고정되어 있는지
+  String? _error;
   
-  /// 생성자
-  MessageListViewModel({
-    required ChatProvider chatProvider,
-  }) : _chatProvider = chatProvider {
-    debugPrint('[MessageListViewModel] 초기화 완료');
-    
-    // ChatProvider의 상태 변화를 감지하여 리스너들에게 알림
-    _chatProvider.addListener(_onChatProviderChanged);
-  }
+  // 자동 스크롤을 위한 콜백
+  VoidCallback? _onShouldScrollToBottom;
   
-  /// ChatProvider의 상태 변화 감지 시 호출됨
-  void _onChatProviderChanged() {
-    // ChatProvider의 상태가 변경되면 ViewModel의 리스너들에게도 알림
-    notifyListeners();
-    debugPrint('[MessageListViewModel] ChatProvider 상태 변경 감지 및 알림');
-  }
+  /// 평면화된 리스트 아이템들
+  List<ListItem> get flattenedList => List.unmodifiable(_flattenedList);
   
-  /// 메시지 목록 반환
-  List<Map<String, dynamic>> get messages => _chatProvider.messages;
+  /// 로딩 상태
+  bool get isLoading => _isLoading;
   
-  /// 메시지 개수
-  int get messageCount => _chatProvider.messageCount;
-  
-  /// 현재 로딩 상태
-  bool get isLoading => _chatProvider.isLoading;
-  
-  /// 에러 메시지
-  String? get error => _chatProvider.error;
-  
-  /// 현재 세션 ID
-  String? get currentSessionId => _chatProvider.currentSessionId;
-  
-  /// 대화가 있는지 여부
-  bool get hasMessages => _chatProvider.hasMessages;
-  
-  /// 스크롤이 맨 아래에 고정되어 있는지 여부
+  /// 앵커 상태 (맨 아래 고정 여부)
   bool get isAnchored => _isAnchored;
   
-  /// 스크롤 앵커 상태 설정
-  void setAnchored(bool value) {
-    if (_isAnchored != value) {
-      _isAnchored = value;
-      notifyListeners();
-      debugPrint('[MessageListViewModel] isAnchored 상태 변경: $_isAnchored');
-    }
+  /// 에러 메시지
+  String? get error => _error;
+  
+  /// 자동 스크롤 콜백 설정
+  void setScrollToBottomCallback(VoidCallback? callback) {
+    _onShouldScrollToBottom = callback;
   }
   
-  /// 스크롤이 맨 아래에서 얼마나 떨어져 있는지 확인하여 앵커 상태 갱신
+  /// UI 호환성을 위한 messages getter (기존 코드와의 호환성)
+  List<Map<String, dynamic>> get messages {
+    return _flattenedList
+        .whereType<MessageItem>()
+        .map((item) => {
+          'isUser': item.message.role == MessageRole.user,
+          'text': item.message.fullContent,
+          'messageType': _extractUIMessageType(item.message),
+          'timestamp': _formatUITimestamp(item.message.timestamp),
+          'actions': item.message.extensions?['actions'],
+          'card': item.message.extensions?['card'],
+          'id': item.message.id,
+          'sessionId': item.message.sessionId,
+        })
+        .toList();
+  }
+
+  /// UI 호환성을 위한 MessageType 추출
+  MessageType _extractUIMessageType(Message message) {
+    final typeString = message.extensions?['messageType'] as String?;
+    
+    switch (typeString) {
+      case 'text':
+        return MessageType.text;
+      case 'action':
+        return MessageType.action;
+      case 'card':
+        return MessageType.card;
+      default:
+        return MessageType.text;
+    }
+  }
+
+  /// UI 호환성을 위한 타임스탬프 포맷팅
+  String _formatUITimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays}일 전';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}시간 전';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}분 전';
+    } else {
+      return '방금 전';
+    }
+  }
+  MessageListViewModel() {
+    // HistoryService의 변화 감지
+    _historyService.addListener(_onHistoryServiceChanged);
+    _initialize();
+  }
+
+  @override
+  void dispose() {
+    _historyService.removeListener(_onHistoryServiceChanged);
+    super.dispose();
+  }
+  /// HistoryService 변화 처리
+  void _onHistoryServiceChanged() {
+    debugPrint('[MessageListViewModel] HistoryService 변화 감지 - 리빌드 시작');
+    _rebuildFlattenedList();
+    debugPrint('[MessageListViewModel] HistoryService 변화 처리 완료 - notifyListeners 호출');
+    notifyListeners();
+  }
+  /// 초기화
+  Future<void> _initialize() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+      
+      await _historyService.initialize();
+      _rebuildFlattenedList();
+      
+      debugPrint('[MessageListViewModel] 초기화 완료');
+    } catch (e) {
+      _error = '메시지를 불러오는 중 오류가 발생했습니다: $e';
+      debugPrint('[MessageListViewModel] 초기화 오류: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// 더 많은 세션 로드
+  Future<void> loadMoreSessions({int count = 5}) async {
+    if (!_historyService.hasMoreSessions || _isLoading) return;
+    
+    try {
+      _isLoading = true;
+      notifyListeners();
+      
+      await _historyService.fetchPaginatedSessions(count);
+      _rebuildFlattenedList();
+      
+    } catch (e) {
+      _error = '추가 메시지를 불러오는 중 오류가 발생했습니다: $e';
+      debugPrint('[MessageListViewModel] 추가 로딩 오류: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }  /// 평면화된 리스트 재구성
+  void _rebuildFlattenedList() {
+    debugPrint('[MessageListViewModel] 평면화된 리스트 재구성 시작');
+    final result = <ListItem>[];
+    final sessions = _historyService.sessions;
+    
+    debugPrint('[MessageListViewModel] 총 세션 수: ${sessions.length}');
+    
+    // 오래된 세션부터 처리하기 위해 순서를 뒤집음
+    final reversedSessions = sessions.reversed.toList();
+    
+    for (int i = 0; i < reversedSessions.length; i++) {
+      final session = reversedSessions[i];
+      
+      debugPrint('[MessageListViewModel] 세션 처리: ${session.id}, 로드됨: ${session.isLoaded}, 메시지 수: ${session.messages.length}');
+      
+      // 로드되지 않았거나 메시지가 없는 세션은 스킵
+      if (!session.isLoaded || session.messages.isEmpty) {
+        debugPrint('[MessageListViewModel] 세션 스킵: ${session.id}');
+        continue;
+      }
+      
+      // 세션의 메시지들을 시간순으로 추가 (오래된 것 → 최신)
+      final sortedMessages = List<Message>.from(session.messages);
+      sortedMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      
+      debugPrint('[MessageListViewModel] 세션 ${session.id}에서 ${sortedMessages.length}개 메시지 추가');
+      
+      result.addAll(
+        sortedMessages.map(
+          (message) => MessageItem(
+            message: message,
+            sessionId: session.id,
+          ),
+        ),
+      );
+      
+      // 종료된 세션인 경우 세션 요약 정보 추가
+      if (session.isFinished) {
+        result.add(SessionSummaryItem(
+          sessionId: session.id,
+          title: session.title,
+          description: session.description,
+          startAt: session.startAt,
+          finishAt: session.finishAt,
+        ));
+      }
+      
+      // 마지막 세션이 아니면 구분선 추가
+      if (i < reversedSessions.length - 1) {
+        result.add(SessionDividerItem(
+          sessionId: session.id,
+          sessionTitle: session.title,
+        ));
+      }
+    }
+    
+    // 대기 중인 사용자 메시지가 있으면 최신 메시지로 추가
+    final pendingMessage = _historyService.pendingUserMessage;
+    if (pendingMessage != null && pendingMessage.isNotEmpty) {
+      result.add(PendingUserMessageItem(content: pendingMessage));
+      debugPrint('[MessageListViewModel] 대기 중인 메시지 추가: $pendingMessage');
+    }
+    
+    _flattenedList = result;
+    debugPrint('[MessageListViewModel] 평면화된 리스트 재구성 완료: ${result.length}개 아이템');
+    
+    // 앵커 상태가 true이면 자동으로 스크롤
+    if (_isAnchored) {
+      _onShouldScrollToBottom?.call();
+    }
+  }/// 새로고침
+  Future<void> refresh() async {
+    await _historyService.refresh();
+    _historyService.resetOffset();
+    _rebuildFlattenedList();
+  }
+  /// Pull-to-refresh로 추가 세션 로드
+  Future<void> pullToRefresh() async {
+    debugPrint('[MessageListViewModel] Pull-to-refresh 시작');
+    await loadMoreSessions();
+    debugPrint('[MessageListViewModel] Pull-to-refresh 완료');
+  }
+
+  /// 스크롤 앵커 상태 업데이트
   void updateAnchoredState(ScrollController scrollController) {
     if (!scrollController.hasClients) return;
     
-    // 스크롤 위치가 맨 아래에서 20픽셀 이내인 경우 앵커된 것으로 간주
-    const threshold = 20.0;
+    const threshold = 50.0;
     final maxScroll = scrollController.position.maxScrollExtent;
     final currentScroll = scrollController.offset;
     final isAtBottom = maxScroll - currentScroll <= threshold;
     
-    setAnchored(isAtBottom);
-  }
-  
-  /// 메시지 전송
-  Future<void> sendMessage(String text) async {
-    await _chatProvider.sendMessage(text);
-  }
-  
-  /// 메시지 목록 초기화
-  void clearMessages() {
-    _chatProvider.clearMessages();
-  }
-  
-  /// 특정 메시지 삭제
-  void removeMessage(String messageId) {
-    _chatProvider.removeMessage(messageId);
-  }
-  
-  /// 샘플 메시지 로드 (테스트용)
-  void loadSampleMessages() {
-    _chatProvider.loadSampleMessages();
-  }
-  
-  /// 외부에서 생성된 메시지 설정
-  void setMessages(List<Map<String, dynamic>> messages) {
-    _chatProvider.setMessages(messages);
-  }
-  
-  /// 특정 인덱스의 메시지 반환
-  Map<String, dynamic>? getMessageAtIndex(int index) {
-    final messageList = messages;
-    if (index >= 0 && index < messageList.length) {
-      return messageList[index];
+    if (_isAnchored != isAtBottom) {
+      _isAnchored = isAtBottom;
+      notifyListeners();
     }
-    return null;
   }
-  
-  /// 메시지가 사용자가 보낸 것인지 확인
+
+  /// 앵커 상태 설정
+  void setAnchored(bool anchored) {
+    if (_isAnchored != anchored) {
+      _isAnchored = anchored;
+      notifyListeners();
+    }
+  }
+
+  /// 특정 인덱스의 메시지 가져오기 (UI 호환성)
+  Map<String, dynamic>? getMessageAtIndex(int index) {
+    if (index < 0 || index >= messages.length) return null;
+    return messages[index];
+  }
+
+  /// 메시지가 사용자 메시지인지 확인 (UI 호환성)
   bool isUserMessage(Map<String, dynamic> message) {
-    return message['isUser'] == true;
+    return message['isUser'] as bool? ?? false;
   }
-  
-  /// 메시지 타입 확인
+  /// 메시지 타입 가져오기 (UI 호환성)
   MessageType getMessageType(Map<String, dynamic> message) {
     return message['messageType'] as MessageType? ?? MessageType.text;
   }
-  
-  /// 위젯 정리
-  @override
-  void dispose() {
-    _chatProvider.removeListener(_onChatProviderChanged);
-    debugPrint('[MessageListViewModel] dispose 호출');
-    super.dispose();
+
+  /// 더 불러올 세션이 있는지 확인
+  bool get hasMoreSessions => _historyService.hasMoreSessions;
+
+  /// 현재 로드된 세션 수
+  int get loadedSessionCount => _historyService.sessions.length;
+
+  /// 특정 세션 ID의 세션 찾기
+  Session? getSessionById(String sessionId) {
+    return _historyService.getSessionById(sessionId);
   }
 }
