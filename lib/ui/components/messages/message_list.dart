@@ -54,49 +54,25 @@ class _MessageListState extends State<MessageList> with AutomaticKeepAliveClient
     super.dispose();
   }  /// 키보드 표시 상태가 변경될 때 호출됨
   void _onKeyboardVisibilityChanged(bool isKeyboardVisible) {
-    // Consumer에서 viewModel을 직접 전달받지 못하므로 여전히 Provider.of 사용
-    // 하지만 try-catch로 안전하게 처리
     try {
-      final viewModel = Provider.of<MessageListViewModel>(
-        context,
-        listen: false,
-      );
-
+      final viewModel = Provider.of<MessageListViewModel>(context, listen: false);
+      
       debugPrint(
         '키보드 표시 상태 변경: $isKeyboardVisible, '
-        'isAnchored: ${viewModel.isAnchored}',
+        'isAnchored: ${viewModel.isAnchored}, '
+        'bottomInset: ${MediaQuery.of(context).viewInsets.bottom}',
       );
       
-      if (isKeyboardVisible) {
-        if (viewModel.isAnchored) {
-          // 키보드가 완전히 올라온 후에 스크롤을 맨 아래로 이동 (300ms 지연)
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted) {
-              _scrollToBottom();
-            }
-          });
-        }
-      } else {
-        // 키보드가 닫힌 후 300ms 지연 후 스크롤 위치 재점검
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted && _scrollController.hasClients) {
-            // 현재 스크롤 위치가 맨 아래인지 확인
-            const threshold = 20.0;
-            final maxScroll = _scrollController.position.maxScrollExtent;
-            final currentScroll = _scrollController.offset;
-            final isAtBottom = maxScroll - currentScroll <= threshold;
-            
-            // 맨 아래에 위치한 경우 isAnchored를 true로 설정
-            if (isAtBottom && !viewModel.isAnchored) {
-              viewModel.setAnchored(true);
-              debugPrint('키보드 닫힘 후 스크롤 위치 확인: 맨 아래 위치, isAnchored = true로 설정');
-            }
+      if (viewModel.isAnchored) {
+        // 키보드/IME가 나타나거나 사라질 때 항상 맨 아래로 스크롤
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _scrollToBottom(animate: false);
           }
         });
       }
     } catch (e) {
       debugPrint('[MessageList] Provider 접근 오류 (키보드): $e');
-      // Provider가 아직 준비되지 않은 경우 무시하고 계속 진행
     }
   }/// 스크롤 이벤트 발생 시 호출됨
   void _onScroll([MessageListViewModel? viewModel]) {
@@ -142,13 +118,17 @@ class _MessageListState extends State<MessageList> with AutomaticKeepAliveClient
   void _scrollToBottom({bool animate = true}) {
     if (!_scrollController.hasClients) return;
 
-    final duration =
-        animate ? const Duration(milliseconds: 100) : Duration.zero;
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: duration,
-      curve: Curves.easeOut,
-    );
+    final duration = animate ? const Duration(milliseconds: 100) : Duration.zero;
+    
+    try {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: duration,
+        curve: Curves.easeOut,
+      );
+    } catch (e) {
+      debugPrint('[MessageList] 스크롤 이동 오류: $e');
+    }
     
     // 스크롤 후 버튼 숨기기
     if (_showScrollToBottomButton) {
