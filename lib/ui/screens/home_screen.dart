@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
-import 'package:provider/provider.dart';
 import '../components/navigation/custom_navigation_bar.dart';
 import '../components/drawer/custom_drawer.dart';
 import '../components/auth/sign_in_bottom_sheet.dart';
 import '../../services/auth/auth_service.dart';
 import '../components/input_bar/input_bar.dart';
-import '../utils/chat_provider.dart';
+import '../components/messages/message_list_view_model.dart';
 import 'chat_screen.dart';
 import 'box_screen.dart';
 import 'article_screen.dart';
@@ -20,24 +19,24 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  final PageController _pageController = PageController();
+  // keepPage: true로 설정하여 페이지 상태 유지
+  final PageController _pageController = PageController(keepPage: true);
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final AuthService _authService = AuthService();
   // 입력창 관련
   final TextEditingController _chatController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
+  // 메시지 리스트 ViewModel - 탭 전환 시에도 상태가 유지되도록 상위 위젯에서 관리
+  final MessageListViewModel _messageListViewModel = MessageListViewModel();
+  
   // InputBar 관련 높이를 동적으로 추적하기 위한 변수
   double _inputBarHeight = 64; // 기본값 설정
-
   @override
   void initState() {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ChatProvider에서 샘플 메시지를 로드
-      context.read<ChatProvider>().loadSampleMessages();
-
       // AuthService는 main에서 이미 초기화되었으므로 여기서는 상태만 확인합니다
       if (!_authService.isLoggedIn && mounted) {
         _showSignInBottomSheet();
@@ -85,16 +84,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     onMenuPressed: () {
                       _scaffoldKey.currentState?.openDrawer();
                     },
-                  ),
-                  Expanded(
+                  ),                  Expanded(
                     child: PageView(
                       controller: _pageController,
                       onPageChanged: _onPageChanged,
-                      children: [
-                        // 채팅 화면
+                      physics: const BouncingScrollPhysics(),
+                      children: [                        // 채팅 화면
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
-                          child: const ChatScreen(),
+                          child: ChatScreen(messageListViewModel: _messageListViewModel),
                         ),
 
                         // 보관함 화면
@@ -136,12 +134,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
   @override
   void dispose() {
     _pageController.dispose();
     _chatController.dispose();
     _focusNode.dispose();
+    _messageListViewModel.dispose(); // ViewModel 리소스도 해제
     super.dispose();
   }
 }
