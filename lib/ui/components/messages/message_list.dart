@@ -211,8 +211,8 @@ class _MessageListState extends State<MessageList> with AutomaticKeepAliveClient
                     itemCount: flattenedList.length + (viewModel.isLoading ? 1 : 0),
                     reverse: false,
                     itemBuilder: (context, index) {
-                      // 로딩 인디케이터 표시
-                      if (index == flattenedList.length) {
+                      // 로딩 인디케이터를 맨 위에 표시
+                      if (index == 0 && viewModel.isLoading) {
                         return const Padding(
                           padding: EdgeInsets.all(16.0),
                           child: Center(
@@ -221,7 +221,13 @@ class _MessageListState extends State<MessageList> with AutomaticKeepAliveClient
                         );
                       }
 
-                      final listItem = flattenedList[index];
+                      // 로딩 인디케이터가 있을 경우 실제 리스트 아이템의 인덱스 조정
+                      final itemIndex = viewModel.isLoading ? index - 1 : index;
+                      if (itemIndex < 0 || itemIndex >= flattenedList.length) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final listItem = flattenedList[itemIndex];
                       
                       // 세션 구분선 처리
                       if (listItem is SessionDividerItem) {

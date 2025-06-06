@@ -246,37 +246,47 @@ class HistoryService extends ChangeNotifier {
     }
   }
   /// n개의 세션을 페이지네이션으로 가져와서 메시지까지 로드
+  /// n은 메시지가 1개 이상 있는 세션의 개수를 의미함
   Future<void> fetchPaginatedSessions(int n) async {
     try {
-      debugPrint('[HistoryService] 페이지네이션 시작: offset=$_offset, count=$n');
+      debugPrint('[HistoryService] 페이지네이션 시작: offset=$_offset, 목표 세션 수=$n');
 
-      // 오프셋부터 n개의 세션 선택
-      final endIndex = (_offset + n).clamp(0, _sessions.length);
-      final sessionsToLoad = _sessions.sublist(_offset, endIndex);
+      int loadedSessionsWithMessages = 0;
+      int processedSessions = 0;
 
-      // 각 세션의 메시지 로딩하고 업데이트된 세션으로 교체
-      int successfullyLoaded = 0;
-      for (int i = 0; i < sessionsToLoad.length; i++) {
-        final sessionIndex = _offset + i;
+      while (loadedSessionsWithMessages < n && _offset + processedSessions < _sessions.length) {
+        final sessionIndex = _offset + processedSessions;
+        final session = _sessions[sessionIndex];
+
         try {
-          final updatedSession = await fetchSession(sessionsToLoad[i]);
+          final updatedSession = await fetchSession(session);
           _sessions[sessionIndex] = updatedSession;
-          successfullyLoaded++;
+
+          // 메시지가 있는 세션만 카운트
+          if (updatedSession.messages.isNotEmpty) {
+            loadedSessionsWithMessages++;
+          }
+          processedSessions++;
+
+          debugPrint('[HistoryService] 세션 ${session.id} 로드 완료: ${updatedSession.messages.length}개의 메시지');
         } catch (e) {
-          debugPrint('[HistoryService] 세션 ${sessionsToLoad[i].id} 로딩 실패, 건너뜀: $e');
-          // 개별 세션 로딩 실패 시 빈 메시지로 처리
-          _sessions[sessionIndex] = sessionsToLoad[i].copyWith(
+          debugPrint('[HistoryService] 세션 ${session.id} 로딩 실패, 건너뜀: $e');
+          // 개별 세션 로딩 실패 시 빈 메시지로 처리하고 계속 진행
+          _sessions[sessionIndex] = session.copyWith(
             messages: <Message>[],
             isLoaded: true,
           );
-          successfullyLoaded++;
+          processedSessions++;
         }
       }
 
       // 오프셋 업데이트
-      _offset += sessionsToLoad.length;
+      _offset += processedSessions;
 
-      debugPrint('[HistoryService] 페이지네이션 완료: 새 offset=$_offset, 성공: $successfullyLoaded/${sessionsToLoad.length}');
+      debugPrint(
+        '[HistoryService] 페이지네이션 완료: 새 offset=$_offset, '
+        '메시지 있는 세션: $loadedSessionsWithMessages/$processedSessions',
+      );
 
       // UI에 변화 알림
       notifyListeners();
