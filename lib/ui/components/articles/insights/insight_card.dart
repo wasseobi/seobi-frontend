@@ -1,0 +1,102 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../constants/app_colors.dart';
+import '../../../constants/app_fonts.dart';
+import '../../../constants/dimensions/insight_card_dimensions.dart';
+import 'insight_card_model.dart';
+import 'insight_card_list_view_model.dart';
+
+class InsightCard extends StatelessWidget {
+  final InsightCardModel insight;
+
+  const InsightCard({Key? key, required this.insight}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        final viewModel = Provider.of<InsightCardListViewModel>(
+          context,
+          listen: false,
+        );
+        viewModel.showInsightBottomSheet(context);
+      },
+      child: Container(
+        width: InsightCardDimensions.width,
+        padding: EdgeInsets.symmetric(
+          horizontal: InsightCardDimensions.paddingHorizontal,
+          vertical: InsightCardDimensions.paddingVertical,
+        ),
+        decoration: ShapeDecoration(
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              width: InsightCardDimensions.borderWidth,
+              color: AppColors.white80,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Left side: Text Info
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: InsightCardDimensions.contentPaddingHorizontal,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    insight.title,
+                    style: PretendardStyles.semiBold16.copyWith(
+                      color: AppColors.gray100,
+                    ),
+                  ),
+                  SizedBox(height: InsightCardDimensions.spacingSmall),
+
+                  // Keywords Row
+                  Row(
+                    children:
+                        insight.keywords.map((kw) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Text(
+                              '#$kw',
+                              style: PretendardStyles.semiBold14.copyWith(
+                                color: AppColors.gray80,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                  ),
+                  SizedBox(height: InsightCardDimensions.spacingSmall),
+
+                  // Date
+                  Text(
+                    insight.date,
+                    style: PretendardStyles.medium10.copyWith(
+                      color: AppColors.gray100,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Right side: Arrow Icon
+            Container(
+              width: InsightCardDimensions.iconContainerSize,
+              height: InsightCardDimensions.iconContainerSize,
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.arrow_forward_ios,
+                size: InsightCardDimensions.iconSize,
+                color: AppColors.gray80,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
