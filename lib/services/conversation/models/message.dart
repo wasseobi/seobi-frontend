@@ -24,6 +24,7 @@ class Message {
 
   /// 확장 메타데이터 (Backend에서 전달되는 추가 정보)
   final Map<String, dynamic>? extensions;
+
   const Message({
     required this.id,
     required this.sessionId,
@@ -36,16 +37,58 @@ class Message {
 
   /// Backend Message 모델에서 변환
   factory Message.fromBackendMessage(backend_message.Message backendMessage) {
+    // 1. 기본적으로 역할을 assistant로 설정
+    MessageRole role = MessageRole.assistant;
+
+    // 2. 역할 설정
+    if (backendMessage.role == MessageRole.user) {
+      role = MessageRole.user;
+    } else if (backendMessage.role == MessageRole.system) {
+      role = MessageRole.system;
+    } else if (backendMessage.role == MessageRole.tool) {
+      // tool 메시지는 assistant로 변환
+      role = MessageRole.assistant;
+    }
+
+    // 3. 확장 필드 처리
+    Map<String, dynamic>? extensions = {};
+    
+    if (backendMessage.extensions != null) {
+      extensions.addAll(backendMessage.extensions!);
+      
+      // tool_calls 처리
+      if (backendMessage.extensions!['tool_calls'] != null) {
+        extensions['messageType'] = 'tool_calls';
+      } 
+      // toolmessage 처리
+      else if (backendMessage.extensions!['messageType'] == 'toolmessage') {
+        extensions['messageType'] = 'toolmessage';
+      }
+
+      // metadata 처리
+      if (backendMessage.metadata != null) {
+        extensions['metadata'] = backendMessage.metadata;
+      }
+
+      // vector 처리 (필요한 경우)
+      if (backendMessage.vector != null) {
+        extensions['vector'] = backendMessage.vector;
+      }
+    }
+
+    // 4. 메시지 생성 및 반환
     return Message(
       id: backendMessage.id,
       sessionId: backendMessage.sessionId,
       userId: backendMessage.userId ?? '',
       content: backendMessage.content != null ? [backendMessage.content!] : [],
-      role: backendMessage.role, // 동일한 MessageRole enum 사용
+      role: role,
       timestamp: backendMessage.timestamp,
-      extensions: backendMessage.extensions, // extensions 필드 추가
+      extensions: extensions.isEmpty ? null : extensions,
     );
   }
+
+  /// 기존 메시지를 변형하여 새 메시지 생성
   Message copyWith({
     String? id,
     String? sessionId,
@@ -68,6 +111,7 @@ class Message {
 
   /// 메시지 내용을 모두 연결한 전체 텍스트
   String get fullContent => content.join('');
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

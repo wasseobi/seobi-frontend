@@ -10,9 +10,8 @@ import '../../local_database/models/message_role.dart';
 ///
 /// Local Database와 Backend API 모두에서 사용할 수 있도록 설계되었습니다.
 /// 기본 필드는 Local Database와 동일하며, 확장 필드는 Backend에서만 사용됩니다.
-class Message {
-  // ========================================
-  // 기본 필드들 (Local Database 호환)
+class Message {  // ========================================
+  // 기본 필드들 
   // ========================================
 
   /// 메시지의 고유 식별자
@@ -21,36 +20,34 @@ class Message {
   /// 이 메시지가 속한 세션의 ID
   final String sessionId;
 
+  /// 메시지를 보낸 사용자의 ID
+  final String? userId;
+
   /// 메시지의 실제 텍스트 내용
   final String? content;
 
-  /// 메시지 역할 (Local Database의 MessageRole enum 사용)
+  /// 메시지 역할 (user, assistant, tool, system)
   final MessageRole role;
 
   /// 메시지가 생성된 시각
   final DateTime timestamp;
 
-  // ========================================
-  // Backend 확장 필드들
-  // ========================================
+  /// 메타데이터 (tools_used 등)
+  final Map<String, dynamic>? metadata;
 
-  /// 메시지를 보낸 사용자의 ID (Backend 전용)
-  final String? userId;
-
-  /// 벡터 임베딩 (RAG 시스템용, Backend 전용)
+  /// 벡터 임베딩 (RAG 시스템용)
   final List<double>? vector;
 
-  /// 확장 메타데이터 (Backend 전용)
+  /// 확장 메타데이터
   final Map<String, dynamic>? extensions;
-
   const Message({
     required this.id,
     required this.sessionId,
+    this.userId,
     this.content,
     required this.role,
     required this.timestamp,
-    // Backend 확장 필드들
-    this.userId,
+    this.metadata,
     this.vector,
     this.extensions,
   });
@@ -85,11 +82,11 @@ class Message {
     return {
       'id': id,
       'session_id': sessionId,
+      'user_id': userId,
       'content': content,
-      'role': role.name, // enum의 name 사용
+      'role': role.name,
       'timestamp': timestamp.toIso8601String(),
-      // Backend 확장 필드들 (값이 있을 때만 포함)
-      if (userId != null) 'user_id': userId,
+      if (metadata != null) 'metadata': metadata,
       if (vector != null) 'vector': vector,
       if (extensions != null) 'extensions': extensions,
     };
@@ -101,7 +98,7 @@ class Message {
       id: json['id'] as String,
       sessionId: json['session_id'] as String,
       content: json['content'] as String?,
-      role: _parseRole(json['role']),
+      role: MessageRole.fromString(json['role']),
       timestamp: DateTime.parse(json['timestamp'] as String),
       // Backend 확장 필드들
       userId: json['user_id'] as String?,
@@ -115,44 +112,41 @@ class Message {
     );
   }
 
-  /// 역할 문자열을 MessageRole enum으로 변환하는 헬퍼
-  static MessageRole _parseRole(dynamic roleValue) {
-    if (roleValue == null) return MessageRole.user;
-
-    final roleString = roleValue.toString();
-
-    // enum name으로 매칭 시도
-    for (final role in MessageRole.values) {
-      if (role.name == roleString) return role;
-    }
-
-    // toString() 형태로 매칭 시도 (Local Database 호환)
-    for (final role in MessageRole.values) {
-      if (role.toString() == roleString) return role;
-    }
-
-    // 기본값
-    return MessageRole.user;
+  /// Backend 메시지에서 변환
+  factory Message.fromBackendMessage(Message message) {
+    return Message(
+      id: message.id,
+      sessionId: message.sessionId,
+      userId: message.userId,
+      content: message.content,
+      role: message.role,
+      timestamp: message.timestamp,
+      metadata: message.metadata,
+      vector: message.vector,
+      extensions: message.extensions,
+    );
   }
 
   /// Message 인스턴스의 일부 필드를 변경한 새 인스턴스를 생성
   Message copyWith({
     String? id,
     String? sessionId,
+    String? userId,
     String? content,
     MessageRole? role,
     DateTime? timestamp,
-    String? userId,
+    Map<String, dynamic>? metadata,
     List<double>? vector,
     Map<String, dynamic>? extensions,
   }) {
     return Message(
       id: id ?? this.id,
       sessionId: sessionId ?? this.sessionId,
+      userId: userId ?? this.userId,
       content: content ?? this.content,
       role: role ?? this.role,
       timestamp: timestamp ?? this.timestamp,
-      userId: userId ?? this.userId,
+      metadata: metadata ?? this.metadata,
       vector: vector ?? this.vector,
       extensions: extensions ?? this.extensions,
     );
@@ -187,7 +181,7 @@ class Message {
       case MessageRole.user:
         return '사용자';
       case MessageRole.assistant:
-        return 'AI 어시스턴트';
+        return 'AI';
       case MessageRole.system:
         return '시스템';
       case MessageRole.tool:
@@ -196,43 +190,49 @@ class Message {
   }
 
   /// 타임스탬프를 사용자 친화적 형식으로 반환
-  String get formattedTimestamp {
+  String get displayTimestamp {
     final now = DateTime.now();
-    final diff = now.difference(timestamp);
+    final difference = now.difference(timestamp);
 
-    if (diff.inMinutes < 1) return '방금 전';
-    if (diff.inHours < 1) return '${diff.inMinutes}분 전';
-    if (diff.inDays < 1) return '${diff.inHours}시간 전';
-    if (diff.inDays < 7) return '${diff.inDays}일 전';
-
-    // 1주일 이상이면 실제 날짜 표시
+    if (difference.inMinutes < 1) return '방금 전';
+    if (difference.inHours < 1) return '${difference.inMinutes}분 전';
+    if (difference.inDays < 1) return '${difference.inHours}시간 전';
+    if (difference.inDays < 7) return '${difference.inDays}일 전';
+    
     return '${timestamp.year}년 ${timestamp.month}월 ${timestamp.day}일';
   }
 
   @override
   String toString() {
-    return 'Message(id: $id, sessionId: $sessionId, '
-        'content: $contentPreview, role: $role, timestamp: $timestamp)';
+    return 'Message(id: $id, sessionId: $sessionId, content: $contentPreview, role: $role, timestamp: $timestamp)';
   }
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Message &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          sessionId == other.sessionId &&
-          content == other.content &&
-          role == other.role &&
-          timestamp == other.timestamp;
+    identical(this, other) ||
+    other is Message &&
+        runtimeType == other.runtimeType &&
+        id == other.id &&
+        sessionId == other.sessionId &&
+        userId == other.userId &&
+        content == other.content &&
+        role == other.role &&
+        timestamp == other.timestamp &&
+        metadata == other.metadata &&
+        vector == other.vector &&
+        extensions == other.extensions;
 
   @override
   int get hashCode =>
-      id.hashCode ^
-      sessionId.hashCode ^
-      content.hashCode ^
-      role.hashCode ^
-      timestamp.hashCode;
+    id.hashCode ^
+    sessionId.hashCode ^
+    userId.hashCode ^
+    content.hashCode ^
+    role.hashCode ^
+    timestamp.hashCode ^
+    metadata.hashCode ^
+    vector.hashCode ^
+    extensions.hashCode;
 
   // ========================================
   // 스트리밍 처리 헬퍼 메서드들

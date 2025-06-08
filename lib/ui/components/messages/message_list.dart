@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'dart:async';
 import 'user/user_message.dart';
-import 'user/pending_user_message.dart';
 import 'assistant/assistant_message.dart';
 import 'assistant/message_types.dart';
 import 'message_list_view_model.dart';
@@ -267,7 +266,9 @@ class _MessageListState extends State<MessageList> with AutomaticKeepAliveClient
                                 type: viewModel.getMessageType(message),
                                 actions: message['actions'],
                                 card: message['card'],
-                                timestamp: message['timestamp'] as String? ?? '',
+                                toolCalls: message['tool_calls'],
+                                metadata: message['metadata'],
+                                timestamp: message['timestamp'],
                               );
 
                         return Padding(
@@ -287,9 +288,7 @@ class _MessageListState extends State<MessageList> with AutomaticKeepAliveClient
                             ),
                           ),
                         );
-                      }
-                      
-                      // 대기 중인 사용자 메시지 처리
+                      }                      // 대기 중인 사용자 메시지 처리
                       if (listItem is PendingUserMessageItem) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
@@ -304,15 +303,17 @@ class _MessageListState extends State<MessageList> with AutomaticKeepAliveClient
                                 ).animate(animation),
                                 child: child,
                               ),
-                              child: PendingUserMessage(
+                              child: UserMessage(
                                 key: ValueKey('pending_${listItem.content}'),
                                 message: listItem.content,
+                                isSentByUser: true,
+                                isPending: true,
                               ),
                             ),
                           ),
                         );
                       }
-                        // 알 수 없는 아이템 타입의 경우 빈 컨테이너 반환
+                      // 알 수 없는 아이템 타입의 경우 빈 컨테이너 반환
                       return const SizedBox.shrink();
                     },
                   ),

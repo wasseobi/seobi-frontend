@@ -106,6 +106,10 @@ class MessageListViewModel extends ChangeNotifier {
         return MessageType.action;
       case 'card':
         return MessageType.card;
+      case 'tool_calls':
+        return MessageType.tool_calls;
+      case 'toolmessage':
+        return MessageType.toolmessage;
       default:
         return MessageType.text;
     }
@@ -195,29 +199,20 @@ class MessageListViewModel extends ChangeNotifier {
     
     for (int i = 0; i < reversedSessions.length; i++) {
       final session = reversedSessions[i];
-      
-      debugPrint('[MessageListViewModel] 세션 처리: ${session.id}, 로드됨: ${session.isLoaded}, 메시지 수: ${session.messages.length}');
-      
-      // 로드되지 않았거나 메시지가 없는 세션은 스킵
+        // 로드되지 않았거나 메시지가 없는 세션은 스킵
       if (!session.isLoaded || session.messages.isEmpty) {
-        debugPrint('[MessageListViewModel] 세션 스킵: ${session.id}');
         continue;
       }
       
       // 세션의 메시지들을 시간순으로 추가 (오래된 것 → 최신)
       final sortedMessages = List<Message>.from(session.messages);
       sortedMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      
-      debugPrint('[MessageListViewModel] 세션 ${session.id}에서 ${sortedMessages.length}개 메시지 추가');
-      
-      result.addAll(
-        sortedMessages.map(
-          (message) => MessageItem(
-            message: message,
-            sessionId: session.id,
-          ),
-        ),
-      );
+      for (final message in sortedMessages) {
+        result.add(MessageItem(
+          message: message,
+          sessionId: session.id,
+        ));
+      }
       
       // 종료된 세션인 경우 세션 요약 정보 추가
       if (session.isFinished) {

@@ -63,7 +63,7 @@ class AuthService extends ChangeNotifier {
         return AuthResult.failure('구글 사용자 정보가 없습니다.');
       }
       try {
-        debugPrint('[GOOGLE ID TOKEN] ${googleUser.idToken}');
+        debugPrint('[Google Sign In] ${googleUser.email} ${googleUser.displayName}');
         final user = await _backend.postUserLogin(
           googleUser.email,
           googleUser.displayName,
@@ -114,5 +114,32 @@ class AuthService extends ChangeNotifier {
     await _storage.setString('photoUrl', '');
     await _storage.setString('accessToken', '');
     await _storage.setString('userId', '');
+  }
+
+  /// 리소스 정리
+  @override
+  Future<void> dispose() async {
+    debugPrint('[AuthService] 🧹 리소스 정리 시작');
+    
+    try {
+      // 구글 로그인 정리
+      await _googleSignIn.signOut();
+      
+      // 로컬 스토리지 정리
+      await _storage.remove('isLoggedIn');
+      await _storage.remove('email');
+      await _storage.remove('displayName');
+      await _storage.remove('photoUrl');
+      await _storage.remove('userId');
+      await _storage.remove('accessToken');
+      
+      // 부모 클래스의 dispose 호출
+      super.dispose();
+      
+      debugPrint('[AuthService] ✅ 리소스 정리 완료');
+    } catch (e) {
+      debugPrint('[AuthService] ⚠️ 리소스 정리 실패: $e');
+      rethrow;
+    }
   }
 }

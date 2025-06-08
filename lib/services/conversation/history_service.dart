@@ -40,14 +40,11 @@ class HistoryService extends ChangeNotifier {
     try {
       // 인증 서비스 초기화
       await _authService.init();
-
-      debugPrint('[HistoryService] 세션 초기화 시작');
-
       // 현재 사용자 정보 저장
       _currentUserId = _authService.userId;
       
       if (_currentUserId == null) {
-        debugPrint('[HistoryService] 로그인되지 않은 상태 - 빈 세션으로 초기화');
+        debugPrint('[HistoryService] 로그인되지 않은 상태로 초기화');
         _sessions = [];
         _offset = 0;
         _isInitialized = true;
@@ -57,60 +54,41 @@ class HistoryService extends ChangeNotifier {
       final userId = await _getUserIdAndAuthenticate();
       
       if (userId == null) {
-        debugPrint('[HistoryService] 로그인되지 않은 상태 - 빈 세션으로 초기화');
+        debugPrint('[HistoryService] 인증 실패 - 세션 정보 클리어');
         _sessions = [];
         _offset = 0;
         _isInitialized = true;
         notifyListeners();
         return;
       }
-      
-      debugPrint('[HistoryService] 사용자 ID: $userId');
 
-      // Backend에서 해당 사용자의 모든 세션 가져오기
       final backendSessions = await _backendRepository.getSessionsByUserId(userId);
-
-      // Backend Session을 로컬 Session 모델로 변환
-      _sessions =
-          backendSessions
-              .map(
-                (backendSession) => Session.fromBackendSession(backendSession),
-              )
-              .toList();
-
-      // 최신 → 오래된 순서로 정렬 (startAt 기준)
+      _sessions = backendSessions.map((s) => Session.fromBackendSession(s)).toList();
       _sessions.sort((a, b) {
-        if (a.startAt == null && b.startAt == null) return 0;
-        if (a.startAt == null) return 1;
-        if (b.startAt == null) return -1;
+        if (a.startAt == null || b.startAt == null) return 0;
         return b.startAt!.compareTo(a.startAt!);
-      }); 
-        // 오프셋 초기화
+      });
+
       _offset = 0;
       _isInitialized = true;
 
-      debugPrint('[HistoryService] 세션 ${_sessions.length}개 초기화 완료');
+      debugPrint('[HistoryService] 초기화 완료 (총 ${_sessions.length}개 세션)');
 
-      // 초기 세션들 로드 (첫 5개)
       await _loadInitialSessions();
-
-      // UI에 변화 알림
       notifyListeners();
+
     } catch (e) {
-      debugPrint('[HistoryService] 세션 초기화 오류: $e');
-      
-      // 네트워크 오류인 경우 빈 세션 리스트로 초기화
+      debugPrint('[HistoryService] 초기화 오류: $e');
       if (e.toString().contains('Connection') || 
           e.toString().contains('ClientException') ||
           e.toString().contains('SocketException')) {
-        debugPrint('[HistoryService] 네트워크 오류로 인해 오프라인 모드로 초기화');
+        debugPrint('[HistoryService] 네트워크 오류로 오프라인 모드 초기화');
         _sessions = [];
         _offset = 0;
         _isInitialized = true;
         notifyListeners();
         return;
       }
-      
       rethrow;
     }
   }
@@ -172,88 +150,86 @@ class HistoryService extends ChangeNotifier {
   /// 초기 세션들 로드 (첫 5개 세션)
   Future<void> _loadInitialSessions() async {
     try {
-      debugPrint('[HistoryService] 초기 세션 로딩 시작');
-      
       if (_sessions.isEmpty) {
-        debugPrint('[HistoryService] 로드할 세션이 없음');
+        debugPrint('[HistoryService] 로드할 세션 없음');
         return;
       }
       
       await fetchPaginatedSessions(5);
-      debugPrint('[HistoryService] 초기 세션 로딩 완료');
+      debugPrint('[HistoryService] 초기 ${_offset}개 세션 로드 완료');
     } catch (e) {
-      debugPrint('[HistoryService] 초기 세션 로딩 실패: $e');
-      // 초기 세션 로딩 실패는 치명적이지 않음
+      debugPrint('[HistoryService] 초기 세션 로드 실패: $e');
     }
   }
+
   /// 특정 세션의 메시지 리스트를 가져와서 채운 세션을 반환
   Future<Session> fetchSession(Session session) async {
     try {
       // 이미 로드된 세션이면 기존 세션 반환
       if (session.isLoaded) {
-        debugPrint('[HistoryService] 세션 ${session.id}는 이미 로드됨');
         return session;
       }
 
-      debugPrint('[HistoryService] 세션 ${session.id}의 메시지 로딩 시작');
-
-      // Backend에서 해당 세션의 모든 메시지 가져오기
-      final backendMessages = await _backendRepository.getMessagesBySessionId(
-        session.id,
-      );
-
-      // Backend Message를 로컬 Message 모델로 변환
-      final messages =
-          backendMessages
-              .map(
-                (backendMessage) => Message.fromBackendMessage(backendMessage),
-              )
-              .toList();
-
-      // 최신 → 오래된 순서로 정렬 (timestamp 기준)
+      final backendMessages = await _backendRepository.getMessagesBySessionId(session.id);
+      final messages = backendMessages.map((m) {
+        // 메시지 타입에 따른 처리
+        var msg = Message.fromBackendMessage(m);
+        
+        // 도구 관련 메시지의 타입 확인 및 설정
+        if (m.extensions != null) {
+          if (m.extensions!['tool_calls'] != null) {
+            msg = msg.copyWith(
+              extensions: {
+                'messageType': 'tool_calls',
+                'tool_calls': m.extensions!['tool_calls'],
+                ...?m.extensions!['metadata'],
+              },
+            );
+          } else if (m.extensions!['messageType'] == 'toolmessage') {
+            msg = msg.copyWith(
+              extensions: {
+                'messageType': 'toolmessage',
+                ...?m.extensions!['metadata'],
+              },
+            );
+          }
+        }
+        
+        return msg;
+      }).toList();
       messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-      // 메시지가 채워지고 로드된 새 세션 객체 생성
       final updatedSession = session.copyWith(
         messages: messages,
         isLoaded: true,
       );
 
-      debugPrint(
-        '[HistoryService] 세션 ${session.id}에 메시지 ${messages.length}개 로드 완료',
-      );
-
+      debugPrint('[HistoryService] 세션 ${session.id} 로드 완료: ${messages.length}개 메시지');
       return updatedSession;
+
     } catch (e) {
-      debugPrint('[HistoryService] 세션 ${session.id} 메시지 로딩 오류: $e');
-      
-      // 네트워크 연결 오류인 경우 빈 메시지로 로드된 세션 반환
+      debugPrint('[HistoryService] 세션 메시지 로드 오류: $e');
       if (e.toString().contains('Connection') ||
           e.toString().contains('ClientException') ||
-          e.toString().contains('SocketException') ||
-          e.toString().contains('서버 연결') ||
-          e.toString().contains('연결이 끊어졌습니다')) {
-        debugPrint('[HistoryService] 네트워크 오류로 인해 빈 메시지로 세션 로드: ${session.id}');
-        
-        // 네트워크 오류 시 빈 메시지 리스트로 로드된 것으로 처리
+          e.toString().contains('SocketException')) {
         return session.copyWith(
           messages: <Message>[],
           isLoaded: true,
         );
       }
-      
       rethrow;
     }
   }
+
   /// n개의 세션을 페이지네이션으로 가져와서 메시지까지 로드
   /// n은 메시지가 1개 이상 있는 세션의 개수를 의미함
   Future<void> fetchPaginatedSessions(int n) async {
     try {
-      debugPrint('[HistoryService] 페이지네이션 시작: offset=$_offset, 목표 세션 수=$n');
+      debugPrint('[HistoryService] 세션 로드 시작: offset=$_offset, 요청=$n');
 
       int loadedSessionsWithMessages = 0;
       int processedSessions = 0;
-
+      
       while (loadedSessionsWithMessages < n && _offset + processedSessions < _sessions.length) {
         final sessionIndex = _offset + processedSessions;
         final session = _sessions[sessionIndex];
@@ -262,16 +238,11 @@ class HistoryService extends ChangeNotifier {
           final updatedSession = await fetchSession(session);
           _sessions[sessionIndex] = updatedSession;
 
-          // 메시지가 있는 세션만 카운트
           if (updatedSession.messages.isNotEmpty) {
             loadedSessionsWithMessages++;
           }
           processedSessions++;
-
-          debugPrint('[HistoryService] 세션 ${session.id} 로드 완료: ${updatedSession.messages.length}개의 메시지');
         } catch (e) {
-          debugPrint('[HistoryService] 세션 ${session.id} 로딩 실패, 건너뜀: $e');
-          // 개별 세션 로딩 실패 시 빈 메시지로 처리하고 계속 진행
           _sessions[sessionIndex] = session.copyWith(
             messages: <Message>[],
             isLoaded: true,
@@ -280,16 +251,10 @@ class HistoryService extends ChangeNotifier {
         }
       }
 
-      // 오프셋 업데이트
       _offset += processedSessions;
-
-      debugPrint(
-        '[HistoryService] 페이지네이션 완료: 새 offset=$_offset, '
-        '메시지 있는 세션: $loadedSessionsWithMessages/$processedSessions',
-      );
-
-      // UI에 변화 알림
+      debugPrint('[HistoryService] 세션 로드 완료: 메시지 있는 세션 $loadedSessionsWithMessages/$processedSessions');
       notifyListeners();
+
     } catch (e) {
       debugPrint('[HistoryService] 페이지네이션 오류: $e');
       rethrow;
@@ -298,28 +263,18 @@ class HistoryService extends ChangeNotifier {
 
   /// 세션 업데이트 (메시지 추가/수정 시 사용)
   void updateSession(Session updatedSession) {
-    final index = _sessions.indexWhere(
-      (session) => session.id == updatedSession.id,
-    );
+    final index = _sessions.indexWhere((s) => s.id == updatedSession.id);
     if (index != -1) {
       _sessions[index] = updatedSession;
-      debugPrint(
-        '[HistoryService] 세션 업데이트: ${updatedSession.id}, 메시지 수: ${updatedSession.messages.length}',
-      );
-
-      // UI에 변화 알림
+      debugPrint('[HistoryService] 세션 업데이트: ${updatedSession.id} (${updatedSession.messages.length}개 메시지)');
       notifyListeners();
-    } else {
-      debugPrint('[HistoryService] 세션을 찾을 수 없음: ${updatedSession.id}');
     }
   }
 
   /// 새 세션 추가
   void addSession(Session newSession) {
-    _sessions.insert(0, newSession); // 최신 세션을 맨 앞에 추가
+    _sessions.insert(0, newSession);
     debugPrint('[HistoryService] 새 세션 추가: ${newSession.id}');
-
-    // UI에 변화 알림
     notifyListeners();
   }
 
@@ -354,7 +309,9 @@ class HistoryService extends ChangeNotifier {
   /// 대기 중인 사용자 메시지 설정
   void setPendingUserMessage(String? message) {
     _pendingUserMessage = message;
-    debugPrint('[HistoryService] 대기 중인 사용자 메시지 설정: $message');
+    if (message != null) {
+      debugPrint('[HistoryService] 대기 메시지 설정');
+    }
     notifyListeners();
   }
 
@@ -363,10 +320,13 @@ class HistoryService extends ChangeNotifier {
 
   /// 대기 중인 사용자 메시지 클리어
   void clearPendingUserMessage() {
-    _pendingUserMessage = null;
-    debugPrint('[HistoryService] 대기 중인 사용자 메시지 클리어');
-    notifyListeners();
+    if (_pendingUserMessage != null) {
+      debugPrint('[HistoryService] 대기 메시지 클리어');
+      _pendingUserMessage = null;
+      notifyListeners();
+    }
   }
+
   /// 대기 중인 사용자 메시지가 있는지 확인
   bool get hasPendingUserMessage => _pendingUserMessage != null;
 
