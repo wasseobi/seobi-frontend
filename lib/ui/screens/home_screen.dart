@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
-import 'package:provider/provider.dart';
 import '../components/navigation/custom_navigation_bar.dart';
 import '../components/drawer/custom_drawer.dart';
 import '../components/auth/sign_in_bottom_sheet.dart';
 import '../../services/auth/auth_service.dart';
 import '../components/input_bar/input_bar.dart';
-import '../utils/chat_provider.dart';
 import 'chat_screen.dart';
 import 'box_screen.dart';
 import 'article_screen.dart';
@@ -20,7 +18,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  final PageController _pageController = PageController();
+  // keepPage: true로 설정하여 페이지 상태 유지
+  final PageController _pageController = PageController(keepPage: true);
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final AuthService _authService = AuthService();
   // 입력창 관련
@@ -29,15 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // InputBar 관련 높이를 동적으로 추적하기 위한 변수
   double _inputBarHeight = 64; // 기본값 설정
-
   @override
   void initState() {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ChatProvider에서 샘플 메시지를 로드
-      context.read<ChatProvider>().loadSampleMessages();
-
       // AuthService는 main에서 이미 초기화되었으므로 여기서는 상태만 확인합니다
       if (!_authService.isLoggedIn && mounted) {
         _showSignInBottomSheet();
@@ -70,6 +65,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    if (bottomInset > 0) {
+      debugPrint('IME/키보드 표시됨 - 높이: $bottomInset');
+    }
+    
     return KeyboardDismissOnTap(
       child: Scaffold(
         key: _scaffoldKey,
@@ -85,16 +85,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     onMenuPressed: () {
                       _scaffoldKey.currentState?.openDrawer();
                     },
-                  ),
-                  Expanded(
+                  ),                  Expanded(
                     child: PageView(
                       controller: _pageController,
                       onPageChanged: _onPageChanged,
-                      children: [
-                        // 채팅 화면
+                      physics: const BouncingScrollPhysics(),
+                      children: [                        // 채팅 화면
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
-                          child: const ChatScreen(),
+                          child: ChatScreen(),
                         ),
 
                         // 보관함 화면
@@ -136,7 +135,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
   @override
   void dispose() {
     _pageController.dispose();

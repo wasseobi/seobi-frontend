@@ -43,4 +43,11 @@ class STTService {
   }
 
   bool get isListening => _speech.isListening;
+
+  /// 리소스 정리
+  Future<void> dispose() async {
+    if (_speech.isListening) {
+      await stopListening();
+    }
+  }
 }

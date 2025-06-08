@@ -13,9 +13,13 @@ class TtsService {
   Timer? _completionBackupTimer; // completion handler 백업 타이머
   bool _isCompleted = false; // 완료 처리 중복 방지 플래그
 
-  TtsService() {
-    debugPrint('[TtsService] 🎤 TtsService 초기화 시작!');
-    _initTTS();
+  TtsService();
+
+  /// TTS 서비스 초기화
+  Future<void> initialize() async {
+    debugPrint('[TtsService] TTS 서비스 초기화 시작');
+    await _initTTS();
+    debugPrint('[TtsService] TTS 서비스 초기화 완료');
   }
 
   // ========================================
