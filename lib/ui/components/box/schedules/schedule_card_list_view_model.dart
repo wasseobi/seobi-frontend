@@ -182,4 +182,32 @@ class ScheduleCardListViewModel extends ChangeNotifier {
       return now;
     }
   }
+
+  /// API에서 받아온 Schedule 리스트를 ScheduleCardModel용 Map 리스트로 변환
+  static List<Map<String, dynamic>> fromScheduleList(List schedules) {
+    return schedules.map((schedule) {
+      return {
+        'id':
+            schedule.id is int
+                ? schedule.id
+                : schedule.id.hashCode, // id가 String이면 hashCode 사용
+        'title': schedule.title,
+        'time':
+            schedule.time is DateTime
+                ? _formatTime(schedule.time)
+                : schedule.time,
+        'location': schedule.location,
+        'registeredTime':
+            schedule.createdAt is DateTime
+                ? schedule.createdAt.toString()
+                : schedule.createdAt,
+        'type': 'list',
+      };
+    }).toList();
+  }
+
+  /// DateTime을 'HH:mm' 포맷 문자열로 변환
+  static String _formatTime(DateTime time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
 }

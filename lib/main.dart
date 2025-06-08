@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'services/auth/auth_service.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/utils/chat_provider.dart';
+import 'ui/components/messages/message_list_view_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,8 +28,20 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ChatProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProxyProvider<ChatProvider, MessageListViewModel>(
+          create:
+              (context) => MessageListViewModel(
+                chatProvider: Provider.of<ChatProvider>(context, listen: false),
+              ),
+          update: (context, chatProvider, previous) {
+            if (chatProvider == null) return previous!;
+            return MessageListViewModel(chatProvider: chatProvider);
+          },
+        ),
+      ],
       child: MaterialApp(
         theme: ThemeData(
           primarySwatch: Colors.blue,

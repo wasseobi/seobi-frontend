@@ -88,7 +88,7 @@ class ScheduleCard extends StatelessWidget {
               SizedBox(height: ScheduleCardDimensions.spacingMedium),
               if (schedule.type == ScheduleType.list)
                 Text(
-                  schedule.registeredTime,
+                  _formatRegisteredTime(schedule.registeredTime),
                   textAlign: TextAlign.center,
                   style: PretendardStyles.medium10.copyWith(
                     color: AppColors.gray60,
@@ -109,5 +109,23 @@ class ScheduleCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatRegisteredTime(String registeredTime) {
+    // ISO 8601 문자열(2025-06-08T20:00:48.904Z 등)에서 연-월-일 시:분만 추출
+    try {
+      final dt = DateTime.parse(registeredTime);
+      final y = dt.year.toString().padLeft(4, '0');
+      final m = dt.month.toString().padLeft(2, '0');
+      final d = dt.day.toString().padLeft(2, '0');
+      final h = dt.hour.toString().padLeft(2, '0');
+      final min = dt.minute.toString().padLeft(2, '0');
+      return '$y-$m-$d $h:$min';
+    } catch (_) {
+      // 파싱 실패 시 앞 16글자만 자름 (2025-06-08 20:00)
+      return registeredTime.length >= 16
+          ? registeredTime.substring(0, 16)
+          : registeredTime;
+    }
   }
 }

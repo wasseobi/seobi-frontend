@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'tasks/task_card_list.dart';
 import 'schedules/schedule_card_list.dart';
+import 'schedules/schedule_card_list_view_model.dart';
 
 class BoxContent extends StatelessWidget {
-  const BoxContent({super.key});
+  final ScheduleCardListViewModel? scheduleViewModel;
+  const BoxContent({super.key, this.scheduleViewModel});
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
+    return SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 20),
         child: Column(
@@ -16,7 +18,10 @@ class BoxContent extends StatelessWidget {
             SizedBox(height: 20),
             TaskCardList(width: double.infinity),
             SizedBox(height: 32),
-            ScheduleCardList(width: double.infinity),
+            ScheduleCardList(
+              width: double.infinity,
+              viewModel: scheduleViewModel,
+            ),
             SizedBox(height: 32),
           ],
         ),
