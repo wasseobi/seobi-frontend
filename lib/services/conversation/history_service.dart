@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:seobi_app/repositories/backend/backend_repository.dart';
+import 'package:seobi_app/repositories/backend/models/message.dart';
 import '../auth/auth_service.dart';
 import 'models/session.dart';
-import 'models/message.dart';
 
 /// 대화 히스토리를 관리하는 서비스
 class HistoryService extends ChangeNotifier {
@@ -170,33 +170,7 @@ class HistoryService extends ChangeNotifier {
         return session;
       }
 
-      final backendMessages = await _backendRepository.getMessagesBySessionId(session.id);
-      final messages = backendMessages.map((m) {
-        // 메시지 타입에 따른 처리
-        var msg = Message.fromBackendMessage(m);
-        
-        // 도구 관련 메시지의 타입 확인 및 설정
-        if (m.extensions != null) {
-          if (m.extensions!['tool_calls'] != null) {
-            msg = msg.copyWith(
-              extensions: {
-                'messageType': 'tool_calls',
-                'tool_calls': m.extensions!['tool_calls'],
-                ...?m.extensions!['metadata'],
-              },
-            );
-          } else if (m.extensions!['messageType'] == 'toolmessage') {
-            msg = msg.copyWith(
-              extensions: {
-                'messageType': 'toolmessage',
-                ...?m.extensions!['metadata'],
-              },
-            );
-          }
-        }
-        
-        return msg;
-      }).toList();
+      final messages = await _backendRepository.getMessagesBySessionId(session.id);
       messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
       final updatedSession = session.copyWith(
@@ -267,7 +241,7 @@ class HistoryService extends ChangeNotifier {
     if (index != -1) {
       _sessions[index] = updatedSession;
       debugPrint('[HistoryService] 세션 업데이트: ${updatedSession.id} (${updatedSession.messages.length}개 메시지)');
-      notifyListeners();
+      notifyListeners(); // 즉시 알림
     }
   }
 

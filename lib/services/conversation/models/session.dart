@@ -1,5 +1,5 @@
 import 'package:seobi_app/repositories/backend/models/session.dart' as backend_session;
-import 'message.dart';
+import 'package:seobi_app/repositories/backend/models/message.dart';
 
 /// 세션 데이터 모델
 class Session {

@@ -1,11 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:seobi_app/repositories/backend/models/message.dart';
 import 'package:seobi_app/services/auth/auth_service.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
 import 'package:seobi_app/repositories/backend/backend_repository.dart';
 import 'models/session.dart' as local_session;
-import 'models/message.dart';
-import 'package:seobi_app/repositories/local_database/models/message_role.dart';
 
 /// 대화 서비스 v2 - Auth와 History 서비스를 통합 관리
 class ConversationService2 {
@@ -21,6 +21,11 @@ class ConversationService2 {
   Timer? _sessionTimer;
   // 세션 자동 종료 시간 (3분)
   static const Duration _sessionTimeout = Duration(minutes: 3);
+
+  // 현재 처리 중인 메시지의 ID
+  String? _currentMessageId;
+  // 현재 처리 중인 메시지 타입
+  String? _currentMessageType;
 
   ConversationService2._internal();
 
@@ -91,6 +96,78 @@ class ConversationService2 {
     return newSession;
   }
 
+  /// Message 객체를 생성하거나 업데이트
+  Message _createOrUpdateMessage({
+    required String sessionId,
+    required String userId,
+    required String content,
+    required Map<String, dynamic> data,
+    String? existingMessageId,
+  }) {
+    final type = data['type'] as String?;
+    final metadata = data['metadata'] as Map<String, dynamic>?;
+    final timestamp =
+        metadata?['timestamp'] != null
+            ? DateTime.parse(metadata!['timestamp'] as String)
+            : DateTime.now();
+
+    MessageType messageType;
+    String? title;
+
+    switch (type) {
+      case 'user':
+        messageType = MessageType.user;
+        break;
+      case 'tool_calls':
+        messageType = MessageType.tool_call;
+        final toolCalls = data['tool_calls'] as List<dynamic>?;
+        if (toolCalls != null && toolCalls.isNotEmpty) {
+          final firstTool = toolCalls.first as Map<String, dynamic>;
+          title = firstTool['function']?['name'] as String?;
+        }
+        break;
+      case 'toolmessage':
+        messageType = MessageType.tool_result;
+        title = metadata?['tool_name'] as String?;
+        break;
+      case 'chunk':
+        messageType = MessageType.assistant;
+        break;
+      default:
+        messageType = MessageType.error;
+    }
+
+    return Message(
+      id: existingMessageId ?? _generateMessageId(),
+      sessionId: sessionId,
+      type: messageType,
+      title: title,
+      content: content,
+      timestamp: timestamp,
+    );
+  }
+
+  /// 세션에서 특정 메시지 업데이트 또는 새 메시지 추가
+  local_session.Session _updateOrAddMessage(
+    local_session.Session session,
+    Message message, {
+    bool isUpdate = false,
+  }) {
+    if (isUpdate) {
+      final updatedMessages =
+          session.messages.map((m) {
+            if (m.id == message.id) {
+              return message;
+            }
+            return m;
+          }).toList();
+
+      return session.copyWith(messages: updatedMessages);
+    } else {
+      return session.copyWith(messages: [...session.messages, message]);
+    }
+  }
+
   /// 메시지 전송 및 세션 업데이트
   Future<void> sendMessage(String content) async {
     try {
@@ -108,11 +185,8 @@ class ConversationService2 {
       // 타이머 재설정
       _resetSessionTimer(session.id);
 
-      // 현재 메시지 추적용 변수들
-      String? currentAssistantMessageId;
-      String? currentToolCallsMessageId;
-      final List<String> assistantContentChunks = [];
-      final toolCallsChunks = <Map<String, dynamic>>[];
+      // 현재 메시지 관련 변수들
+      String currentContent = '';
 
       // 4. 서버로 메시지 전송 및 스트림 처리
       await for (final chunk in _backendRepository.postSendMessage(
@@ -124,175 +198,224 @@ class ConversationService2 {
 
         final type = chunk['type'] as String?;
         switch (type) {
-          case 'userMessage':
           case 'user':
-            // 사용자 메시지 추가
-            final userMessage = Message(
-              id: _generateMessageId(),
+            // 사용자 메시지는 항상 새로운 메시지
+            _currentMessageId = null;
+            _currentMessageType = null;
+
+            final message = _createOrUpdateMessage(
               sessionId: session.id,
               userId: userId,
-              content: [content],
-              role: MessageRole.user,
-              timestamp: DateTime.now(),
+              content: chunk['content'] as String? ?? '',
+              data: chunk,
             );
 
-            // 세션에 사용자 메시지 추가
-            session = session.copyWith(
-              messages: [...session.messages, userMessage],
-            );
+            session = _updateOrAddMessage(session, message);
             _updateSessionInHistory(session);
-
-            // 사용자 메시지가 서버에서 처리되었으므로 대기 중인 메시지 클리어
             _historyService.clearPendingUserMessage();
-
-            debugPrint('[ConversationService2] 사용자 메시지 추가: ${userMessage.id}');
             break;
 
-          case 'chunk':
-            // AI 응답 청크 처리
-            final chunkContent = chunk['content'] as String?;
-            if (chunkContent != null && chunkContent.isNotEmpty) {
-              if (currentAssistantMessageId == null) {
-                // 새 AI 메시지 생성
-                currentAssistantMessageId = _generateMessageId();
-                assistantContentChunks.clear();
-
-                final newAssistantMessage = Message(
-                  id: currentAssistantMessageId,
-                  sessionId: session.id,
-                  userId: userId,
-                  content: [],
-                  role: MessageRole.assistant,
-                  timestamp: DateTime.now(),
-                );
-
-                // 세션에 새 AI 메시지 추가
-                session = session.copyWith(
-                  messages: [...session.messages, newAssistantMessage],
-                );
-                _updateSessionInHistory(session);
-
-                debugPrint(
-                  '[ConversationService2] 새 AI 메시지 생성: $currentAssistantMessageId',
-                );
-              }
-
-              // 청크를 목록에 추가
-              assistantContentChunks.add(chunkContent);
-
-              // 기존 AI 메시지 업데이트
-              final messageIndex = session.messages.indexWhere(
-                (msg) => msg.id == currentAssistantMessageId,
+          case 'tool_calls':
+            // 이전 assistant 메시지가 있다면 먼저 처리
+            if (currentContent.isNotEmpty && _currentMessageType == null) {
+              final message = _createOrUpdateMessage(
+                sessionId: session.id,
+                userId: userId,
+                content: currentContent,
+                data: {'type': 'chunk'},
+                existingMessageId: _currentMessageId,
               );
-              if (messageIndex != -1) {
-                final updatedMessage = session.messages[messageIndex].copyWith(
-                  content: List<String>.from(assistantContentChunks),
-                );
 
-                final updatedMessages = List<Message>.from(session.messages);
-                updatedMessages[messageIndex] = updatedMessage;
-                session = session.copyWith(messages: updatedMessages);
-                _updateSessionInHistory(session);
-
-                debugPrint('[ConversationService2] 📥 "$chunkContent"');
-              }
+              session = _updateOrAddMessage(
+                session,
+                message,
+                isUpdate: _currentMessageId != null,
+              );
+              _updateSessionInHistory(session);
+              currentContent = '';
+              _currentMessageId = null;
             }
-            break;
 
-          case 'tool_calls':            // tool_calls 메시지 처리
             final toolCalls = chunk['tool_calls'] as List<dynamic>?;
             if (toolCalls != null && toolCalls.isNotEmpty) {
-              if (currentToolCallsMessageId == null) {
-                // 새 tool_calls 메시지 생성
-                currentToolCallsMessageId = _generateMessageId();
-                toolCallsChunks.clear();
-                debugPrint('[ConversationService2] 🔧 도구 사용 시작');
+              final firstTool = toolCalls.first as Map<String, dynamic>;
+              final functionName = firstTool['function']?['name'] as String?;
+              final arguments = firstTool['function']?['arguments'] as String? ?? '';
 
-                final newToolCallsMessage = Message(
-                  id: currentToolCallsMessageId,
+              // 새로운 tool_calls 메시지 시작
+              if (_currentMessageType != 'tool_calls') {
+                _currentMessageId = _generateMessageId();
+                _currentMessageType = 'tool_calls';
+
+                final message = Message(
+                  id: _currentMessageId!,
                   sessionId: session.id,
-                  userId: userId,
-                  content: ['도구 사용 중...'],
-                  role: MessageRole.assistant, // tool -> assistant로 변경
+                  type: MessageType.tool_call,
+                  title: functionName,
+                  content: arguments,
                   timestamp: DateTime.now(),
-                  extensions: {
-                    'messageType': 'tool_calls',
-                    'tool_calls': toolCallsChunks,
-                    ...?chunk['metadata'] as Map<String, dynamic>?,
-                  },
                 );
 
-                // 세션에 새 tool_calls 메시지 추가
-                session = session.copyWith(
-                  messages: [...session.messages, newToolCallsMessage],
-                );
+                session = _updateOrAddMessage(session, message);
                 _updateSessionInHistory(session);
-
-                debugPrint(
-                  '[ConversationService2] 새 tool_calls 메시지 생성: $currentToolCallsMessageId',
-                );
-              }
-
-              // 청크를 목록에 추가
-              toolCallsChunks.addAll(toolCalls.cast<Map<String, dynamic>>());
-              for (final toolCall in toolCalls) {
-                debugPrint(
-                  '[ConversationService2] 🔧 도구 호출: ${toolCall['name']}',
-                );
-              }
-
-              // 기존 tool_calls 메시지 업데이트
-              final messageIndex = session.messages.indexWhere(
-                (msg) => msg.id == currentToolCallsMessageId,
-              );
-
-              if (messageIndex != -1) {
-                final updatedMessage = session.messages[messageIndex].copyWith(
-                  extensions: {
-                    'messageType': 'tool_calls',
-                    'tool_calls': toolCallsChunks,
-                    ...?session.messages[messageIndex].extensions,
-                  },
+              } else {
+                // 기존 tool_calls 메시지에 arguments 추가
+                final existingMessage = session.messages.lastWhere(
+                  (m) => m.id == _currentMessageId && m.type == MessageType.tool_call,
+                  orElse: () => throw Exception('현재 tool_calls 메시지를 찾을 수 없습니다.'),
                 );
 
-                final updatedMessages = List<Message>.from(session.messages);
-                updatedMessages[messageIndex] = updatedMessage;
-                session = session.copyWith(messages: updatedMessages);
+                final message = Message(
+                  id: existingMessage.id,
+                  sessionId: session.id,
+                  type: MessageType.tool_call,
+                  title: functionName ?? existingMessage.title,
+                  content: existingMessage.content + arguments,
+                  timestamp: existingMessage.timestamp,
+                );
+
+                session = _updateOrAddMessage(session, message, isUpdate: true);
                 _updateSessionInHistory(session);
-
-                debugPrint(
-                  '[ConversationService2] tool_calls 메시지 업데이트: ${toolCallsChunks.length}개 청크',
-                );
               }
             }
             break;
 
           case 'toolmessage':
-            // 도구 실행 결과 메시지 추가            // 도구 실행 결과 메시지 생성
-            final toolResultMessage = Message(
-              id: _generateMessageId(),
-              sessionId: session.id,
-              userId: userId,
-              content: [chunk['content'] as String? ?? '도구 실행 완료'],
-              role: MessageRole.assistant, // tool -> assistant로 변경
-              timestamp: DateTime.now(),
-              extensions: {
-                'messageType': 'toolmessage',
-                ...?chunk['metadata'] as Map<String, dynamic>?,
-              },
-            );
+            // 이전 assistant 메시지가 있다면 먼저 처리
+            if (currentContent.isNotEmpty && _currentMessageType == null) {
+              final message = _createOrUpdateMessage(
+                sessionId: session.id,
+                userId: userId,
+                content: currentContent,
+                data: {'type': 'chunk'},
+                existingMessageId: _currentMessageId,
+              );
 
-            session = session.copyWith(
-              messages: [...session.messages, toolResultMessage],
-            );
-            _updateSessionInHistory(session);
-            debugPrint(
-              '[ConversationService2] 🔧 도구 결과: "${toolResultMessage.fullContent}"',
-            );
+              session = _updateOrAddMessage(
+                session,
+                message,
+                isUpdate: _currentMessageId != null,
+              );
+              _updateSessionInHistory(session);
+              currentContent = '';
+              _currentMessageId = null;
+            }
+
+            // 이전 type과 관계없이 항상 새로운 메시지로 처리
+            _currentMessageId = _generateMessageId();
+            _currentMessageType = 'toolmessage';
+
+            final content = chunk['content'] as String? ?? '';
+            try {
+              // content가 JSON 형식인지 확인하고 예쁘게 포맷팅
+              final dynamic jsonData = content.isNotEmpty ? json.decode(content) : {};
+              final prettyContent = JsonEncoder.withIndent('  ').convert(jsonData);
+
+              final message = Message(
+                id: _currentMessageId!,
+                sessionId: session.id,
+                type: MessageType.tool_result,
+                title: chunk['metadata']?['tool_name'] as String?,
+                content: prettyContent,
+                timestamp: DateTime.now(),
+              );
+
+              session = _updateOrAddMessage(session, message);
+              _updateSessionInHistory(session);
+              // toolmessage 처리 후 상태 초기화
+              _currentMessageId = null;
+              _currentMessageType = null;
+            } catch (e) {
+              // JSON 파싱에 실패한 경우 원본 내용 그대로 표시
+              final message = Message(
+                id: _currentMessageId!,
+                sessionId: session.id,
+                type: MessageType.tool_result,
+                title: chunk['metadata']?['tool_name'] as String?,
+                content: content,
+                timestamp: DateTime.now(),
+              );
+
+              session = _updateOrAddMessage(session, message);
+              _updateSessionInHistory(session);
+              // toolmessage 처리 후 상태 초기화
+              _currentMessageId = null;
+              _currentMessageType = null;
+            }
+            break;
+
+          case 'chunk':
+            if (_currentMessageType == null) {
+              // 일반 assistant 청크는 누적
+              currentContent += chunk['content'] as String? ?? '';
+              
+              // 누적된 내용으로 메시지 업데이트 또는 생성
+              final message = _createOrUpdateMessage(
+                sessionId: session.id,
+                userId: userId,
+                content: currentContent,
+                data: {'type': 'chunk'},
+                existingMessageId: _currentMessageId,
+              );
+
+              session = _updateOrAddMessage(
+                session,
+                message,
+                isUpdate: _currentMessageId != null,
+              );
+              _updateSessionInHistory(session);
+              
+              // 다음 assistant 청크를 위해 메시지 ID 저장
+              _currentMessageId = message.id;
+            } else if (_currentMessageType == 'toolmessage') {
+              // toolmessage는 이미 처리됨, 무시
+            } else if (_currentMessageType == 'tool_calls') {
+              // tool_calls의 추가 청크는 이전 메시지에 추가
+              try {
+                final existingMessage = session.messages.lastWhere(
+                  (m) => m.id == _currentMessageId && m.type == MessageType.tool_call,
+                );
+
+                final message = Message(
+                  id: existingMessage.id,
+                  sessionId: session.id,
+                  type: MessageType.tool_call,
+                  title: existingMessage.title,
+                  content: existingMessage.content + (chunk['content'] as String? ?? ''),
+                  timestamp: existingMessage.timestamp,
+                );
+
+                session = _updateOrAddMessage(session, message, isUpdate: true);
+                _updateSessionInHistory(session);
+              } catch (e) {
+                debugPrint('[ConversationService2] tool_calls 메시지 업데이트 실패: $e');
+              }
+            }
             break;
 
           case 'end':
-            // 스트림 종료 - 컨텍스트 저장 완료
+            // 남은 누적 내용이 있다면 메시지로 생성
+            if (currentContent.isNotEmpty) {
+              final message = _createOrUpdateMessage(
+                sessionId: session.id,
+                userId: userId,
+                content: currentContent,
+                data: {'type': 'chunk'},
+                existingMessageId: _currentMessageId,
+              );
+
+              session = _updateOrAddMessage(
+                session,
+                message,
+                isUpdate: _currentMessageId != null,
+              );
+              _updateSessionInHistory(session);
+              currentContent = '';
+            }
+
+            _currentMessageId = null;
+            _currentMessageType = null;
+
             debugPrint(
               '[ConversationService2] 스트림 종료, 컨텍스트 저장: ${chunk['context_saved']}',
             );
@@ -300,7 +423,19 @@ class ConversationService2 {
             break;
 
           case 'error':
-            // 오류 발생
+            _currentMessageId = null;
+            _currentMessageType = null;
+
+            final errorMessage = _createOrUpdateMessage(
+              sessionId: session.id,
+              userId: userId,
+              content: chunk['error'] as String? ?? '알 수 없는 오류가 발생했습니다.',
+              data: {'type': 'error'},
+            );
+
+            session = _updateOrAddMessage(session, errorMessage);
+            _updateSessionInHistory(session);
+
             debugPrint('[ConversationService2] ❌ 오류: ${chunk['error']}');
             throw Exception(chunk['error']);
 

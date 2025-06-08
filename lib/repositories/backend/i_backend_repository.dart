@@ -1,7 +1,6 @@
 import 'package:seobi_app/repositories/backend/models/user.dart';
 import 'package:seobi_app/repositories/backend/models/session.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
-import 'package:seobi_app/repositories/local_database/models/message_role.dart';
 
 //========================================
 // 사용자 인증 관련

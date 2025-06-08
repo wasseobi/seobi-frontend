@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import '../components/messages/message_list.dart';
-import '../components/messages/message_list_view_model.dart';
+import '../components/chat/message_list.dart';
 
 class ChatScreen extends StatefulWidget {
-  final MessageListViewModel? messageListViewModel;
-  
   const ChatScreen({
     super.key, 
-    this.messageListViewModel,
   });
 
   @override
@@ -21,6 +17,6 @@ class _ChatScreenState extends State<ChatScreen> with AutomaticKeepAliveClientMi
   @override
   Widget build(BuildContext context) {
     super.build(context);  // AutomaticKeepAliveClientMixin 사용 시 필수
-    return MessageList(viewModel: widget.messageListViewModel);
+    return MessageList();
   }
 }

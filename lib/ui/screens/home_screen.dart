@@ -5,7 +5,6 @@ import '../components/drawer/custom_drawer.dart';
 import '../components/auth/sign_in_bottom_sheet.dart';
 import '../../services/auth/auth_service.dart';
 import '../components/input_bar/input_bar.dart';
-import '../components/messages/message_list_view_model.dart';
 import 'chat_screen.dart';
 import 'box_screen.dart';
 import 'article_screen.dart';
@@ -27,9 +26,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _chatController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
-  // 메시지 리스트 ViewModel - 탭 전환 시에도 상태가 유지되도록 상위 위젯에서 관리
-  final MessageListViewModel _messageListViewModel = MessageListViewModel();
-  
   // InputBar 관련 높이를 동적으로 추적하기 위한 변수
   double _inputBarHeight = 64; // 기본값 설정
   @override
@@ -97,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [                        // 채팅 화면
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
-                          child: ChatScreen(messageListViewModel: _messageListViewModel),
+                          child: ChatScreen(),
                         ),
 
                         // 보관함 화면
@@ -144,7 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _pageController.dispose();
     _chatController.dispose();
     _focusNode.dispose();
-    _messageListViewModel.dispose(); // ViewModel 리소스도 해제
     super.dispose();
   }
 }
