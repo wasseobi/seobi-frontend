@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'message_styles.dart';
+import '../../common/relative_time.dart';
 
 class AssistantMessage extends StatelessWidget {
   final List<String> content;
+  final DateTime? timestamp;
 
   const AssistantMessage({
     super.key,
     required this.content,
+    this.timestamp,
   });
 
   @override
@@ -41,6 +44,16 @@ class AssistantMessage extends StatelessWidget {
             selectable: true,
             shrinkWrap: true,
           ),
+          if (timestamp != null) ...[
+            RelativeTime(
+              dateTime: timestamp!,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
         ],
       ),
     );

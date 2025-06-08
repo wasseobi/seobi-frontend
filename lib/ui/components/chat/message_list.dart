@@ -145,7 +145,7 @@ class _MessageListState extends State<MessageList> {
       case MessageType.user:
         return UserMessage(content: [message.content]);
       case MessageType.assistant:
-        return AssistantMessage(content: [message.content]);
+        return AssistantMessage(content: [message.content], timestamp: message.timestamp);
       case MessageType.tool_call:
         return ToolCallMessage(
           title: message.title ?? 'Unknown Tool',
