@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'tasks/task_card_list.dart';
+import 'tasks/task_card_list_view_model.dart';
 import 'schedules/schedule_card_list.dart';
 import 'schedules/schedule_card_list_view_model.dart';
 
 class BoxContent extends StatelessWidget {
+  final TaskCardListViewModel? taskViewModel;
   final ScheduleCardListViewModel? scheduleViewModel;
-  const BoxContent({super.key, this.scheduleViewModel});
+  const BoxContent({super.key, this.taskViewModel, this.scheduleViewModel});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +18,7 @@ class BoxContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: 20),
-            TaskCardList(width: double.infinity),
+            TaskCardList(width: double.infinity, viewModel: taskViewModel),
             SizedBox(height: 32),
             ScheduleCardList(
               width: double.infinity,

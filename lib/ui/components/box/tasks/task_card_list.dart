@@ -8,15 +8,22 @@ import 'task_card_list_view_model.dart';
 class TaskCardList extends StatefulWidget {
   final double? width;
   final double? height;
+  final TaskCardListViewModel? viewModel;
 
-  const TaskCardList({super.key, this.width, this.height});
+  const TaskCardList({super.key, this.width, this.height, this.viewModel});
 
   @override
   State<TaskCardList> createState() => _TaskCardListState();
 }
 
 class _TaskCardListState extends State<TaskCardList> {
-  final TaskCardListViewModel _viewModel = TaskCardListViewModel();
+  late final TaskCardListViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = widget.viewModel ?? TaskCardListViewModel();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +63,7 @@ class _TaskCardListState extends State<TaskCardList> {
                           child: TaskCard(
                             task: task,
                             onChanged: (value) {
-                              _viewModel.toggleTaskStatus(task.id);
+                              _viewModel.toggleTaskStatus(task.id, value);
                             },
                           ),
                         );
@@ -81,7 +88,7 @@ class _TaskCardListState extends State<TaskCardList> {
                         child: TaskCard(
                           task: task,
                           onChanged: (value) {
-                            _viewModel.toggleTaskStatus(task.id);
+                            _viewModel.toggleTaskStatus(task.id, value);
                           },
                         ),
                       );
