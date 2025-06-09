@@ -169,7 +169,7 @@ class ReportCard extends StatelessWidget {
           context,
           listen: false,
         );
-        viewModel.showReportBottomSheet(context);
+        viewModel.showReportBottomSheet(context, report.id);
       },
       child: buildCardContent(),
     );

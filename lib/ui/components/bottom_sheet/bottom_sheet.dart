@@ -6,14 +6,16 @@ import '../articles/insights/insight_article.dart';
 Future<void> showCommonBottomSheet({
   required BuildContext context,
   required ReportCardType type,
+  Map<String, dynamic>? content,
+  String? reportType,
 }) {
-  Widget content;
+  Widget content_widget;
   switch (type) {
     case ReportCardType.report:
-      content = const ReportArticle();
+      content_widget = ReportArticle(content: content, reportType: reportType);
       break;
     case ReportCardType.insight:
-      content = const InsightArticle();
+      content_widget = const InsightArticle();
       break;
   }
 
@@ -36,7 +38,7 @@ Future<void> showCommonBottomSheet({
               padding: const EdgeInsets.all(16),
               child: SingleChildScrollView(
                 controller: controller,
-                child: content,
+                child: content_widget,
               ),
             ),
       );

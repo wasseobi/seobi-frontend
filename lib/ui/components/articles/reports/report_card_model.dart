@@ -9,6 +9,7 @@ class ReportCardModel {
   final int activeDots;
   final double progress;
   final String? imageUrl;
+  final Map<String, dynamic>? content;
 
   const ReportCardModel({
     required this.id,
@@ -18,6 +19,7 @@ class ReportCardModel {
     this.activeDots = 3,
     this.progress = 0.0,
     this.imageUrl,
+    this.content,
   });
 
   /// Map에서 ReportCardModel 객체로 변환하는 팩토리 메소드
@@ -33,6 +35,7 @@ class ReportCardModel {
       activeDots: map['activeDots'] as int? ?? 3,
       progress: (map['progress'] as num?)?.toDouble() ?? 0.0,
       imageUrl: map['imageUrl']?.toString(),
+      content: map['content'] as Map<String, dynamic>?,
     );
   }
 
@@ -46,6 +49,7 @@ class ReportCardModel {
       'activeDots': activeDots,
       'progress': progress,
       'imageUrl': imageUrl,
+      'content': content,
     };
   }
 
@@ -58,6 +62,7 @@ class ReportCardModel {
     int? activeDots,
     double? progress,
     String? imageUrl,
+    Map<String, dynamic>? content,
   }) {
     return ReportCardModel(
       id: id ?? this.id,
@@ -67,6 +72,7 @@ class ReportCardModel {
       activeDots: activeDots ?? this.activeDots,
       progress: progress ?? this.progress,
       imageUrl: imageUrl ?? this.imageUrl,
+      content: content ?? this.content,
     );
   }
 }
