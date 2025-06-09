@@ -12,7 +12,11 @@ import '../../../../services/auth/auth_service.dart';
 class ReportCardListViewModel extends ChangeNotifier {
   final List<ReportCardModel> _reports = [];
   static const String _storageKey = 'report_cards_state';
-  bool _isLoading = false; // 로딩 상태 추가
+  bool _isLoading = false; // 전체 로딩 상태
+
+  // 개별 리포트 로딩 상태 추가
+  bool _isDailyLoading = false;
+  bool _isWeeklyLoading = false;
 
   // API 서비스 및 인증 서비스 인스턴스 추가
   final ReportApiService _apiService = ReportApiService();
@@ -20,7 +24,9 @@ class ReportCardListViewModel extends ChangeNotifier {
 
   /// Report 리스트 getter
   List<ReportCardModel> get reports => _reports;
-  bool get isLoading => _isLoading; // 로딩 상태 getter
+  bool get isLoading => _isLoading; // 전체 로딩 상태
+  bool get isDailyLoading => _isDailyLoading; // Daily 로딩 상태
+  bool get isWeeklyLoading => _isWeeklyLoading; // Weekly 로딩 상태
 
   /// 기본 생성자 - 새 리포트 생성 방식
   ReportCardListViewModel() {
@@ -59,11 +65,13 @@ class ReportCardListViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 새 리포트 생성 (옵션 A 구현) - 개별 처리 방식
+  /// 새 리포트 생성 (개선된 실시간 업데이트 방식)
   Future<void> _generateNewReports() async {
-    debugPrint('🚀 새 리포트 생성 시작');
+    debugPrint('🚀 새 리포트 생성 시작 - 실시간 업데이트 방식');
 
     _isLoading = true;
+    _isDailyLoading = true;
+    _isWeeklyLoading = true;
     notifyListeners();
 
     try {
@@ -80,53 +88,151 @@ class ReportCardListViewModel extends ChangeNotifier {
 
       debugPrint('📡 새 리포트 생성 API 호출 시작... User ID: $userId');
 
-      final List<Map<String, dynamic>> successfulReports = [];
+      // Daily와 Weekly를 병렬로 처리하되, 완료되는 즉시 UI 업데이트
 
-      // Daily 리포트 생성 (개별 처리)
-      try {
-        debugPrint('⏳ Daily 리포트 생성 중...');
-        final dailyReport = await _apiService.createDailyReport(
-          userId: userId,
-          authToken: authToken,
-        );
-        successfulReports.add(dailyReport);
-        debugPrint('✅ Daily 리포트 생성 완료: ${dailyReport.keys}');
-      } catch (e) {
-        debugPrint('❌ Daily 리포트 생성 실패: $e');
-        // Daily 실패해도 계속 진행
-      }
+      // Daily 리포트 생성 (비동기 즉시 처리)
+      _generateDailyReportAsync(userId, authToken);
 
-      // Weekly 리포트 생성 (개별 처리)
-      try {
-        debugPrint('⏳ Weekly 리포트 생성 중...');
-        final weeklyReport = await _apiService.createWeeklyReport(
-          userId: userId,
-          authToken: authToken,
-        );
-        successfulReports.add(weeklyReport);
-        debugPrint('✅ Weekly 리포트 생성 완료: ${weeklyReport.keys}');
-      } catch (e) {
-        debugPrint('❌ Weekly 리포트 생성 실패: $e');
-        // Weekly 실패해도 계속 진행
-      }
-
-      // 성공한 리포트가 있으면 업데이트
-      if (successfulReports.isNotEmpty) {
-        debugPrint('🎉 ${successfulReports.length}개 리포트 생성 성공');
-        _updateReportsWithGeneratedData(successfulReports);
-        await _saveReports();
-        debugPrint('💾 생성된 리포트 데이터 저장 완료');
-      } else {
-        debugPrint('⚠️ 모든 리포트 생성 실패 - 예시 데이터 사용');
-        _initializeReports();
-      }
+      // Weekly 리포트 생성 (비동기 즉시 처리)
+      _generateWeeklyReportAsync(userId, authToken);
     } catch (e) {
       debugPrint('❌ 리포트 생성 전체 실패: $e');
       _initializeReports(); // 실패 시 예시 데이터로 fallback
-    } finally {
+      _isDailyLoading = false;
+      _isWeeklyLoading = false;
       _isLoading = false;
       notifyListeners();
-      debugPrint('✅ 새 리포트 생성 프로세스 완료');
+    }
+
+    // 전체 로딩은 여기서 종료하지 않고, 개별 작업 완료 시 체크
+    debugPrint('✅ 새 리포트 생성 프로세스 시작 완료');
+  }
+
+  /// Daily 리포트 비동기 생성 및 즉시 업데이트
+  Future<void> _generateDailyReportAsync(
+    String userId,
+    String? authToken,
+  ) async {
+    try {
+      debugPrint('⏳ Daily 리포트 생성 중...');
+
+      final dailyReport = await _apiService.createDailyReport(
+        userId: userId,
+        authToken: authToken,
+      );
+
+      // 즉시 UI 업데이트
+      final dailyModel = ReportCardModel(
+        id:
+            dailyReport['id']?.toString() ??
+            'generated-daily-${DateTime.now().millisecondsSinceEpoch}',
+        type: ReportCardType.daily,
+        title: '오늘의 리포트',
+        subtitle: '방금 생성됨',
+        progress: 1.0, // 생성 완료
+        imageUrl: 'https://placehold.co/129x178',
+        content: dailyReport,
+      );
+
+      _updateSingleReport(dailyModel);
+      debugPrint('✅ Daily 리포트 생성 완료 및 UI 업데이트');
+    } catch (e) {
+      debugPrint('❌ Daily 리포트 생성 실패: $e');
+      // Daily 실패 시 해당 카드만 에러 상태로 표시
+      _updateDailyReportError();
+    } finally {
+      _isDailyLoading = false;
+      _checkAndUpdateOverallLoading(); // 전체 로딩 상태 체크
+    }
+  }
+
+  /// Weekly 리포트 비동기 생성 및 즉시 업데이트
+  Future<void> _generateWeeklyReportAsync(
+    String userId,
+    String? authToken,
+  ) async {
+    try {
+      debugPrint('⏳ Weekly 리포트 생성 중...');
+
+      final weeklyReport = await _apiService.createWeeklyReport(
+        userId: userId,
+        authToken: authToken,
+      );
+
+      // 즉시 UI 업데이트
+      final weeklyModel = ReportCardModel(
+        id:
+            weeklyReport['id']?.toString() ??
+            'generated-weekly-${DateTime.now().millisecondsSinceEpoch}',
+        type: ReportCardType.weekly,
+        title: '주간 리포트',
+        subtitle: '방금 생성됨',
+        activeDots: 7, // 생성 완료
+        content: weeklyReport,
+      );
+
+      _updateSingleReport(weeklyModel);
+      debugPrint('✅ Weekly 리포트 생성 완료 및 UI 업데이트');
+    } catch (e) {
+      debugPrint('❌ Weekly 리포트 생성 실패: $e');
+      // Weekly 실패 시 해당 카드만 에러 상태로 표시
+      _updateWeeklyReportError();
+    } finally {
+      _isWeeklyLoading = false;
+      _checkAndUpdateOverallLoading(); // 전체 로딩 상태 체크
+    }
+  }
+
+  /// 전체 로딩 상태 체크 및 업데이트
+  void _checkAndUpdateOverallLoading() {
+    // 모든 개별 로딩이 완료되면 전체 로딩도 완료
+    if (!_isDailyLoading && !_isWeeklyLoading) {
+      _isLoading = false;
+      debugPrint('🎉 모든 리포트 생성 작업 완료');
+      notifyListeners();
+    }
+  }
+
+  /// 단일 리포트 업데이트 (즉시 UI 반영)
+  void _updateSingleReport(ReportCardModel newReport) {
+    final existingIndex = _reports.indexWhere((r) => r.type == newReport.type);
+    if (existingIndex != -1) {
+      _reports[existingIndex] = newReport;
+      debugPrint('📋 ${newReport.type.name} 리포트 즉시 업데이트 완료');
+    } else {
+      _reports.add(newReport);
+      debugPrint('📋 ${newReport.type.name} 리포트 새로 추가');
+    }
+
+    notifyListeners(); // 즉시 UI 업데이트
+    _saveReports(); // 즉시 저장
+  }
+
+  /// Daily 리포트 에러 상태 업데이트
+  void _updateDailyReportError() {
+    final dailyIndex = _reports.indexWhere(
+      (r) => r.type == ReportCardType.daily,
+    );
+    if (dailyIndex != -1) {
+      _reports[dailyIndex] = _reports[dailyIndex].copyWith(
+        subtitle: '생성 실패',
+        progress: 0.0, // 실패 표시
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Weekly 리포트 에러 상태 업데이트
+  void _updateWeeklyReportError() {
+    final weeklyIndex = _reports.indexWhere(
+      (r) => r.type == ReportCardType.weekly,
+    );
+    if (weeklyIndex != -1) {
+      _reports[weeklyIndex] = _reports[weeklyIndex].copyWith(
+        subtitle: '생성 실패',
+        activeDots: 0, // 실패 표시
+      );
+      notifyListeners();
     }
   }
 
@@ -168,8 +274,9 @@ class ReportCardListViewModel extends ChangeNotifier {
   ReportCardModel _convertGeneratedReportToModel(
     Map<String, dynamic> generatedReport,
   ) {
-    // createDailyReport/createWeeklyReport API 응답 구조에 맞게 변환
+    // API 호출 시 추가한 타입 정보 사용
     final String? reportType =
+        generatedReport['_generatedType']?.toString().toLowerCase() ??
         generatedReport['type']?.toString().toLowerCase();
     final Map<String, dynamic>? content =
         generatedReport['content'] ?? generatedReport;
@@ -178,7 +285,7 @@ class ReportCardListViewModel extends ChangeNotifier {
       '생성된 리포트 변환 중 - Type: $reportType, Content: ${content != null ? "있음" : "없음"}',
     );
 
-    if (reportType == 'daily' || content?['type'] == 'daily') {
+    if (reportType == 'daily') {
       return ReportCardModel(
         id:
             generatedReport['id']?.toString() ??
@@ -190,7 +297,7 @@ class ReportCardListViewModel extends ChangeNotifier {
         imageUrl: 'https://placehold.co/129x178',
         content: content,
       );
-    } else if (reportType == 'weekly' || content?['type'] == 'weekly') {
+    } else if (reportType == 'weekly') {
       return ReportCardModel(
         id:
             generatedReport['id']?.toString() ??

@@ -14,6 +14,20 @@ class ReportCard extends StatelessWidget {
 
   const ReportCard({super.key, required this.report});
 
+  /// 개별 카드의 로딩 상태 판별 로직
+  bool _isCardLoading() {
+    if (report.type == ReportCardType.daily) {
+      // Daily: progress가 0이면서 subtitle이 '생성 실패'가 아니면 로딩 중
+      return report.progress == 0.0 && report.subtitle != '생성 실패';
+    } else if (report.type == ReportCardType.weekly) {
+      // Weekly: activeDots가 0이면서 subtitle이 '생성 실패'가 아니면 로딩 중
+      return report.activeDots == 0 && report.subtitle != '생성 실패';
+    } else {
+      // Monthly: 아직 구현 안됨
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Get screen width for relative sizing
@@ -76,8 +90,7 @@ class ReportCard extends StatelessWidget {
                   ReportCardProgressRing(
                     progress: report.progress,
                     size: progressRingSize,
-                    isLoading:
-                        Provider.of<ReportCardListViewModel>(context).isLoading,
+                    isLoading: _isCardLoading(), // 개별 카드 로딩 상태 사용
                   ),
                   SizedBox(height: spacing),
                   Text(
@@ -129,12 +142,7 @@ class ReportCard extends StatelessWidget {
                     containerWidth * ReportCardDimensions.smallDotSizePercent,
                 spacing:
                     containerWidth * ReportCardDimensions.dotsSpacingPercent,
-                isLoading:
-                    report.type == ReportCardType.weekly
-                        ? Provider.of<ReportCardListViewModel>(
-                          context,
-                        ).isLoading
-                        : false,
+                isLoading: _isCardLoading(), // 개별 카드 로딩 상태 사용
               ),
               SizedBox(
                 height:

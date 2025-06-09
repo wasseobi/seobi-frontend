@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class ReportApiService {
   // 환경변수를 기반으로 백엔드 URL 결정
@@ -116,20 +117,37 @@ class ReportApiService {
     String? authToken,
   }) async {
     try {
+      debugPrint('📤 Daily Report 요청 시작');
+      debugPrint('📤 URL: $baseUrl/report/d');
+      debugPrint(
+        '📤 Headers: ${_getHeaders(userId: userId, authToken: authToken)}',
+      );
+
       final response = await http.post(
         Uri.parse('$baseUrl/report/d'),
         headers: _getHeaders(userId: userId, authToken: authToken),
       );
 
+      debugPrint('📥 Daily Response Status: ${response.statusCode}');
+      debugPrint('📥 Daily Response Headers: ${response.headers}');
+      debugPrint('📥 Daily Response Body Length: ${response.body.length}');
+      debugPrint(
+        '📥 Daily Response Body: ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}...',
+      );
+
       if (response.statusCode == 201) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        final result = jsonDecode(response.body) as Map<String, dynamic>;
+        debugPrint('✅ Daily Report JSON 파싱 성공: ${result.keys}');
+        return result;
       } else {
+        debugPrint('❌ Daily Report 상태 코드 오류: ${response.statusCode}');
         throw Exception(
-          'Failed to create daily report: ${response.statusCode}',
+          'Failed to create daily report: ${response.statusCode}\nBody: ${response.body}',
         );
       }
     } catch (e) {
-      throw Exception('Error creating daily report: $e');
+      debugPrint('💥 Daily Report 생성 상세 에러: $e');
+      rethrow;
     }
   }
 
