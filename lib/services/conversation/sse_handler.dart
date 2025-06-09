@@ -10,7 +10,6 @@ class SseHandler {
   final HistoryService _historyService;
   // TTS 서비스를 직접 생성
   final TtsService _ttsService = TtsService();
-  bool _ttsInitialized = false;
 
   // 현재 처리 중인 메시지의 ID
   String? _currentMessageId;
@@ -23,25 +22,10 @@ class SseHandler {
   final Map<int, String> _indexToMessageId = {};
 
   // 생성자 - History Service만 주입받음
-  SseHandler(this._historyService) {
-    // 초기화 메소드 호출
-    _initializeTts();
-  }
-
-  // TTS 서비스 초기화
-  Future<void> _initializeTts() async {
-    try {
-      await _ttsService.initialize();
-      _ttsInitialized = true;
-      debugPrint('[SseHandler] TTS 서비스 초기화 완료');
-    } catch (e) {
-      debugPrint('[SseHandler] TTS 서비스 초기화 실패: $e');
-      _ttsInitialized = false;
-    }
-  }
+  SseHandler(this._historyService);
 
   /// SSE 이벤트 데이터를 처리하는 메서드
-  void handleEvent(Map<String, dynamic> data, String sessionId, String userId) {
+  void handleEvent(dynamic data, String sessionId, String userId) {
     final type = data['type'] as String;
 
     switch (type) {

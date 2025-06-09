@@ -401,194 +401,6 @@ class HttpHelper {
     }
   }
 
-  /// POST 요청을 보내고 스트림 응답을 받습니다.
-  Stream<Map<String, dynamic>> postStream(
-    String path,
-    Map<String, dynamic> body, {
-    Map<String, String>? headers,
-    int maxRetries = 1, // 스트림은 재시도 횟수를 줄임
-  }) async* {
-    Exception? lastException;
-
-    for (int attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        if (attempt > 0) {
-          debugPrint('[HttpHelper] 스트림 재연결 시도 $attempt/$maxRetries');
-          await Future.delayed(Duration(milliseconds: 1000 * attempt));
-        }
-
-        final uri = _buildUri(path);
-        final requestHeaders = {
-          ..._getHeaders(headers),
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        };
-
-        debugPrint('[HttpHelper] 스트리밍 요청 시작: $uri');
-        debugPrint('[HttpHelper] 헤더: $requestHeaders');
-        debugPrint('[HttpHelper] 요청 본문: $body');
-
-        final request = http.Request('POST', uri);
-        request.headers.addAll(requestHeaders);
-        request.body = jsonEncode(body);
-
-        final response = await http.Client().send(request);
-
-        if (response.statusCode != 200) {
-          throw Exception(
-            'status ${response.statusCode}: ${response.reasonPhrase}',
-          );
-        }
-
-        debugPrint('[HttpHelper] 스트림 연결 성공');
-        String buffer = '';
-
-        await for (final chunk in response.stream.transform(utf8.decoder)) {
-          buffer += chunk;
-          debugPrint('[HttpHelper] 데이터 수신: $chunk');
-
-          // SSE 형식 처리 (data: {...} 형태)
-          while (buffer.contains('\n')) {
-            final index = buffer.indexOf('\n');
-            final line = buffer.substring(0, index).trim();
-            buffer = buffer.substring(index + 1);
-
-            if (line.startsWith('data: ')) {
-              final jsonStr = line.substring(6).trim();
-              if (jsonStr.isEmpty || jsonStr == '[DONE]') {
-                // [DONE] 신호 처리
-                if (jsonStr == '[DONE]') {
-                  debugPrint('[HttpHelper] 스트림 종료 신호 수신');
-                }
-                continue;
-              }
-
-              try {
-                final Map<String, dynamic> data = jsonDecode(jsonStr);
-                debugPrint('[HttpHelper] 파싱된 데이터: $data');
-
-                // 실제 백엔드 응답 타입에 맞춘 처리
-                final type = data['type'] as String?;
-                switch (type) {
-                  case 'start':
-                    // 스트리밍 시작 신호
-                    yield {
-                      'type': 'start',
-                      'user_message': data['user_message'],
-                    };
-                    break;
-
-                  case 'tool_calls':
-                    // AI가 도구(검색 등)를 사용하는 신호
-                    yield {
-                      'type': 'tool_calls',
-                      'tool_calls': data['tool_calls'],
-                      'metadata': data['metadata'],
-                    };
-                    break;
-
-                  case 'toolmessage':
-                    // 도구 실행 결과
-                    yield {
-                      'type': 'toolmessage',
-                      'content': data['content'],
-                      'metadata': data['metadata'],
-                    };
-                    break;
-
-                  case 'chunk':
-                    // AI 응답 텍스트 청크 (메타데이터 포함)
-                    if (data['content'] != null) {
-                      yield {
-                        'type': 'chunk',
-                        'content': data['content'],
-                        'metadata': data['metadata'], // LangGraph 메타데이터 보존
-                      };
-                    }
-                    break;
-
-                  case 'end':
-                    // 스트리밍 종료 신호
-                    yield {
-                      'type': 'end',
-                      'context_saved': data['context_saved'] ?? false,
-                    };
-                    break;
-
-                  case 'answer':
-                    // 전체 답변 (있는 경우)
-                    if (data['answer'] != null) {
-                      yield {'type': 'answer', 'answer': data['answer']};
-                    }
-                    break;
-
-                  default:
-                    // 알 수 없는 타입은 그대로 전달 (향후 확장성 고려)
-                    debugPrint('[HttpHelper] 알 수 없는 타입: $type');
-                    yield data;
-                    break;
-                }
-              } catch (e) {
-                debugPrint('[HttpHelper] JSON 파싱 오류: $e');
-                continue;
-              }
-            }
-          }
-        }
-
-        // 버퍼에 남은 데이터 처리
-        if (buffer.isNotEmpty && buffer.startsWith('data: ')) {
-          final jsonStr = buffer.substring(6).trim();
-          if (jsonStr.isNotEmpty && jsonStr != '[DONE]') {
-            try {
-              final Map<String, dynamic> data = jsonDecode(jsonStr);
-              final type = data['type'] as String?;
-
-              if (type == 'chunk' && data['content'] != null) {
-                yield {
-                  'type': 'chunk',
-                  'content': data['content'],
-                  'metadata': data['metadata'],
-                };
-              } else if (type == 'end') {
-                yield {
-                  'type': 'end',
-                  'context_saved': data['context_saved'] ?? false,
-                };
-              }
-            } catch (e) {
-              debugPrint('[HttpHelper] 최종 청크 파싱 오류: $e');
-            }
-          }
-        }
-
-        // 성공적으로 완료되면 반복문을 빠져나감
-        return;
-      } catch (e) {
-        lastException = e is Exception ? e : Exception(e.toString());
-
-        // 재시도 가능한 스트림 오류인지 확인
-        if (_isRetryableStreamError(e) && attempt < maxRetries) {
-          debugPrint('[HttpHelper] 스트림 재시도 가능한 오류: $e');
-          continue;
-        }
-
-        debugPrint('[HttpHelper] 스트리밍 오류: $e');
-
-        // 연결 끊김 오류에 대한 구체적인 처리
-        if (e.toString().contains('Connection closed') ||
-            e.toString().contains('ClientException')) {
-          throw Exception('스트림 연결이 끊어졌습니다 - 네트워크 상태를 확인해주세요');
-        }
-
-        rethrow;
-      }
-    }
-
-    throw lastException ?? Exception('스트림 연결에 실패했습니다');
-  }
-
   /// 스트림 재시도 가능한 오류인지 확인
   bool _isRetryableStreamError(dynamic error) {
     final errorString = error.toString().toLowerCase();
@@ -659,10 +471,16 @@ class HttpHelper {
               jsonStr = line.substring(6).trim();
             }
 
-            // [DONE] 또는 빈 문자열 건너뛰기
-            if (jsonStr.isEmpty || jsonStr == '[DONE]') {
+            if (jsonStr.isEmpty) {
               continue;
             }
+
+            if (jsonStr == '[DONE]') {
+              debugPrint('[HttpHelper] SSE 스트림 종료 신호 수신');
+              yield {'type': 'done'};
+              continue;
+            }
+
             try {
               final dynamic jsonData = jsonDecode(jsonStr);
               debugPrint('[HttpHelper] 파싱된 청크: $jsonData');
@@ -681,6 +499,16 @@ class HttpHelper {
             jsonStr = jsonStr.substring(6).trim();
           }
 
+          if (jsonStr.isEmpty) {
+            continue;
+          }
+
+          if (jsonStr == '[DONE]') {
+            debugPrint('[HttpHelper] SSE 스트림 종료 신호 수신');
+            yield {'type': 'done'};
+            continue;
+          }
+          
           if (jsonStr.isNotEmpty && jsonStr != '[DONE]') {
             try {
               final dynamic jsonData = jsonDecode(jsonStr);
