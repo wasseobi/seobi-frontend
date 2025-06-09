@@ -129,7 +129,8 @@ class TtsService {
     debugPrint('[TtsService] 🎯 큐에서 텍스트 제거 완료 - 남은 큐 크기: ${_textQueue.length}');
 
     _isPlaying = true;
-    _isCompleted = false; // 새 재생 시작 시 완료 플래그 리셋    debugPrint(
+    _isCompleted = false; // 새 재생 시작 시 완료 플래그 리셋
+    debugPrint(
       '[TtsService] 다음 텍스트 재생 시작: "${_currentText!.length > 50 ? '${_currentText!.substring(0, 50)}...' : _currentText!}"',
     );
 
