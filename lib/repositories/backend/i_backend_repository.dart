@@ -34,7 +34,7 @@ abstract class IBackendRepository {
   });
   Future<List<Message>> getMessagesBySessionId(String sessionId);
   Future<List<Message>> getMessagesByUserId(String userId);
-  Stream<Map<String, dynamic>> postSendMessage({
+  Stream<dynamic> postSendMessage({
     required String sessionId,
     required String userId,
     required String content,

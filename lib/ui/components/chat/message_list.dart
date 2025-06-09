@@ -130,7 +130,7 @@ class _MessageListState extends State<MessageList> {
       itemCount: messages.length + (pendingMessage != null ? 1 : 0),
       itemBuilder: (context, index) {
         if (pendingMessage != null && index == 0) {
-          return UserMessage(content: [pendingMessage]);
+          return UserMessage(content: [pendingMessage], isPending: true);
         }
 
         final actualIndex = pendingMessage != null ? index - 1 : index;
