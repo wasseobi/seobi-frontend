@@ -164,7 +164,7 @@ class BackendRepository implements IBackendRepository {
   }
 
   @override
-  Stream<Map<String, dynamic>> postSendMessage({
+  Stream<dynamic> postSendMessage({
     required String sessionId,
     required String userId,
     required String content,

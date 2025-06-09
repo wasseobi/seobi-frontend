@@ -7,6 +7,7 @@ class FoldableMessage extends StatefulWidget {
   final List<String> content;
   final IconData titleIcon;
   final bool isError;
+  final Widget Function(List<String>)? customContentBuilder;
   
   const FoldableMessage({
     super.key,
@@ -14,6 +15,7 @@ class FoldableMessage extends StatefulWidget {
     required this.content,
     required this.titleIcon,
     this.isError = false,
+    this.customContentBuilder,
   });
 
   @override
@@ -76,20 +78,21 @@ class _FoldableMessageState extends State<FoldableMessage> {
                 visible: _isExpanded,
                 maintainState: true,
                 maintainAnimation: true,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: widget.content.map((text) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        text,
-                        style: MessageStyles.monospaceTextStyle.copyWith(
-                          color: widget.isError ? Colors.red.shade700 : null,
+                child: Padding(                  padding: const EdgeInsets.only(top: 12),
+                  child: widget.customContentBuilder != null
+                      ? widget.customContentBuilder!(widget.content)
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: widget.content.map((text) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              text,
+                              style: MessageStyles.monospaceTextStyle.copyWith(
+                                color: widget.isError ? Colors.red.shade700 : null,
+                              ),
+                            ),
+                          )).toList(),
                         ),
-                      ),
-                    )).toList(),
-                  ),
                 ),
               ),
             ),

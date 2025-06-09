@@ -96,6 +96,25 @@ class Message {
     };
   }
 
+  /// 복사본을 생성하며 일부 속성을 변경
+  Message copyWith({
+    String? id,
+    String? sessionId,
+    MessageType? type,
+    String? Function()? title,
+    String? content,
+    DateTime? timestamp,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      type: type ?? this.type,
+      title: title != null ? title() : this.title,
+      content: content ?? this.content,
+      timestamp: timestamp ?? this.timestamp,
+    );
+  }
+
   @override
   String toString() {
     return 'Message{id: $id, sessionId: $sessionId, type: $type, title: $title, content: $content, timestamp: $timestamp}';
