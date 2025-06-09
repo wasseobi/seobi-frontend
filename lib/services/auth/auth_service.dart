@@ -24,6 +24,8 @@ class AuthService extends ChangeNotifier {
   Future<String?> get accessToken =>
       Future.value(_storage.getString('accessToken'));
 
+  bool _isInitialized = false;
+
   Future<SeobiUser?> getUserInfo() async {
     if (!isLoggedIn) return null;
 
@@ -37,15 +39,17 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> init() async {
+    if (_isInitialized) return;
+
     await _storage.init();
     if (isLoggedIn) {
-      // await signIn(silently: true);
       debugPrint('로그인 유지되는 중');
     }
 
-    // TODO: 아래 디버그 코드를 지우세요.
     final user = await getUserInfo();
     debugPrint('[JWT] ${user?.accessToken}');
+
+    _isInitialized = true;
   }
 
   Future<AuthResult> signIn({bool silently = false}) async {
@@ -63,7 +67,9 @@ class AuthService extends ChangeNotifier {
         return AuthResult.failure('구글 사용자 정보가 없습니다.');
       }
       try {
-        debugPrint('[Google Sign In] ${googleUser.email} ${googleUser.displayName}');
+        debugPrint(
+          '[Google Sign In] ${googleUser.email} ${googleUser.displayName}',
+        );
         final user = await _backend.postUserLogin(
           googleUser.email,
           googleUser.displayName,
@@ -75,7 +81,7 @@ class AuthService extends ChangeNotifier {
           backendUser: user,
         );
         await _saveUserInfo(seobiUser);
-        
+
         // 사용자 정보 저장 후 상태 변화 알림
         notifyListeners();
       } catch (error) {
@@ -120,11 +126,11 @@ class AuthService extends ChangeNotifier {
   @override
   Future<void> dispose() async {
     debugPrint('[AuthService] 🧹 리소스 정리 시작');
-    
+
     try {
       // 구글 로그인 정리
       await _googleSignIn.signOut();
-      
+
       // 로컬 스토리지 정리
       await _storage.remove('isLoggedIn');
       await _storage.remove('email');
@@ -132,10 +138,10 @@ class AuthService extends ChangeNotifier {
       await _storage.remove('photoUrl');
       await _storage.remove('userId');
       await _storage.remove('accessToken');
-      
+
       // 부모 클래스의 dispose 호출
       super.dispose();
-      
+
       debugPrint('[AuthService] ✅ 리소스 정리 완료');
     } catch (e) {
       debugPrint('[AuthService] ⚠️ 리소스 정리 실패: $e');

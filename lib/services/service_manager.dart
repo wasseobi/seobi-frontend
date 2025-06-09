@@ -31,7 +31,7 @@ class ServiceManager {
 
       // STT 서비스 초기화
       try {
-        final sttService = STTService();
+        final sttService = SttService();
         await sttService.initialize();
         debugPrint('[ServiceManager] ✅ STT 서비스 초기화 완료');
       } catch (e) {
@@ -79,7 +79,7 @@ class ServiceManager {
 
       // STT 서비스 정리
       try {
-        final sttService = STTService();
+        final sttService = SttService();
         await sttService.dispose();
         debugPrint('[ServiceManager] ✅ STT 서비스 정리 완료');
       } catch (e) {
