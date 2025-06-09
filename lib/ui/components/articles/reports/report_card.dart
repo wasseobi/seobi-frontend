@@ -76,6 +76,8 @@ class ReportCard extends StatelessWidget {
                   ReportCardProgressRing(
                     progress: report.progress,
                     size: progressRingSize,
+                    isLoading:
+                        Provider.of<ReportCardListViewModel>(context).isLoading,
                   ),
                   SizedBox(height: spacing),
                   Text(
@@ -92,12 +94,6 @@ class ReportCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    'Daily Report',
-                    style: RadioCanadaStyles.regular32.copyWith(
-                      color: AppColors.main80,
-                    ),
-                  ),
                 ],
               ),
             ],

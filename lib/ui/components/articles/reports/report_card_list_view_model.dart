@@ -12,6 +12,7 @@ import '../../../../services/auth/auth_service.dart';
 class ReportCardListViewModel extends ChangeNotifier {
   final List<ReportCardModel> _reports = [];
   static const String _storageKey = 'report_cards_state';
+  bool _isLoading = false; // 로딩 상태 추가
 
   // API 서비스 및 인증 서비스 인스턴스 추가
   final ReportApiService _apiService = ReportApiService();
@@ -19,16 +20,43 @@ class ReportCardListViewModel extends ChangeNotifier {
 
   /// Report 리스트 getter
   List<ReportCardModel> get reports => _reports;
+  bool get isLoading => _isLoading; // 로딩 상태 getter
 
   /// 기본 생성자 - 항상 최신 API 데이터 우선
   ReportCardListViewModel() {
     debugPrint('🏗️ ReportCardListViewModel 생성자 - API 우선 모드');
+    _loadDefaultCards();
     refreshReports(); // SharedPreferences 대신 API 우선
   }
 
-  /// 특정 Report 데이터로 초기화하는 생성자
-  ReportCardListViewModel.withReports(List<ReportCardModel> reports) {
-    _reports.addAll(reports);
+  /// 기본 로딩 카드들을 먼저 표시
+  void _loadDefaultCards() {
+    debugPrint('📋 기본 카드 로드');
+    _reports.clear();
+    _reports.addAll([
+      const ReportCardModel(
+        id: 'loading_daily',
+        type: ReportCardType.daily,
+        title: '오늘의 리포트',
+        subtitle: '최신 업데이트됨',
+        progress: 0.0, // 로딩 중에는 0으로 설정
+      ),
+      const ReportCardModel(
+        id: 'loading_weekly',
+        type: ReportCardType.weekly,
+        title: '주간 리포트',
+        subtitle: '데이터 준비 중',
+        activeDots: 0,
+      ),
+      const ReportCardModel(
+        id: 'loading_monthly',
+        type: ReportCardType.monthly,
+        title: '월간 리포트',
+        subtitle: '데이터 준비 중',
+        activeDots: 0,
+      ),
+    ]);
+    notifyListeners();
   }
 
   /// 저장된 Report 상태 불러오기 (API 연동 추가)
@@ -124,7 +152,7 @@ class ReportCardListViewModel extends ChangeNotifier {
       'API 응답 변환 중 - Type: $type, Content: ${content != null ? "있음" : "없음"}',
     );
 
-    // 타입별 기본 설정 (content 포함)
+    // 타입별 기본 설정 (content 포함) - 완료 시 progress를 1.0(100%)으로 설정
     switch (type) {
       case 'daily':
         return ReportCardModel(
@@ -132,7 +160,7 @@ class ReportCardListViewModel extends ChangeNotifier {
           type: ReportCardType.daily,
           title: '오늘의 리포트',
           subtitle: '최신 업데이트됨',
-          progress: 0.75,
+          progress: 1.0, // 완료 시 100%로 설정
           imageUrl: 'https://placehold.co/129x178',
           content: content, // content 필드 추가
         );
@@ -142,7 +170,7 @@ class ReportCardListViewModel extends ChangeNotifier {
           type: ReportCardType.weekly,
           title: '주간 리포트',
           subtitle: '이번 주 요약',
-          activeDots: 5,
+          activeDots: 7, // 완료 시 모든 dot 활성화
           content: content, // content 필드 추가
         );
       case 'monthly':
@@ -151,7 +179,7 @@ class ReportCardListViewModel extends ChangeNotifier {
           type: ReportCardType.monthly,
           title: '월간 리포트',
           subtitle: '이번 달 요약',
-          activeDots: 3,
+          activeDots: 4, // 완료 시 모든 dot 활성화
           content: content, // content 필드 추가
         );
       default:
@@ -160,7 +188,7 @@ class ReportCardListViewModel extends ChangeNotifier {
           type: ReportCardType.daily,
           title: title,
           subtitle: '업데이트됨',
-          progress: 0.5,
+          progress: 1.0, // 완료 시 100%로 설정
           content: content, // content 필드 추가
         );
     }
@@ -179,7 +207,7 @@ class ReportCardListViewModel extends ChangeNotifier {
           type: ReportCardType.daily,
           title: '오늘의 리포트',
           subtitle: '데이터 준비 중',
-          progress: 0.0,
+          progress: 1.0, // 완료 시 100%
         ),
       );
     }
@@ -191,7 +219,7 @@ class ReportCardListViewModel extends ChangeNotifier {
           type: ReportCardType.weekly,
           title: '주간 리포트',
           subtitle: '데이터 준비 중',
-          activeDots: 2,
+          activeDots: 7, // 완료 시 모든 dot
         ),
       );
     }
@@ -203,7 +231,7 @@ class ReportCardListViewModel extends ChangeNotifier {
           type: ReportCardType.monthly,
           title: '월간 리포트',
           subtitle: '데이터 준비 중',
-          activeDots: 1,
+          activeDots: 4, // 완료 시 모든 dot
         ),
       );
     }
@@ -261,9 +289,69 @@ class ReportCardListViewModel extends ChangeNotifier {
 
   /// 리포트 목록 새로고침 (API 우선)
   Future<void> refreshReports() async {
-    debugPrint('🔄 refreshReports() - 강제 API 호출');
-    _reports.clear();
-    await _loadFromApi();
+    debugPrint('🔄 refreshReports() 시작 - API 우선 호출');
+
+    // 로딩 시작
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // AuthService에서 사용자 정보 가져오기
+      final authService = AuthService();
+      final userId = authService.userId;
+      final authToken = await authService.accessToken;
+
+      debugPrint(
+        '👤 사용자 정보: userId=$userId, token=${authToken != null ? "있음" : "없음"}',
+      );
+
+      if (userId != null) {
+        debugPrint('🌐 API 호출 시작');
+        final response = await _apiService.getAllReports(
+          userId: userId,
+          authToken: authToken,
+        );
+
+        if (response.isNotEmpty) {
+          debugPrint('✅ API 응답: ${response.length}개 리포트');
+
+          // 기존 카드는 유지하고 실제 데이터로 업데이트
+          for (var reportData in response) {
+            final model = _convertApiResponseToModel(reportData);
+
+            // 같은 타입의 기존 카드를 찾아서 교체
+            final existingIndex = _reports.indexWhere(
+              (r) => r.type == model.type,
+            );
+            if (existingIndex != -1) {
+              _reports[existingIndex] = model;
+            } else {
+              _reports.add(model);
+            }
+            debugPrint(
+              '📋 리포트 업데이트: ${model.title}, Content: ${model.content != null ? "있음" : "없음"}',
+            );
+          }
+
+          await _saveReports();
+          debugPrint('💾 리포트 데이터 저장 완료');
+        } else {
+          debugPrint('⚠️ API 응답이 비어있음 - 예시 데이터 로드');
+          _loadExampleReports();
+        }
+      } else {
+        debugPrint('❌ 사용자 ID 없음 - 예시 데이터 로드');
+        _loadExampleReports();
+      }
+    } catch (e) {
+      debugPrint('💥 API 호출 실패: $e - 예시 데이터 로드');
+      _loadExampleReports();
+    } finally {
+      // 로딩 완료
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('✅ refreshReports() 완료');
+    }
   }
 
   /// Report 상태 저장
@@ -289,7 +377,7 @@ class ReportCardListViewModel extends ChangeNotifier {
         type: ReportCardType.daily,
         title: '오늘의 리포트',
         subtitle: '6시간 후 업데이트',
-        progress: 0.75,
+        progress: 1.0, // 완료 시 100%
         imageUrl: 'https://placehold.co/129x178',
       ),
       ReportCardModel(
@@ -297,14 +385,14 @@ class ReportCardListViewModel extends ChangeNotifier {
         type: ReportCardType.weekly,
         title: '주간 리포트',
         subtitle: '5일 후 업데이트',
-        activeDots: 4,
+        activeDots: 7, // 완료 시 모든 dot
       ),
       ReportCardModel(
         id: '3',
         type: ReportCardType.monthly,
         title: '월간 리포트',
         subtitle: '23일 후 업데이트',
-        activeDots: 2,
+        activeDots: 4, // 완료 시 모든 dot
       ),
     ]);
     notifyListeners();
@@ -389,5 +477,38 @@ class ReportCardListViewModel extends ChangeNotifier {
       reportType:
           selectedReport.type.toString().split('.').last, // enum을 문자열로 변환
     );
+  }
+
+  /// 예시 Report 데이터 로드
+  void _loadExampleReports() {
+    debugPrint('📝 예시 데이터로 업데이트');
+    // 카드를 완전히 교체하지 않고 업데이트
+    for (int i = 0; i < _reports.length; i++) {
+      final existingReport = _reports[i];
+      _reports[i] = ReportCardModel(
+        id: 'example_${existingReport.type.toString().split('.').last}',
+        type: existingReport.type,
+        title: existingReport.title,
+        subtitle:
+            existingReport.type == ReportCardType.daily
+                ? '오늘의 활동 요약'
+                : existingReport.subtitle,
+        progress:
+            existingReport.type == ReportCardType.daily
+                ? 1.0 // 완료 시 100%
+                : existingReport.progress,
+        activeDots:
+            existingReport.type != ReportCardType.daily
+                ? (existingReport.type == ReportCardType.weekly
+                    ? 7
+                    : 4) // 완료 시 모든 dot
+                : existingReport.activeDots,
+        imageUrl:
+            existingReport.type == ReportCardType.daily
+                ? 'https://example.com/daily_image.jpg'
+                : null,
+      );
+    }
+    notifyListeners();
   }
 }
