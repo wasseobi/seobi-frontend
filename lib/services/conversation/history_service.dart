@@ -252,6 +252,51 @@ class HistoryService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 메시지를 세션에 추가
+  void addMessageToSession(Message message) {
+    final sessionId = message.sessionId;
+    final session = getSessionById(sessionId);
+    
+    if (session != null) {
+      final updatedMessages = [...session.messages, message];
+      final updatedSession = session.copyWith(messages: updatedMessages);
+      updateSession(updatedSession);
+      debugPrint('[HistoryService] 메시지 추가: ${message.id} → ${sessionId}');
+    }
+  }
+
+  /// 특정 메시지 ID로 메시지 찾기
+  Message? getMessageById(String messageId) {
+    for (final session in _sessions) {
+      try {
+        return session.messages.firstWhere((message) => message.id == messageId);
+      } catch (e) {
+        // 해당 세션에서 메시지를 찾지 못한 경우 다음 세션 검색
+        continue;
+      }
+    }
+    return null;
+  }
+
+  /// 세션의 특정 메시지 업데이트
+  void updateMessageInSession(Message updatedMessage) {
+    final sessionId = updatedMessage.sessionId;
+    final session = getSessionById(sessionId);
+    
+    if (session != null) {
+      final updatedMessages = session.messages.map((message) {
+        if (message.id == updatedMessage.id) {
+          return updatedMessage;
+        }
+        return message;
+      }).toList();
+      
+      final updatedSession = session.copyWith(messages: updatedMessages);
+      updateSession(updatedSession);
+      debugPrint('[HistoryService] 메시지 업데이트: ${updatedMessage.id} ($sessionId)');
+    }
+  }
+
   /// 세션 리스트 getter
   List<Session> get sessions => List.unmodifiable(_sessions);
 
