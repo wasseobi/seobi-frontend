@@ -3,7 +3,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 typedef OnRecognitionResultCallback = void Function(String text, bool isFinal);
 
-class STTService {
+class SttService {
   final stt.SpeechToText _speech = stt.SpeechToText();
 
   Future<bool> initialize() async {

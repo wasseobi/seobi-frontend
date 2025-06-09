@@ -4,18 +4,54 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 
+import 'package:seobi_app/services/tts/clean_text.dart';
+
+/// TTS 서비스 상태 열거형
+enum TtsState {
+  /// 대기 상태
+  idle,
+
+  /// 재생 중 상태
+  playing,
+}
+
+/// TTS 서비스 클래스
+///
+/// 음성 합성 서비스를 제공하며 싱글톤 패턴으로 구현됨
 class TtsService {
+  // 싱글톤 인스턴스
+  static TtsService? _instance;
+
+  // 싱글톤 인스턴스 접근 getter
+  static TtsService get instance {
+    _instance ??= TtsService._internal();
+    return _instance!;
+  }
+
   final FlutterTts _flutterTts = FlutterTts();
   final Queue<String> _textQueue = Queue<String>();
   final Queue<String> _tokenQueue = Queue<String>(); // LLM 토큰을 저장하는 큐
   bool _isPlaying = false;
   bool _isPaused = false;
+  bool _isEnabled = false; // TTS 활성화 상태
+
+  // 상태 관리 및 알림
+  TtsState _state = TtsState.idle;
+  final ValueNotifier<TtsState> stateNotifier = ValueNotifier<TtsState>(
+    TtsState.idle,
+  );
+  Timer? _idleTimer; // 상태 전환을 위한 타이머
+
   String? _currentText;
   int? _currentWordStartPosition;
   bool _isCompleted = false; // 완료 처리 중복 방지 플래그
   final String _sentenceEndPattern = r'[.!?]'; // 문장 끝 패턴 (마침표, 느낌표, 물음표)
 
-  TtsService();
+  // 내부 생성자로 변경
+  TtsService._internal();
+
+  // 팩토리 생성자 추가
+  factory TtsService() => instance;
 
   /// TTS 서비스 초기화
   Future<void> initialize() async {
@@ -42,12 +78,65 @@ class TtsService {
 
   /// 현재 큐 크기
   int get queueSize => _textQueue.length;
-  
+
   /// 토큰 큐의 크기
   int get tokenQueueSize => _tokenQueue.length;
-  
+
   /// 토큰 큐에 토큰이 있는지 확인
   bool get hasTokens => _tokenQueue.isNotEmpty;
+
+  /// TTS가 활성화되어 있는지 확인
+  bool get isEnabled => _isEnabled;
+
+  /// 현재 TTS 서비스 상태 확인
+  TtsState get state => _state;
+
+  // ========================================
+  // 상태 관리 관련 메서드들
+  // ========================================
+
+  /// TTS 상태를 설정합니다.
+  void _setState(TtsState newState) {
+    if (_state != newState) {
+      debugPrint('[TtsService] 상태 변경: $_state -> $newState');
+      _state = newState;
+      stateNotifier.value = newState;
+    }
+  }
+
+  /// 타이머를 시작하여 일정 시간 후에 상태를 idle로 변경합니다.
+  void _startIdleTimer() {
+    // 기존 타이머가 있으면 취소
+    _idleTimer?.cancel();
+
+    // 1초 후에 큐가 비어있으면 idle 상태로 전환
+    _idleTimer = Timer(const Duration(seconds: 1), () {
+      if (!_isPlaying &&
+          !_isPaused &&
+          _textQueue.isEmpty &&
+          _tokenQueue.isEmpty) {
+        debugPrint('[TtsService] 모든 큐가 비어있어 idle 상태로 전환');
+        _setState(TtsState.idle);
+      }
+    });
+  }
+
+  // ========================================
+  // 활성화/비활성화 관련 메서드들
+  // ========================================
+
+  /// TTS 기능을 활성화합니다.
+  void enable() {
+    debugPrint('[TtsService] TTS 기능 활성화');
+    _isEnabled = true;
+  }
+
+  /// TTS 기능을 비활성화합니다.
+  void disable() {
+    debugPrint('[TtsService] TTS 기능 비활성화');
+    _isEnabled = false;
+    // 비활성화 시 현재 재생 중인 TTS와 모든 큐를 중지
+  }
 
   // ========================================
   // TTS 초기화 및 핸들러
@@ -96,6 +185,12 @@ class TtsService {
       return;
     }
 
+    // TTS가 비활성화 상태이면 큐에 추가하지 않음
+    if (!_isEnabled) {
+      debugPrint('[TtsService] TTS 비활성화 상태로 큐 추가 무시');
+      return;
+    }
+
     debugPrint(
       '[TtsService] 텍스트 큐에 추가: "${text.length > 50 ? '${text.substring(0, 50)}...' : text}"',
     );
@@ -123,6 +218,9 @@ class TtsService {
       debugPrint('[TtsService] ✅ 모든 재생 완료');
       return;
     }
+
+    // 상태를 playing으로 변경
+    _setState(TtsState.playing);
 
     debugPrint('[TtsService] 🎯 큐에서 텍스트 제거 직전 - 큐 크기: ${_textQueue.length}');
     _currentText = _textQueue.removeFirst();
@@ -163,10 +261,13 @@ class TtsService {
       await _flutterTts.speak(remainingText);
     }
   }
+
   /// 현재 재생 중인 음성을 정지하고 큐를 비웁니다.
   Future<void> stop() async {
     debugPrint('[TtsService] ===== STOP() 메서드 호출 =====');
-    debugPrint('[TtsService] stop() 호출 - TTS 큐: ${_textQueue.length}, 토큰 큐: ${_tokenQueue.length}');
+    debugPrint(
+      '[TtsService] stop() 호출 - TTS 큐: ${_textQueue.length}, 토큰 큐: ${_tokenQueue.length}',
+    );
 
     debugPrint('[TtsService] 재생 중지 및 큐 초기화');
     await _flutterTts.stop();
@@ -196,20 +297,23 @@ class TtsService {
     if (rate != null) await _flutterTts.setSpeechRate(rate);
     if (language != null) await _flutterTts.setLanguage(language);
   }
+
   /// 서비스를 정리합니다.
   Future<void> dispose() async {
     debugPrint('[TtsService] TTS 서비스 정리');
+    _idleTimer?.cancel();
     await stop();
   }
 
   // ========================================
   // 내부 헬퍼 메서드들
   // ========================================
-
   /// 공통 완료 처리 메서드
   void _handleCompletion() {
     debugPrint('[TtsService] ===== _handleCompletion 시작 =====');
-    debugPrint('[TtsService] 🔍 완료 처리 시작 시점 큐 크기: ${_textQueue.length}');    // _currentText를 null로 만들기 전에 저장
+    debugPrint(
+      '[TtsService] 🔍 완료 처리 시작 시점 큐 크기: ${_textQueue.length}',
+    ); // _currentText를 null로 만들기 전에 저장
     final completedText = _currentText ?? "unknown";
     debugPrint('[TtsService] 완료된 텍스트: "$completedText"');
 
@@ -224,6 +328,15 @@ class TtsService {
     // 큐 상태 다시 확인
     if (_textQueue.isEmpty) {
       debugPrint('[TtsService] ⚠️ 큐가 비어있음 - 모든 재생 완료');
+
+      // 토큰 큐도 비어있다면 일정 시간 후 idle 상태로 전환
+      if (_tokenQueue.isEmpty) {
+        debugPrint('[TtsService] 토큰 큐도 비어있음 - 타이머 시작');
+        _startIdleTimer();
+      }
+      else {
+        debugPrint('[TtsService] 토큰 큐에 항목이 남아있음: ');
+      }
     } else {
       debugPrint('[TtsService] ✅ 큐에 ${_textQueue.length}개 항목 남아있음');
       debugPrint(
@@ -239,12 +352,10 @@ class TtsService {
       debugPrint('[TtsService] ✅ 모든 재생 완료');
     }
   }
-  
+
   // ========================================
   // LLM 토큰 처리 관련 메서드들
-  // ========================================
-
-  /// LLM에서 생성된 토큰을 토큰 큐에 추가합니다.
+  // ========================================  /// LLM에서 생성된 토큰을 토큰 큐에 추가합니다.
   Future<void> addToken(String token) async {
     debugPrint('[TtsService] 토큰 추가: "$token"');
 
@@ -252,6 +363,18 @@ class TtsService {
       debugPrint('[TtsService] 빈 토큰으로 인해 추가 건너뜀');
       return;
     }
+
+    // TTS가 비활성화 상태이면 토큰을 추가하지 않음
+    if (!_isEnabled) {
+      debugPrint('[TtsService] TTS 비활성화 상태로 토큰 추가 무시');
+      return;
+    }
+
+    // 토큰이 추가되면 상태를 playing으로 변경
+    _setState(TtsState.playing);
+
+    // 아이들 타이머가 실행 중이면 취소
+    _idleTimer?.cancel();
 
     _tokenQueue.add(token);
     debugPrint('[TtsService] 토큰 큐 크기: ${_tokenQueue.length}');
@@ -278,8 +401,19 @@ class TtsService {
 
       debugPrint('[TtsService] 완성된 문장 발견: "$completeSentence"');
 
-      // 완성된 문장을 TTS 큐에 추가
       await addToQueue(completeSentence);
+
+
+      // 완성된 문장을 정돈
+      // final cleanedSentence = MarkdownTextCleaner.cleanText(completeSentence);
+
+      // 완성된 문장을 TTS 큐에 추가
+      // if (cleanedSentence.isNotEmpty) {
+      //   debugPrint('[TtsService] 정돈된 문장 추가: "$cleanedSentence"');
+      //   await addToQueue(cleanedSentence);
+      // } else {
+      //   debugPrint('[TtsService] 정돈된 문장이 비어있어 추가하지 않음');
+      // }
 
       // 토큰 큐를 비우고 남은 토큰을 다시 큐에 넣습니다.
       _tokenQueue.clear();
