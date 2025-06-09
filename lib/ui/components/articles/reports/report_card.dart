@@ -129,6 +129,12 @@ class ReportCard extends StatelessWidget {
                     containerWidth * ReportCardDimensions.smallDotSizePercent,
                 spacing:
                     containerWidth * ReportCardDimensions.dotsSpacingPercent,
+                isLoading:
+                    report.type == ReportCardType.weekly
+                        ? Provider.of<ReportCardListViewModel>(
+                          context,
+                        ).isLoading
+                        : false,
               ),
               SizedBox(
                 height:

@@ -22,41 +22,198 @@ class ReportCardListViewModel extends ChangeNotifier {
   List<ReportCardModel> get reports => _reports;
   bool get isLoading => _isLoading; // 로딩 상태 getter
 
-  /// 기본 생성자 - 항상 최신 API 데이터 우선
+  /// 기본 생성자 - 새 리포트 생성 방식
   ReportCardListViewModel() {
-    debugPrint('🏗️ ReportCardListViewModel 생성자 - API 우선 모드');
+    debugPrint('🏗️ ReportCardListViewModel 생성자 - 새 리포트 생성 모드');
     _loadDefaultCards();
-    refreshReports(); // SharedPreferences 대신 API 우선
+    _generateNewReports(); // refreshReports 대신 새 리포트 생성
   }
 
   /// 기본 로딩 카드들을 먼저 표시
   void _loadDefaultCards() {
-    debugPrint('📋 기본 카드 로드');
+    debugPrint('📋 기본 로딩 카드 로드');
     _reports.clear();
     _reports.addAll([
       const ReportCardModel(
         id: 'loading_daily',
         type: ReportCardType.daily,
         title: '오늘의 리포트',
-        subtitle: '최신 업데이트됨',
+        subtitle: '생성 중...',
         progress: 0.0, // 로딩 중에는 0으로 설정
       ),
       const ReportCardModel(
         id: 'loading_weekly',
         type: ReportCardType.weekly,
         title: '주간 리포트',
-        subtitle: '데이터 준비 중',
-        activeDots: 0,
+        subtitle: '생성 중...',
+        activeDots: 0, // 로딩 중에는 0
       ),
       const ReportCardModel(
         id: 'loading_monthly',
         type: ReportCardType.monthly,
         title: '월간 리포트',
-        subtitle: '데이터 준비 중',
-        activeDots: 0,
+        subtitle: '준비 중...',
+        activeDots: 0, // 월간은 아직 미구현
       ),
     ]);
     notifyListeners();
+  }
+
+  /// 새 리포트 생성 (옵션 A 구현) - 개별 처리 방식
+  Future<void> _generateNewReports() async {
+    debugPrint('🚀 새 리포트 생성 시작');
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final userId = _authService.userId;
+      final authToken = await _authService.accessToken;
+
+      debugPrint('👤 사용자 정보: userId=$userId, 로그인상태=${_authService.isLoggedIn}');
+
+      if (!_authService.isLoggedIn || userId == null) {
+        debugPrint('⚠️ 로그인이 필요합니다. 예시 데이터를 사용합니다.');
+        _initializeReports();
+        return;
+      }
+
+      debugPrint('📡 새 리포트 생성 API 호출 시작... User ID: $userId');
+
+      final List<Map<String, dynamic>> successfulReports = [];
+
+      // Daily 리포트 생성 (개별 처리)
+      try {
+        debugPrint('⏳ Daily 리포트 생성 중...');
+        final dailyReport = await _apiService.createDailyReport(
+          userId: userId,
+          authToken: authToken,
+        );
+        successfulReports.add(dailyReport);
+        debugPrint('✅ Daily 리포트 생성 완료: ${dailyReport.keys}');
+      } catch (e) {
+        debugPrint('❌ Daily 리포트 생성 실패: $e');
+        // Daily 실패해도 계속 진행
+      }
+
+      // Weekly 리포트 생성 (개별 처리)
+      try {
+        debugPrint('⏳ Weekly 리포트 생성 중...');
+        final weeklyReport = await _apiService.createWeeklyReport(
+          userId: userId,
+          authToken: authToken,
+        );
+        successfulReports.add(weeklyReport);
+        debugPrint('✅ Weekly 리포트 생성 완료: ${weeklyReport.keys}');
+      } catch (e) {
+        debugPrint('❌ Weekly 리포트 생성 실패: $e');
+        // Weekly 실패해도 계속 진행
+      }
+
+      // 성공한 리포트가 있으면 업데이트
+      if (successfulReports.isNotEmpty) {
+        debugPrint('🎉 ${successfulReports.length}개 리포트 생성 성공');
+        _updateReportsWithGeneratedData(successfulReports);
+        await _saveReports();
+        debugPrint('💾 생성된 리포트 데이터 저장 완료');
+      } else {
+        debugPrint('⚠️ 모든 리포트 생성 실패 - 예시 데이터 사용');
+        _initializeReports();
+      }
+    } catch (e) {
+      debugPrint('❌ 리포트 생성 전체 실패: $e');
+      _initializeReports(); // 실패 시 예시 데이터로 fallback
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('✅ 새 리포트 생성 프로세스 완료');
+    }
+  }
+
+  /// 생성된 리포트 데이터로 UI 업데이트
+  void _updateReportsWithGeneratedData(
+    List<Map<String, dynamic>> generatedReports,
+  ) {
+    debugPrint('🔄 생성된 리포트로 UI 업데이트 시작');
+
+    for (var reportData in generatedReports) {
+      final model = _convertGeneratedReportToModel(reportData);
+
+      // 같은 타입의 로딩 카드를 찾아서 교체
+      final existingIndex = _reports.indexWhere((r) => r.type == model.type);
+      if (existingIndex != -1) {
+        _reports[existingIndex] = model;
+        debugPrint('📋 ${model.type.name} 리포트 업데이트 완료');
+      } else {
+        _reports.add(model);
+        debugPrint('📋 ${model.type.name} 리포트 새로 추가');
+      }
+    }
+
+    // Monthly는 아직 생성 API가 없으므로 기본 상태로 설정
+    final monthlyIndex = _reports.indexWhere(
+      (r) => r.type == ReportCardType.monthly,
+    );
+    if (monthlyIndex != -1) {
+      _reports[monthlyIndex] = _reports[monthlyIndex].copyWith(
+        subtitle: '곧 제공될 예정입니다',
+        activeDots: 4, // 완료된 것처럼 표시
+      );
+    }
+
+    notifyListeners();
+  }
+
+  /// 생성된 리포트 API 응답을 ReportCardModel로 변환
+  ReportCardModel _convertGeneratedReportToModel(
+    Map<String, dynamic> generatedReport,
+  ) {
+    // createDailyReport/createWeeklyReport API 응답 구조에 맞게 변환
+    final String? reportType =
+        generatedReport['type']?.toString().toLowerCase();
+    final Map<String, dynamic>? content =
+        generatedReport['content'] ?? generatedReport;
+
+    debugPrint(
+      '생성된 리포트 변환 중 - Type: $reportType, Content: ${content != null ? "있음" : "없음"}',
+    );
+
+    if (reportType == 'daily' || content?['type'] == 'daily') {
+      return ReportCardModel(
+        id:
+            generatedReport['id']?.toString() ??
+            'generated-daily-${DateTime.now().millisecondsSinceEpoch}',
+        type: ReportCardType.daily,
+        title: '오늘의 리포트',
+        subtitle: '방금 생성됨',
+        progress: 1.0, // 생성 완료
+        imageUrl: 'https://placehold.co/129x178',
+        content: content,
+      );
+    } else if (reportType == 'weekly' || content?['type'] == 'weekly') {
+      return ReportCardModel(
+        id:
+            generatedReport['id']?.toString() ??
+            'generated-weekly-${DateTime.now().millisecondsSinceEpoch}',
+        type: ReportCardType.weekly,
+        title: '주간 리포트',
+        subtitle: '방금 생성됨',
+        activeDots: 7, // 생성 완료
+        content: content,
+      );
+    } else {
+      // 타입을 명확히 알 수 없는 경우 daily로 기본 설정
+      return ReportCardModel(
+        id:
+            generatedReport['id']?.toString() ??
+            'generated-unknown-${DateTime.now().millisecondsSinceEpoch}',
+        type: ReportCardType.daily,
+        title: '새 리포트',
+        subtitle: '방금 생성됨',
+        progress: 1.0,
+        content: content,
+      );
+    }
   }
 
   /// 저장된 Report 상태 불러오기 (API 연동 추가)
@@ -287,7 +444,7 @@ class ReportCardListViewModel extends ChangeNotifier {
     }
   }
 
-  /// 리포트 목록 새로고침 (API 우선)
+  /// 강제 새로고침 (기존 리포트 가져오기 방식 - 향후 삭제 예정)
   Future<void> refreshReports() async {
     debugPrint('🔄 refreshReports() 시작 - API 우선 호출');
 
@@ -307,16 +464,34 @@ class ReportCardListViewModel extends ChangeNotifier {
 
       if (userId != null) {
         debugPrint('🌐 API 호출 시작');
-        final response = await _apiService.getAllReports(
+
+        // Daily와 Weekly API를 병렬로 호출
+        final dailyFuture = _apiService.getDailyReports(
+          userId: userId,
+          authToken: authToken,
+        );
+        final weeklyFuture = _apiService.getWeeklyReports(
           userId: userId,
           authToken: authToken,
         );
 
-        if (response.isNotEmpty) {
-          debugPrint('✅ API 응답: ${response.length}개 리포트');
+        final results = await Future.wait([dailyFuture, weeklyFuture]);
+        final dailyReports = results[0];
+        final weeklyReports = results[1];
+
+        debugPrint('✅ Daily API 응답: ${dailyReports.length}개');
+        debugPrint('✅ Weekly API 응답: ${weeklyReports.length}개');
+
+        // 모든 API 응답을 합치기
+        final allApiReports = <Map<String, dynamic>>[];
+        allApiReports.addAll(dailyReports);
+        allApiReports.addAll(weeklyReports);
+
+        if (allApiReports.isNotEmpty) {
+          debugPrint('✅ 전체 API 응답: ${allApiReports.length}개 리포트');
 
           // 기존 카드는 유지하고 실제 데이터로 업데이트
-          for (var reportData in response) {
+          for (var reportData in allApiReports) {
             final model = _convertApiResponseToModel(reportData);
 
             // 같은 타입의 기존 카드를 찾아서 교체
