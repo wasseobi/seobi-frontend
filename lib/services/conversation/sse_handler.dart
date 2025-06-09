@@ -3,10 +3,14 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
+import 'package:seobi_app/services/tts/tts_service.dart';
 
 /// SSE(Server-Sent Events) 이벤트를 처리하는 핸들러
 class SseHandler {
   final HistoryService _historyService;
+  // TTS 서비스를 직접 생성
+  final TtsService _ttsService = TtsService();
+  bool _ttsInitialized = false;
 
   // 현재 처리 중인 메시지의 ID
   String? _currentMessageId;
@@ -18,7 +22,23 @@ class SseHandler {
   // 인덱스와 Message ID 매핑 (index -> messageId)
   final Map<int, String> _indexToMessageId = {};
 
-  SseHandler(this._historyService);
+  // 생성자 - History Service만 주입받음
+  SseHandler(this._historyService) {
+    // 초기화 메소드 호출
+    _initializeTts();
+  }
+
+  // TTS 서비스 초기화
+  Future<void> _initializeTts() async {
+    try {
+      await _ttsService.initialize();
+      _ttsInitialized = true;
+      debugPrint('[SseHandler] TTS 서비스 초기화 완료');
+    } catch (e) {
+      debugPrint('[SseHandler] TTS 서비스 초기화 실패: $e');
+      _ttsInitialized = false;
+    }
+  }
 
   /// SSE 이벤트 데이터를 처리하는 메서드
   void handleEvent(Map<String, dynamic> data, String sessionId, String userId) {
@@ -242,7 +262,12 @@ $codeBlock''';
         ),
       );
     }
+    // TTS가 활성화되어 있다면, 각 청크를 TTS 서비스에 전송
+    debugPrint('[SseHandler] 청크를 TTS 서비스에 전송: "$content"');
+    _ttsService.addToken(content);
   }
+
+  // ========================================
 
   void _handleErrorMessage(String error) {
     // 항상 새로운 오류 메시지 생성
@@ -274,6 +299,10 @@ $error
   }
 
   void _handleEndEvent() {
+    // TTS가 활성화되어 있다면, 종료 시점에 토큰 큐를 비우고 남은 텍스트 모두 재생
+    debugPrint('[SseHandler] 응답 종료: 남은 토큰 모두 TTS로 전송');
+    _ttsService.flush();
+
     _currentMessageId = null;
     _currentMessageType = null;
     _toolCallArguments.clear();

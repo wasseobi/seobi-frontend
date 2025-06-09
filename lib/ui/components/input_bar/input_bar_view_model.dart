@@ -187,13 +187,12 @@ class InputBarViewModel extends ChangeNotifier {
         if (isFinal) {
           _isRecording = false;
           _isSendingAfterTts = true;
-          debugPrint('InputBar: 음성 인식 결과 최종 확정 - "${text}"');
+          debugPrint('[InputBarViewModel]: 음성 인식 결과 최종 확정 - "${text}"');
           notifyListeners();
 
           // **STT 완료 시 기존 TTS 중단 후 피드백 제공**
           _ttsService.stop().then((_) {
             // TTS로 음성 피드백
-            _ttsService.addToQueue('음성 인식이 완료되었습니다. "${text}" 전송합니다.');
             debugPrint(
               '[InputBarViewModel] STT 완료 피드백 TTS 시작',
             ); // TTS 피드백 후 메시지 전송

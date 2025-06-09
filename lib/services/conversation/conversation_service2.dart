@@ -4,6 +4,7 @@ import 'package:seobi_app/services/auth/auth_service.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
 import 'package:seobi_app/repositories/backend/backend_repository.dart';
 import 'package:seobi_app/services/conversation/sse_handler.dart';
+import 'package:seobi_app/services/tts/tts_service.dart';
 import 'models/session.dart' as local_session;
 
 /// 대화 서비스 v2 - Auth와 History 서비스를 통합 관리
@@ -11,10 +12,10 @@ class ConversationService2 {
   static final ConversationService2 _instance =
       ConversationService2._internal();
   factory ConversationService2() => _instance;
-
   final AuthService _authService = AuthService();
   final HistoryService _historyService = HistoryService();
   final BackendRepository _backendRepository = BackendRepository();
+  final TtsService _ttsService = TtsService();
 
   // 세션 자동 종료를 위한 타이머
   Timer? _sessionTimer;
@@ -29,6 +30,9 @@ class ConversationService2 {
 
     // HistoryService 초기화
     await _historyService.initialize();
+
+    // TtsService 초기화
+    await _ttsService.initialize();
 
     debugPrint('[ConversationService2] 서비스 초기화 완료');
   }
@@ -93,28 +97,28 @@ class ConversationService2 {
   Future<void> sendMessage(String content) async {
     try {
       debugPrint('[ConversationService2] 메시지 전송 시작');
-      
+
       // 세션 가져오기 또는 생성
       final session = await _getOrCreateLatestSession();
-      
+
       // 사용자 ID 가져오기 및 인증
       final userId = await _getUserIdAndAuthenticate();
-      
       // 타이머 리셋
       _resetSessionTimer(session.id);
 
-      // SSE 이벤트 핸들러 등록
+      // SSE 이벤트 핸들러 등록 (TTS 서비스 연결)
       final sseHandler = SseHandler(_historyService);
+
       _historyService.setPendingUserMessage(content);
 
       debugPrint('[ConversationService2] 메시지 전송 요청: ${session.id}');
-      
+
       // 메시지 전송 및 SSE 스트림 받기
       final stream = _backendRepository.postSendMessage(
         sessionId: session.id,
         userId: userId,
         content: content,
-      );      // 스트림 리스닝 시작
+      ); // 스트림 리스닝 시작
       await for (final data in stream) {
         try {
           if (data is Map<String, dynamic>) {
@@ -126,12 +130,16 @@ class ConversationService2 {
               if (item is Map<String, dynamic>) {
                 sseHandler.handleEvent(item, session.id, userId);
               } else {
-                debugPrint('[ConversationService2] 지원하지 않는 리스트 아이템 형식: ${item.runtimeType}');
+                debugPrint(
+                  '[ConversationService2] 지원하지 않는 리스트 아이템 형식: ${item.runtimeType}',
+                );
               }
             }
           } else {
             // 기타 형식 데이터 로깅
-            debugPrint('[ConversationService2] 지원하지 않는 데이터 형식: ${data.runtimeType}');
+            debugPrint(
+              '[ConversationService2] 지원하지 않는 데이터 형식: ${data.runtimeType}',
+            );
           }
         } catch (e) {
           debugPrint('[ConversationService2] 이벤트 처리 중 오류: $e');
@@ -144,6 +152,7 @@ class ConversationService2 {
       rethrow;
     }
   }
+
   /// 타이머 시작 또는 재설정
   void _resetSessionTimer(String sessionId) {
     _sessionTimer?.cancel();
@@ -206,11 +215,13 @@ class ConversationService2 {
       if (_historyService.hasPendingUserMessage) {
         _historyService.clearPendingUserMessage();
         debugPrint('[ConversationService2] ✅ 대기 중인 메시지 정리 완료');
-      }
-
-      // 3. 히스토리 서비스 정리
+      } // 3. 히스토리 서비스 정리
       (_historyService as ChangeNotifier).dispose();
       debugPrint('[ConversationService2] ✅ 히스토리 서비스 정리 완료');
+
+      // 4. TTS 서비스 정리
+      await _ttsService.dispose();
+      debugPrint('[ConversationService2] ✅ TTS 서비스 정리 완료');
     } catch (e) {
       debugPrint('[ConversationService2] ❌ 리소스 정리 중 오류 발생: $e');
       rethrow;
