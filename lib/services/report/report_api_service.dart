@@ -49,7 +49,7 @@ class ReportApiService {
   }) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/report/d'),
+        Uri.parse('$baseUrl/report/report/d'),
         headers: _getHeaders(userId: userId, authToken: authToken),
       );
 
@@ -71,7 +71,7 @@ class ReportApiService {
   }) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/report/w'),
+        Uri.parse('$baseUrl/report/report/w'),
         headers: _getHeaders(userId: userId, authToken: authToken),
       );
 
@@ -117,7 +117,7 @@ class ReportApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/report/d'),
+        Uri.parse('$baseUrl/report/report/d'),
         headers: _getHeaders(userId: userId, authToken: authToken),
       );
 
@@ -140,7 +140,7 @@ class ReportApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/report/w'),
+        Uri.parse('$baseUrl/report/report/w'),
         headers: _getHeaders(userId: userId, authToken: authToken),
       );
 
