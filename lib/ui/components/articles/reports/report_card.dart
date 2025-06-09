@@ -5,8 +5,8 @@ import '../../../constants/app_fonts.dart';
 import '../../../constants/dimensions/report_card_dimensions.dart';
 import 'progress_indicator/report_card_progressring.dart';
 import 'progress_indicator/report_card_progressdots.dart';
-import 'report_card_model.dart';
-import 'report_card_types.dart';
+import '../../../../services/models/report_card_model.dart';
+import '../../../../services/models/report_card_types.dart';
 import 'report_card_list_view_model.dart';
 
 class ReportCard extends StatelessWidget {

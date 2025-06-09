@@ -4,6 +4,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 
+/*
+
+✅ HTTP 요청/응답 처리
+✅ 헤더 설정, URL 구성
+✅ 네트워크 에러 처리
+✅ 원시 JSON 데이터 반환
+
+*/
+
 class ReportApiService {
   // 환경변수를 기반으로 백엔드 URL 결정
   static String get baseUrl {
