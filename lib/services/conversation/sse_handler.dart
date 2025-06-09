@@ -44,7 +44,7 @@ class SseHandler {
         _handleChunkMessage(data, sessionId);
       case 'error':
         _handleErrorMessage(data['error'] as String);
-      case 'done':
+      case 'end':
         _handleEndEvent();
     }
   }
