@@ -168,6 +168,7 @@ class BackendRepository implements IBackendRepository {
     required String sessionId,
     required String userId,
     required String content,
+    Map<String, dynamic>? location,
   }) {
     final endpoint = '/s/$sessionId/send';
     debugPrint('[BackendRepository] postSendMessage 시작: $endpoint');
@@ -177,6 +178,7 @@ class BackendRepository implements IBackendRepository {
       'metadata': {
         'client_timestamp': DateTime.now().toIso8601String(),
         'client_version': '1.0.0',
+        if (location != null) 'location': location,
       },
     };
     debugPrint('[BackendRepository] 요청 본문: $payload');
