@@ -9,13 +9,13 @@ class ToolResultMessage extends StatelessWidget {
 
   const ToolResultMessage({
     super.key,
-    this.title = '도구 실행 결과',
+    this.title = '',
     required this.content,
   });
 
   @override  Widget build(BuildContext context) {
     return FoldableMessage(
-      title: title,
+      title: '$title 도구 실행 결과',
       titleIcon: Icons.description_outlined,
       content: content,
       customContentBuilder: (contentList) => MarkdownBody(
