@@ -28,6 +28,8 @@ class _InputBarState extends State<InputBar> {
 
   late final FocusNode _focusNode;
   late final InputBarViewModel _viewModel;
+  double? _previousBottomInset;  // IME/키보드 높이 변경 감지용
+  
   @override
   void initState() {
     super.initState();
@@ -145,6 +147,14 @@ class _InputBarState extends State<InputBar> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final previousBottomInset = _previousBottomInset ?? 0;
+    
+    if (bottomInset != previousBottomInset) {
+      debugPrint('InputBar - IME/키보드 높이 변경: $previousBottomInset -> $bottomInset');
+      _previousBottomInset = bottomInset;
+    }
+    
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: Consumer<InputBarViewModel>(

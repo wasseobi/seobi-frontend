@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'i_backend_repository.dart';
-import 'models/user.dart';
-import 'models/session.dart';
-import 'models/message.dart';
+import 'package:seobi_app/repositories/backend/models/user.dart';
+import 'package:seobi_app/repositories/backend/models/session.dart';
+import 'package:seobi_app/repositories/backend/models/message.dart';
 import 'http_helper.dart';
 import 'models/schedule.dart';
 
@@ -87,7 +87,7 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<Session> getSessionById(String id) {
-    return _http.get('/sessions/$id', Session.fromJson);
+    return _http.get('/s/$id', Session.fromJson);
   }
 
   @override
@@ -107,7 +107,7 @@ class BackendRepository implements IBackendRepository {
   @override
   Future<Session> postSessionFinish(String id) {
     return _http.post(
-      '/sessions/$id/finish',
+      '/s/$id/close',
       {},
       Session.fromJson,
       expectedStatus: 200,
@@ -116,10 +116,12 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<List<Session>> getSessionsByUserId(String userId) {
-    return _http.getList('/sessions/user/$userId', Session.fromJson);
+    return _http.getList('/s/$userId', Session.fromJson);
   }
+  //========================================
+  // 메시지 관련 메서드들
+  //========================================
 
-  // Message related methods
   @override
   Future<List<Message>> getMessages() {
     return _http.getList('/messages', Message.fromJson);
@@ -131,118 +133,64 @@ class BackendRepository implements IBackendRepository {
     required String userId,
     String? content,
     required String role,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? extensions,
   }) {
+    final payload = {
+      'session_id': sessionId,
+      'user_id': userId,
+      'content': content,
+      'role': role,
+      if (metadata != null) 'metadata': metadata,
+      if (extensions != null) 'extensions': extensions,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
     return _http.post(
       '/messages/',
-      {
-        'session_id': sessionId,
-        'user_id': userId,
-        'content': content,
-        'role': role, // API에는 문자열로 전송
-      },
-      (json) => Message.fromJson(json), // fromJson에서 MessageRole 변환 처리됨
+      payload,
+      Message.fromJson,
+      expectedStatus: 201,
     );
   }
 
   @override
   Future<List<Message>> getMessagesBySessionId(String sessionId) {
-    return _http.getList('/messages/session/$sessionId', Message.fromJson);
+    return _http.getList('/s/$sessionId/m', Message.fromJson);
   }
 
   @override
   Future<List<Message>> getMessagesByUserId(String userId) {
-    return _http.getList('/messages/user/$userId', Message.fromJson);
+    return _http.getList('/m/$userId', Message.fromJson);
   }
 
   @override
-  Future<Message> postMessageLanggraphCompletion({
-    required String sessionId,
-    required String userId,
-    required String content,
-  }) {
-    return _http.post(
-      '/s/$sessionId/complete',
-      {'content': content},
-      Message.fromJson,
-      headers: {'user-id': userId},
-    );
-  }
-
-  @override
-  Stream<Map<String, dynamic>> postMessageLanggraphCompletionStream({
+  Stream<dynamic> postSendMessage({
     required String sessionId,
     required String userId,
     required String content,
   }) {
     final endpoint = '/s/$sessionId/send';
-    debugPrint('[BackendRepository] 메시지 전송 시작: $endpoint');
-    debugPrint(
-      '[BackendRepository] 요청 본문: {user_id: $userId, content: $content}',
+    debugPrint('[BackendRepository] postSendMessage 시작: $endpoint');
+
+    final payload = {
+      'content': content,
+      'metadata': {
+        'client_timestamp': DateTime.now().toIso8601String(),
+        'client_version': '1.0.0',
+      },
+    };
+    debugPrint('[BackendRepository] 요청 본문: $payload');
+
+    return _http.postSse(
+      endpoint,
+      payload,
+      headers: {
+        'user-id': userId,
+        'accept': 'text/event-stream',
+        'content-type': 'application/json',
+      },
     );
-
-    return _http
-        .postStream(
-          endpoint,
-          {'content': content},
-          headers: {
-            'user-id': userId,
-            'Accept': 'text/event-stream', // swagger_new.json 명세서에 따른 필수 헤더
-          },
-        )
-        .map((chunk) {
-          debugPrint('[BackendRepository] 청크 수신: $chunk');
-          return chunk;
-        })
-        .where((chunk) {
-          try {
-            final type = chunk['type'];
-
-            // 실제 백엔드 응답 타입에 맞춘 필터링
-            switch (type) {
-              case 'start':
-                // 스트리밍 시작 - UI에서 활용 가능
-                return true;
-
-              case 'tool_calls':
-                // AI가 도구를 사용할 때 - UI에서 "검색 중..." 표시용
-                debugPrint(
-                  '[BackendRepository] AI 도구 사용 시작: ${chunk['tool_calls']}',
-                );
-                return true;
-
-              case 'toolmessage':
-                // 도구 실행 결과 - UI에서 "검색 완료" 표시용
-                debugPrint('[BackendRepository] 도구 실행 결과 수신');
-                return true;
-
-              case 'chunk':
-                // AI 응답 텍스트 청크 - 메인 콘텐츠
-                final content = chunk['content'];
-                final isValid =
-                    content != null && content.toString().isNotEmpty;
-                if (!isValid) {
-                  debugPrint('[BackendRepository] 빈 청크 무시: $chunk');
-                }
-                return isValid;
-
-              case 'end':
-                // 스트리밍 종료 - UI 상태 업데이트용
-                return true;
-
-              case 'answer':
-                // 전체 답변 (있는 경우) - 백업용
-                return chunk['answer'] != null;
-
-              default:
-                // 알 수 없는 타입은 로그만 출력하고 무시
-                debugPrint('[BackendRepository] 알 수 없는 타입 무시: type=$type');
-                return false;
-            }
-          } catch (e) {
-            debugPrint('[BackendRepository] 청크 필터링 오류: $e');
-            return false;
-          }
-        });
   }
 
   // ========================================

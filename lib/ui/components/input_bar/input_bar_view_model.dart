@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/services/tts/tts_service.dart';
 import 'package:seobi_app/services/stt/stt_service.dart';
+import 'package:seobi_app/services/conversation/conversation_service2.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
-import '../../utils/chat_provider.dart';
 
 /// 인풋 바의 모드 정의
 enum InputBarMode {
@@ -14,8 +14,9 @@ enum InputBarMode {
 typedef OnMessageSentCallback = void Function(String message);
 
 class InputBarViewModel extends ChangeNotifier {
-  final TtsService _ttsService = TtsService();
-  final STTService _sttService = STTService();
+  final TtsService _ttsService = TtsService.instance;
+  final SttService _sttService = SttService();
+  final ConversationService2 _conversationService = ConversationService2();
   final TextEditingController textController;
   final FocusNode focusNode;
 
@@ -26,11 +27,12 @@ class InputBarViewModel extends ChangeNotifier {
   InputBarMode _currentMode = InputBarMode.text;
   bool _isRecording = false;
   bool _isSendingAfterTts = false;
-
+  bool _isSending = false; // 메시지 전송 중 상태 추가
   // 게터
   InputBarMode get currentMode => _currentMode;
   bool get isRecording => _isRecording;
   bool get isSendingAfterTts => _isSendingAfterTts;
+  bool get isSending => _isSending;
   bool get isEmpty => textController.text.isEmpty;
 
   // 액션 버튼 상태 게터
@@ -74,6 +76,9 @@ class InputBarViewModel extends ChangeNotifier {
 
     // 포커스 리스너 추가 - 텍스트 필드가 포커스를 받으면 텍스트 모드로 전환
     focusNode.addListener(_onFocusChange);
+
+    // TTS 상태 변경 리스너 추가
+    _ttsService.stateNotifier.addListener(_onTtsStateChanged);
   }
 
   @override
@@ -81,6 +86,8 @@ class InputBarViewModel extends ChangeNotifier {
     textController.removeListener(notifyListeners);
     // 포커스 리스너 제거
     focusNode.removeListener(_onFocusChange);
+    // TTS 상태 변경 리스너 제거
+    _ttsService.stateNotifier.removeListener(_onTtsStateChanged);
     _ttsService.dispose();
     if (_isRecording) {
       _sttService.stopListening();
@@ -89,34 +96,63 @@ class InputBarViewModel extends ChangeNotifier {
     super.dispose();
   }
 
+  // TTS 상태 변경 시 호출되는 메서드
+  void _onTtsStateChanged() {
+    final currentState = _ttsService.stateNotifier.value;
+    if (currentState == TtsState.idle) {
+      debugPrint('[InputBarViewModel] 🔊 TTS 상태 변경 감지: IDLE 상태로 전환됨');
+      if (currentMode == InputBarMode.voice) {
+        startVoiceInput();
+      }
+      // idle 상태에서 필요한 추가 작업이 있으면 여기에 구현
+    } else if (currentState == TtsState.playing) {
+      debugPrint('[InputBarViewModel] 🔊 TTS 상태 변경 감지: PLAYING 상태로 전환됨');
+    }
+  }
+
   // 메시지 전송 메서드
-  void sendMessage() {
+  Future<void> sendMessage() async {
     final text = textController.text.trim();
-    if (text.isNotEmpty) {
+    if (text.isNotEmpty && !_isSending) {
       debugPrint('[InputBarViewModel] 메시지 전송: "$text"');
 
-      // **새로운 메시지 전송 시 기존 TTS 중단**
-      _ttsService.stop();
-      debugPrint('[InputBarViewModel] 새 메시지 전송으로 인한 TTS 중단');
+      try {
+        _isSending = true;
+        notifyListeners();
 
-      // 1. 글로벌 ChatProvider로 메시지 전송 (주요 경로)
-      ChatProvider.sendGlobalMessage(text);
+        // **새로운 메시지 전송 시 기존 TTS 중단**
+        _ttsService.stop();
+        debugPrint('[InputBarViewModel] 새 메시지 전송으로 인한 TTS 중단');
 
-      // 2. 기존 리스너들에게도 알림 (호환성 유지)
-      for (final listener in _onMessageSentListeners) {
-        listener(text);
+        // ConversationService2로 메시지 전송
+        _conversationService.sendMessage(text);
+        debugPrint('[InputBarViewModel] 메시지 전송 완료');
+
+        // 기존 리스너들에게도 알림 (호환성 유지)
+        for (final listener in _onMessageSentListeners) {
+          listener(text);
+        }
+
+        // 메시지 전송 후 텍스트 필드 초기화
+        textController.clear();
+      } catch (e) {
+        debugPrint('[InputBarViewModel] 메시지 전송 오류: $e');
+        // 에러 처리 - UI에 에러 표시할 수 있음
+      } finally {
+        _isSending = false;
+        notifyListeners();
       }
-
-      // 메시지 전송 후 텍스트 필드 초기화
-      textController.clear();
-      notifyListeners();
     }
   }
 
   // 모드 전환 메서드
   void switchToVoiceMode() {
     // **음성 모드 전환 시 기존 TTS 중단**
+    if (!_ttsService.isEnabled) {
+      _ttsService.enable();
+    }
     _ttsService.stop();
+
     debugPrint('[InputBarViewModel] 음성 모드 전환으로 인한 TTS 중단');
 
     _currentMode = InputBarMode.voice;
@@ -128,6 +164,10 @@ class InputBarViewModel extends ChangeNotifier {
   }
 
   void switchToTextMode() {
+    if (_ttsService.isEnabled) {
+      _ttsService.disable();
+    }
+
     _currentMode = InputBarMode.text;
     debugPrint('InputBar: 텍스트 모드로 전환');
     stopVoiceInput(); // 텍스트 모드로 전환 시 음성 입력 중지
@@ -141,6 +181,7 @@ class InputBarViewModel extends ChangeNotifier {
       if (isEmpty) {
         switchToVoiceMode();
       } else {
+        // 비동기 메시지 전송
         sendMessage();
       }
     } else {
@@ -173,19 +214,15 @@ class InputBarViewModel extends ChangeNotifier {
         if (isFinal) {
           _isRecording = false;
           _isSendingAfterTts = true;
-          debugPrint('InputBar: 음성 인식 결과 최종 확정 - "${text}"');
+          debugPrint('[InputBarViewModel]: 음성 인식 결과 최종 확정 - "${text}"');
           notifyListeners();
 
           // **STT 완료 시 기존 TTS 중단 후 피드백 제공**
           _ttsService.stop().then((_) {
-            // TTS로 음성 피드백
-            _ttsService.addToQueue('음성 인식이 완료되었습니다. "${text}" 전송합니다.');
-            debugPrint('[InputBarViewModel] STT 완료 피드백 TTS 시작');
-
             // TTS 피드백 후 메시지 전송
-            Future.delayed(const Duration(seconds: 2), () {
+            Future.delayed(const Duration(seconds: 2), () async {
               if (_isSendingAfterTts) {
-                sendMessage(); // 이 메서드에서 TTS를 다시 중단함
+                await sendMessage(); // 비동기 메서드로 변경
                 _isSendingAfterTts = false;
                 notifyListeners();
               }

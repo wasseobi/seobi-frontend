@@ -5,14 +5,28 @@ import '../../../constants/app_fonts.dart';
 import '../../../constants/dimensions/report_card_dimensions.dart';
 import 'progress_indicator/report_card_progressring.dart';
 import 'progress_indicator/report_card_progressdots.dart';
-import 'report_card_model.dart';
-import 'report_card_types.dart';
+import '../../../../services/models/report_card_model.dart';
+import '../../../../services/models/report_card_types.dart';
 import 'report_card_list_view_model.dart';
 
 class ReportCard extends StatelessWidget {
   final ReportCardModel report;
 
   const ReportCard({super.key, required this.report});
+
+  /// 개별 카드의 로딩 상태 판별 로직
+  bool _isCardLoading() {
+    if (report.type == ReportCardType.daily) {
+      // Daily: progress가 0이면서 subtitle이 '생성 실패'가 아니면 로딩 중
+      return report.progress == 0.0 && report.subtitle != '생성 실패';
+    } else if (report.type == ReportCardType.weekly) {
+      // Weekly: activeDots가 0이면서 subtitle이 '생성 실패'가 아니면 로딩 중
+      return report.activeDots == 0 && report.subtitle != '생성 실패';
+    } else {
+      // Monthly: 아직 구현 안됨
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +90,7 @@ class ReportCard extends StatelessWidget {
                   ReportCardProgressRing(
                     progress: report.progress,
                     size: progressRingSize,
+                    isLoading: _isCardLoading(), // 개별 카드 로딩 상태 사용
                   ),
                   SizedBox(height: spacing),
                   Text(
@@ -92,12 +107,6 @@ class ReportCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    'Daily Report',
-                    style: RadioCanadaStyles.regular32.copyWith(
-                      color: AppColors.main80,
-                    ),
-                  ),
                 ],
               ),
             ],
@@ -133,6 +142,7 @@ class ReportCard extends StatelessWidget {
                     containerWidth * ReportCardDimensions.smallDotSizePercent,
                 spacing:
                     containerWidth * ReportCardDimensions.dotsSpacingPercent,
+                isLoading: _isCardLoading(), // 개별 카드 로딩 상태 사용
               ),
               SizedBox(
                 height:
@@ -169,7 +179,7 @@ class ReportCard extends StatelessWidget {
           context,
           listen: false,
         );
-        viewModel.showReportBottomSheet(context);
+        viewModel.showReportBottomSheet(context, report.id);
       },
       child: buildCardContent(),
     );

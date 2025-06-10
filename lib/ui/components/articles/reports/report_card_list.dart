@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'report_card.dart';
 import 'report_card_list_view_model.dart';
-import 'report_card_types.dart';
+import '../../../../services/models/report_card_types.dart';
 
 class ReportCardList extends StatelessWidget {
   const ReportCardList({super.key});
