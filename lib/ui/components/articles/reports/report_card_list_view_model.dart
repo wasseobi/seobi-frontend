@@ -23,7 +23,25 @@ class ReportCardListViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
   /// Report 리스트 getter - UI에서 실제 사용
-  List<ReportCardModel> get reports => _reports;
+  List<ReportCardModel> get reports {
+    return _reports.map((report) {
+      if (report.type == ReportCardType.daily) {
+        return report.copyWith(
+          progress: _reportService.getDailyProgress(),
+          subtitle: _reportService.getTimeUntilNextDaily(),
+        );
+      } else if (report.type == ReportCardType.weekly) {
+        final progress = _reportService.getWeeklyProgress();
+        final activeDots = (progress * 7).ceil();
+        return report.copyWith(
+          activeDots: activeDots,
+          subtitle: _reportService.getDaysUntilNextWeekly(),
+        );
+      }
+      return report;
+    }).toList();
+  }
+
   bool get isLoading => _isLoading;
   bool get isDailyLoading => _isDailyLoading;
   bool get isWeeklyLoading => _isWeeklyLoading;
@@ -67,7 +85,7 @@ class ReportCardListViewModel extends ChangeNotifier {
 
   /// 캐시된 데이터를 먼저 로드하고 필요시 새로 생성
   Future<void> _loadCachedDataFirst() async {
-    debugPrint('📋 캐시된 데이터 우선 로드 시작');
+    debugPrint('📋 캐시된 데이터 우선 로드 시작 (날짜 기반 캐시)');
 
     try {
       final userId = _authService.userId;
@@ -81,53 +99,18 @@ class ReportCardListViewModel extends ChangeNotifier {
         return;
       }
 
-      // 1단계: 기존 리포트 목록 조회 (캐시 우선)
-      try {
-        final cachedReports = await _reportService.loadAllReports();
-        if (cachedReports.isNotEmpty) {
-          debugPrint('✅ 캐시된 리포트 데이터 발견: ${cachedReports.length}개');
-          _reports.clear();
-          _reports.addAll(cachedReports);
-
-          // 월간 리포트가 없으면 추가 (백엔드 미구현이므로)
-          final hasMonthlyReport = _reports.any(
-            (r) => r.type == ReportCardType.monthly,
-          );
-          if (!hasMonthlyReport) {
-            debugPrint('🗓️ 월간 리포트 누락 - 미구현 카드 추가');
-            _reports.add(
-              const ReportCardModel(
-                id: 'monthly_placeholder',
-                type: ReportCardType.monthly,
-                title: '월간 리포트',
-                subtitle: '서비스 준비 중',
-                activeDots: 0, // 미구현 상태
-              ),
-            );
-          }
-
-          notifyListeners();
-
-          // 캐시가 있으면 새 생성은 건너뛰고 종료
-          debugPrint('🎯 캐시 데이터 사용으로 새 생성 건너뛰기');
-          return;
-        }
-      } catch (e) {
-        debugPrint('⚠️ 캐시된 데이터 로드 실패, 새로 생성 진행: $e');
-      }
-
-      // 2단계: 캐시가 없거나 실패한 경우에만 새로 생성
-      debugPrint('🚀 캐시 데이터 없음 - 새 리포트 생성 시작');
-      await _generateNewReports();
+      // 날짜 기반 캐시를 활용한 리포트 생성/로드
+      debugPrint('🚀 날짜 기반 캐시 시스템으로 리포트 로드 시작');
+      await _generateReportsWithDateCache();
     } catch (e) {
       debugPrint('❌ 캐시 우선 로드 실패: $e');
       _initializeReports(); // 실패 시 예시 데이터로 fallback
     }
   }
 
-  /// 새 리포트 생성 (개선된 실시간 업데이트 방식)
-  Future<void> _generateNewReports() async {
-    debugPrint('🚀 새 리포트 생성 시작 - 실시간 업데이트 방식');
+  /// 날짜 기반 캐시를 활용한 리포트 생성/로드
+  Future<void> _generateReportsWithDateCache() async {
+    debugPrint('🗓️ 날짜 기반 캐시 시스템으로 리포트 처리 시작');
 
     _isLoading = true;
     _isDailyLoading = true;
@@ -135,31 +118,14 @@ class ReportCardListViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final userId = _authService.userId;
-      final authToken = await _authService.accessToken;
-
-      debugPrint('📡 새 리포트 생성 API 호출 시작... User ID: $userId');
-
-      // userId 및 authToken null 체크
-      if (userId == null) {
-        debugPrint('❌ userId가 null입니다. 예시 데이터를 사용합니다.');
-        _initializeReports();
-        _isDailyLoading = false;
-        _isWeeklyLoading = false;
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
-
       // Daily와 Weekly를 병렬로 처리하되, 완료되는 즉시 UI 업데이트
+      // Daily 리포트 생성/캐시 로드 (날짜 기반)
+      _generateDailyReportWithCache();
 
-      // Daily 리포트 생성 (Service 사용)
-      _generateDailyReportAsync();
-
-      // Weekly 리포트 생성 (Service 사용으로 변경)
-      _generateWeeklyReportAsync();
+      // Weekly 리포트 생성/캐시 로드 (주차 기반)
+      _generateWeeklyReportWithCache();
     } catch (e) {
-      debugPrint('❌ 리포트 생성 전체 실패: $e');
+      debugPrint('❌ 날짜 기반 리포트 처리 실패: $e');
       _initializeReports(); // 실패 시 예시 데이터로 fallback
       _isDailyLoading = false;
       _isWeeklyLoading = false;
@@ -167,25 +133,24 @@ class ReportCardListViewModel extends ChangeNotifier {
       notifyListeners();
     }
 
-    // 전체 로딩은 여기서 종료하지 않고, 개별 작업 완료 시 체크
-    debugPrint('✅ 새 리포트 생성 프로세스 시작 완료');
+    debugPrint('✅ 날짜 기반 리포트 처리 프로세스 시작 완료');
   }
 
-  /// Daily 리포트 비동기 생성 및 즉시 업데이트 (Service 사용)
-  Future<void> _generateDailyReportAsync() async {
+  /// Daily 리포트 생성/캐시 로드 (날짜 기반)
+  Future<void> _generateDailyReportWithCache() async {
     try {
-      debugPrint('⏳ Daily 리포트 생성 중... (Service 사용)');
+      debugPrint('⏳ Daily 리포트 처리 중... (날짜 기반 캐시)');
 
-      // Service 사용으로 변경 - 간단해짐!
+      // Service의 날짜 기반 캐시 시스템 사용
       final dailyModel = await _reportService.generateDailyReport();
 
       // dispose 체크 추가
       if (!_isDisposed) {
         _updateSingleReport(dailyModel);
-        debugPrint('✅ Daily 리포트 생성 완료 및 UI 업데이트 (Service)');
+        debugPrint('✅ Daily 리포트 처리 완료 및 UI 업데이트');
       }
     } catch (e) {
-      debugPrint('❌ Daily 리포트 생성 실패: $e');
+      debugPrint('❌ Daily 리포트 처리 실패: $e');
       // Daily 실패 시 해당 카드만 에러 상태로 표시
       if (!_isDisposed) {
         _updateDailyReportError();
@@ -198,21 +163,21 @@ class ReportCardListViewModel extends ChangeNotifier {
     }
   }
 
-  /// Weekly 리포트 비동기 생성 및 즉시 업데이트 (Service 사용으로 변경)
-  Future<void> _generateWeeklyReportAsync() async {
+  /// Weekly 리포트 생성/캐시 로드 (주차 기반)
+  Future<void> _generateWeeklyReportWithCache() async {
     try {
-      debugPrint('⏳ Weekly 리포트 생성 중... (Service 사용)');
+      debugPrint('⏳ Weekly 리포트 처리 중... (주차 기반 캐시)');
 
-      // Service 사용으로 변경 - 간단해짐!
+      // Service의 주차 기반 캐시 시스템 사용
       final weeklyModel = await _reportService.generateWeeklyReport();
 
       // dispose 체크 추가
       if (!_isDisposed) {
         _updateSingleReport(weeklyModel);
-        debugPrint('✅ Weekly 리포트 생성 완료 및 UI 업데이트 (Service)');
+        debugPrint('✅ Weekly 리포트 처리 완료 및 UI 업데이트');
       }
     } catch (e) {
-      debugPrint('❌ Weekly 리포트 생성 실패: $e');
+      debugPrint('❌ Weekly 리포트 처리 실패: $e');
       // Weekly 실패 시 해당 카드만 에러 상태로 표시
       if (!_isDisposed) {
         _updateWeeklyReportError();
