@@ -100,10 +100,14 @@ class ReportCard extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: spacing * 0.2),
-                  Text(
-                    report.subtitle,
-                    style: PretendardStyles.regular12.copyWith(
-                      color: AppColors.gray100,
+                  Flexible(
+                    child: Text(
+                      report.subtitle,
+                      style: PretendardStyles.regular12.copyWith(
+                        color: AppColors.gray100,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const Spacer(),
@@ -159,10 +163,14 @@ class ReportCard extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: spacing * 0.2),
-                  Text(
-                    report.subtitle,
-                    style: PretendardStyles.regular12.copyWith(
-                      color: AppColors.gray100,
+                  Flexible(
+                    child: Text(
+                      report.subtitle,
+                      style: PretendardStyles.regular12.copyWith(
+                        color: AppColors.gray100,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
