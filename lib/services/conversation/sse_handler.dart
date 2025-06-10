@@ -131,8 +131,7 @@ $args
         final content = allArguments.map((e) => e.value).join('');
 
         // 포맷팅된 내용으로 메시지 업데이트
-        final formattedContent = '''### 도구 호출
-```json
+        final formattedContent = '''```json
 $content
 ```''';
 
@@ -153,7 +152,6 @@ $content
     _currentMessageType = 'tool_calls';
     _currentMessageId = lastMessageId;
   }
-
   void _handleToolResultMessage(
     dynamic toolResults,
     String? toolCallId,
@@ -198,18 +196,21 @@ $content
       codeBlock = formattedResults;
     }
 
-    final updatedContent = '''${message.content}
-### 도구 실행 결과
-$codeBlock''';
+    // 새로운 tool result 메시지 생성
+    final resultMessageContent = codeBlock;
 
-    _historyService.updateMessageInSession(
+    // 새로운 메시지 ID 생성
+    final resultMessageId = 'result_${DateTime.now().millisecondsSinceEpoch}';
+    
+    // 새로운 도구 결과 메시지를 세션에 추가
+    _historyService.addMessageToSession(
       Message(
-        id: message.id,
+        id: resultMessageId,
         sessionId: message.sessionId,
         type: MessageType.toolResult,
-        title: message.title,
-        content: updatedContent,
-        timestamp: message.timestamp,
+        title: message.title, // 원래 도구 호출의 제목을 유지
+        content: resultMessageContent,
+        timestamp: DateTime.now(),
       ),
     );
   }
