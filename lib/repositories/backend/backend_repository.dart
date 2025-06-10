@@ -6,6 +6,7 @@ import 'models/user.dart';
 import 'models/session.dart';
 import 'models/message.dart';
 import 'http_helper.dart';
+import 'models/schedule.dart';
 
 class BackendRepository implements IBackendRepository {
   static final BackendRepository _instance = BackendRepository._internal();
@@ -293,5 +294,19 @@ class BackendRepository implements IBackendRepository {
     // TODO: swagger_new.json 활성화 시 구현
     debugPrint('[BackendRepository] Insights API는 아직 미구현 상태입니다.');
     return null;
+  }
+
+  Future<List<Schedule>> getSchedulesByUserId(
+    String userId, {
+    String? accessToken,
+  }) async {
+    return _http.getList(
+      '/schedule/$userId',
+      (json) => Schedule.fromJson(json),
+      headers:
+          accessToken != null && accessToken.isNotEmpty
+              ? {'Authorization': 'Bearer $accessToken'}
+              : {},
+    );
   }
 }
