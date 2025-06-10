@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:seobi_app/ui/themes/dark_theme.dart';
+import 'package:seobi_app/ui/themes/light_theme.dart';
 import 'services/service_manager.dart';
 import 'ui/screens/home_screen.dart';
 
@@ -43,10 +45,9 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
+      theme: LightTheme.theme,
+      darkTheme: DarkTheme.theme,
+      themeMode: ThemeMode.system, // 시스템 설정에 따라 테마 변경
       home: const HomeScreen(),
     );
   }
