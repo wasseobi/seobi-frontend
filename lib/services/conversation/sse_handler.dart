@@ -58,11 +58,11 @@ class SseHandler {
     final message = Message(
       id:
           data['metadata']?['message_id'] as String? ??
-          'msg_${DateTime.now().millisecondsSinceEpoch}',
+          'msg_${DateTime.now().toUtc().millisecondsSinceEpoch}',
       sessionId: sessionId,
       type: MessageType.user,
       content: content,
-      timestamp: DateTime.now(),
+      timestamp: DateTime.now().toUtc(),
     );
     _historyService.clearPendingUserMessage();
     _historyService.addMessageToSession(message);
@@ -90,7 +90,8 @@ class SseHandler {
       if (toolCallId != null && name != null) {
         debugPrint('[SseHandler] 새로운 도구 호출 메시지 생성');
         // 새로운 tool call 시작
-        final messageId = 'tool_${DateTime.now().millisecondsSinceEpoch}';
+        final messageId =
+            'tool_${DateTime.now().toUtc().millisecondsSinceEpoch}';
         final message = Message(
           id: messageId,
           sessionId: sessionId,
@@ -100,7 +101,7 @@ class SseHandler {
 ```json
 $args
 ```''',
-          timestamp: DateTime.now(),
+          timestamp: DateTime.now().toUtc(),
         );
 
         _historyService.addMessageToSession(message);
@@ -152,6 +153,7 @@ $content
     _currentMessageType = 'tool_calls';
     _currentMessageId = lastMessageId;
   }
+
   void _handleToolResultMessage(
     dynamic toolResults,
     String? toolCallId,
@@ -200,8 +202,9 @@ $content
     final resultMessageContent = codeBlock;
 
     // 새로운 메시지 ID 생성
-    final resultMessageId = 'result_${DateTime.now().millisecondsSinceEpoch}';
-    
+    final resultMessageId =
+        'result_${DateTime.now().toUtc().millisecondsSinceEpoch}';
+
     // 새로운 도구 결과 메시지를 세션에 추가
     _historyService.addMessageToSession(
       Message(
@@ -210,7 +213,7 @@ $content
         type: MessageType.toolResult,
         title: message.title, // 원래 도구 호출의 제목을 유지
         content: resultMessageContent,
-        timestamp: DateTime.now(),
+        timestamp: DateTime.now().toUtc(),
       ),
     );
   }
@@ -221,11 +224,11 @@ $content
     if (_currentMessageType != 'chunk') {
       // 새로운 assistant 메시지 시작
       final message = Message(
-        id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'msg_${DateTime.now().toUtc().millisecondsSinceEpoch}',
         sessionId: sessionId,
         type: MessageType.assistant,
         content: content,
-        timestamp: DateTime.now(),
+        timestamp: DateTime.now().toUtc(),
       );
 
       _historyService.addMessageToSession(message);
@@ -253,7 +256,6 @@ $content
   }
 
   // ========================================
-
   void _handleErrorMessage(String error) {
     // 항상 새로운 오류 메시지 생성
     final errorContent = '''### 오류 발생
@@ -263,7 +265,7 @@ $error
 
     _historyService.addMessageToSession(
       Message(
-        id: 'err_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'err_${DateTime.now().toUtc().millisecondsSinceEpoch}',
         sessionId:
             _currentMessageId != null
                 ? _historyService
@@ -274,7 +276,7 @@ $error
         type: MessageType.error,
         title: '오류',
         content: errorContent,
-        timestamp: DateTime.now(),
+        timestamp: DateTime.now().toUtc(),
       ),
     );
 
