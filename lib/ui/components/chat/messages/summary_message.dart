@@ -102,8 +102,6 @@ class SummaryMessage extends StatelessWidget {
                     style: Theme.of(
                       context,
                     ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 4,
                   ),
 
                 const SizedBox(height: 12),
