@@ -8,7 +8,7 @@ class ScheduleService {
   final String baseUrl = dotenv.env['REMOTE_BACKEND_URL'] ?? '';
 
   Future<List<Schedule>> fetchSchedules(String userId) async {
-    final url = Uri.parse('$baseUrl/debug/schedule/$userId');
+    final url = Uri.parse('$baseUrl/schedule/$userId');
     final accessToken = await AuthService().accessToken;
     final response = await http.get(
       url,

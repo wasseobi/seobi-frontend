@@ -150,36 +150,35 @@ class ScheduleCardListViewModel extends ChangeNotifier {
     if (isUrgentFirst) {
       // 시간 순으로 정렬 (임박순)
       _schedules.sort((a, b) {
-        // Convert time strings to DateTime for proper comparison
-        final timeA = _parseTimeString(a.time);
-        final timeB = _parseTimeString(b.time);
-        return timeA.compareTo(timeB);
+        DateTime? aStart = _parseDateTime(a.time);
+        DateTime? bStart = _parseDateTime(b.time);
+        if (aStart == null && bStart == null) return 0;
+        if (aStart == null) return 1;
+        if (bStart == null) return -1;
+        return aStart.compareTo(bStart);
       });
     } else {
       // 등록 순으로 정렬
       _schedules.sort((a, b) {
-        // Convert registeredTime strings to DateTime for proper comparison
-        final timeA = DateTime.parse(a.registeredTime);
-        final timeB = DateTime.parse(b.registeredTime);
-        return timeB.compareTo(timeA); // Most recent first
+        DateTime? aReg = _parseDateTime(a.registeredTime);
+        DateTime? bReg = _parseDateTime(b.registeredTime);
+        if (aReg == null && bReg == null) return 0;
+        if (aReg == null) return 1;
+        if (bReg == null) return -1;
+        return aReg.compareTo(bReg);
       });
     }
     notifyListeners();
     _saveSortingState();
   }
 
-  /// Helper method to parse time string to DateTime
-  DateTime _parseTimeString(String timeStr) {
-    final now = DateTime.now();
-    final timeParts = timeStr.split(':');
-    if (timeParts.length != 2) return now;
-
+  /// 문자열을 DateTime으로 파싱 (yyyy-MM-dd 또는 yyyy-MM-dd 등록함 등 지원)
+  DateTime? _parseDateTime(String str) {
     try {
-      final hour = int.parse(timeParts[0]);
-      final minute = int.parse(timeParts[1]);
-      return DateTime(now.year, now.month, now.day, hour, minute);
-    } catch (e) {
-      return now;
+      final dateStr = str.split(' ')[0];
+      return DateTime.parse(dateStr);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -193,21 +192,45 @@ class ScheduleCardListViewModel extends ChangeNotifier {
                 : schedule.id.hashCode, // id가 String이면 hashCode 사용
         'title': schedule.title,
         'time':
-            schedule.time is DateTime
-                ? _formatTime(schedule.time)
-                : schedule.time,
+            schedule.startAt is DateTime
+                ? _formatDateTime(schedule.startAt)
+                : schedule.startAt,
         'location': schedule.location,
         'registeredTime':
             schedule.createdAt is DateTime
-                ? schedule.createdAt.toString()
+                ? _formatRegisteredTime(schedule.createdAt)
                 : schedule.createdAt,
         'type': 'list',
       };
     }).toList();
   }
 
-  /// DateTime을 'HH:mm' 포맷 문자열로 변환
-  static String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  /// DateTime을 'M월 d일 오전/오후 h시' 포맷 문자열로 변환
+  static String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    final month = dateTime.month;
+    final day = dateTime.day;
+    final hour = dateTime.hour;
+    final minute = dateTime.minute;
+    final isAm = hour < 12;
+    final displayHour =
+        hour == 0
+            ? 12
+            : hour > 12
+            ? hour - 12
+            : hour;
+    final ampm = isAm ? '오전' : '오후';
+    if (minute == 0) {
+      return '${month}월 ${day}일 $ampm ${displayHour}시';
+    } else {
+      return '${month}월 ${day}일 $ampm ${displayHour}시 ${minute}분';
+    }
+  }
+
+  /// DateTime을 'yyyy-MM-dd 등록함' 포맷 문자열로 변환
+  static String _formatRegisteredTime(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    // 날짜만 추출해서 'yyyy-MM-dd 등록함' 포맷으로 반환
+    return '${dateTime.year.toString().padLeft(4, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} 등록함';
   }
 }

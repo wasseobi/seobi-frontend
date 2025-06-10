@@ -2,14 +2,14 @@ class Schedule {
   final String id;
   final String title;
   final String location;
-  final DateTime time;
-  final DateTime createdAt;
+  final DateTime? startAt;
+  final DateTime? createdAt;
 
   Schedule({
     required this.id,
     required this.title,
     required this.location,
-    required this.time,
+    required this.startAt,
     required this.createdAt,
   });
 
@@ -18,12 +18,12 @@ class Schedule {
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
       location: json['location']?.toString() ?? '',
-      time:
-          json['time'] != null ? DateTime.parse(json['time']) : DateTime.now(),
+      startAt:
+          json['start_at'] != null ? DateTime.parse(json['start_at']) : null,
       createdAt:
           json['created_at'] != null
               ? DateTime.parse(json['created_at'])
-              : DateTime.now(),
+              : null,
     );
   }
 
@@ -32,8 +32,8 @@ class Schedule {
       'id': id,
       'title': title,
       'location': location,
-      'time': time.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
+      'start_at': startAt?.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
     };
   }
 }

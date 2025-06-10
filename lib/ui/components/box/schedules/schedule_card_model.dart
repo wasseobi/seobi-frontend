@@ -25,8 +25,7 @@ class ScheduleCardModel {
       title: map['title'] as String,
       time: map['time'] as String,
       location: map['location'] as String,
-      registeredTime:
-          map['registeredTime']?.toString() ?? DateTime.now().toString(),
+      registeredTime: map['registeredTime']?.toString() ?? '',
       type:
           map['type'] != null
               ? ScheduleType.values.firstWhere(
