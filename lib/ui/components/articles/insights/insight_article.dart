@@ -222,14 +222,12 @@ class InsightArticle extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // 메타 정보 - 오버플로우 방지
-        Wrap(
-          spacing: 16,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        // 메타 정보 - 링크별로 분리하여 표시
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 생성일자
             Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.schedule, size: 16, color: Colors.grey.shade600),
                 const SizedBox(width: 4),
@@ -239,25 +237,24 @@ class InsightArticle extends StatelessWidget {
                 ),
               ],
             ),
-            if (insight.source.isNotEmpty)
+
+            // 소스 링크들 (개별 처리)
+            if (insight.source.isNotEmpty) ...[
+              const SizedBox(height: 8),
               Row(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.source, size: 16, color: Colors.grey.shade600),
                   const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      insight.source,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                    ),
+                  const Text(
+                    '출처:',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
+              const SizedBox(height: 4),
+              ..._buildSourceLinks(insight.source),
+            ],
           ],
         ),
       ],
@@ -285,5 +282,89 @@ class InsightArticle extends StatelessWidget {
 
   String _formatDate(DateTime dateTime) {
     return '${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}';
+  }
+
+  List<Widget> _buildSourceLinks(String source) {
+    // 여러 링크를 파싱 (쉼표 또는 중괄호로 구분)
+    String cleanSource = source.replaceAll(RegExp(r'[{}]'), ''); // 중괄호 제거
+    List<String> links =
+        cleanSource
+            .split(',')
+            .map((link) => link.trim())
+            .where((link) => link.isNotEmpty)
+            .toList();
+
+    if (links.isEmpty) {
+      return [
+        Text(
+          source,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ];
+    }
+
+    return links.map((link) {
+      // URL을 보기 좋게 줄여서 표시
+      String displayText = _shortenUrl(link);
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.link, size: 12, color: Colors.blue.shade600),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  displayText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.blue.shade700,
+                    decoration: TextDecoration.underline,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  String _shortenUrl(String url) {
+    // URL을 보기 좋게 줄이기
+    if (url.length <= 40) return url;
+
+    // https:// 제거
+    String cleanUrl = url.replaceFirst(RegExp(r'https?://'), '');
+
+    // www. 제거
+    cleanUrl = cleanUrl.replaceFirst(RegExp(r'^www\.'), '');
+
+    // 도메인과 경로 분리
+    List<String> parts = cleanUrl.split('/');
+    if (parts.length > 1) {
+      String domain = parts[0];
+      String path = parts.sublist(1).join('/');
+
+      // 경로가 너무 길면 줄이기
+      if (path.length > 20) {
+        path = '${path.substring(0, 17)}...';
+      }
+
+      return '$domain/$path';
+    }
+
+    return cleanUrl.length > 40 ? '${cleanUrl.substring(0, 37)}...' : cleanUrl;
   }
 }
