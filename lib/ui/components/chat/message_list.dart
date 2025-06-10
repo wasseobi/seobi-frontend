@@ -167,11 +167,14 @@ class _MessageListState extends State<MessageList> {
         );
       case MessageType.toolCall:
         return ToolCallMessage(
-          title: message.title ?? 'Unknown Tool',
+          title: message.title ?? '도구 호출',
           content: [message.content],
         );
       case MessageType.toolResult:
-        return ToolResultMessage(content: [message.content]);
+        return ToolResultMessage(
+          title: message.title ?? '도구 실행 결과',
+          content: [message.content],
+        );
       case MessageType.error:
         return ErrorMessage(content: [message.content]);
       case MessageType.summary:
