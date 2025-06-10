@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../constants/app_colors.dart';
 import '../../constants/dimensions/tab_dimensions.dart';
 
 class CustomTabBar extends StatelessWidget {
@@ -18,7 +17,7 @@ class CustomTabBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       padding: EdgeInsets.all(TabDimensions.padding),
       decoration: BoxDecoration(
-        color: AppColors.navBox,
+        color: Theme.of(context).appBarTheme.backgroundColor,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Stack(
@@ -33,7 +32,7 @@ class CustomTabBar extends StatelessWidget {
               width: TabDimensions.size,
               height: TabDimensions.size,
               decoration: BoxDecoration(
-                color: AppColors.navSelectedLight,  // TODO: 어두운 테마 고려
+                color: Theme.of(context).tabBarTheme.indicatorColor,
                 borderRadius: _getBorderRadius(selectedIndex),
               ),
             ),
@@ -41,14 +40,14 @@ class CustomTabBar extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(3, (index) => _buildTab(index)),
+            children: List.generate(3, (index) => _buildTab(context, index)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTab(int index) {
+  Widget _buildTab(BuildContext context, int index) {
     return GestureDetector(
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
@@ -66,9 +65,10 @@ class CustomTabBar extends StatelessWidget {
               child: Icon(
                 _getIcon(index),
                 key: ValueKey<bool>(selectedIndex == index),
-                color: selectedIndex == index
-                    ? AppColors.navIconSelectedLight
-                    : AppColors.navIcon,
+                color:
+                    selectedIndex == index
+                        ? Theme.of(context).tabBarTheme.labelColor
+                        : Theme.of(context).tabBarTheme.unselectedLabelColor,
                 size: TabDimensions.iconSize,
               ),
             ),
