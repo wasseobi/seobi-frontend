@@ -1,4 +1,3 @@
-// filepath: c:\Projects\seobi-frontend\lib\services\tts\tts_service.dart
 import 'dart:collection';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter/foundation.dart';
@@ -183,9 +182,7 @@ class TtsService {
     if (text.trim().isEmpty) {
       debugPrint('[TtsService] 빈 텍스트로 인해 큐 추가 건너뜀');
       return;
-    }
-
-    // TTS가 비활성화 상태이면 큐에 추가하지 않음
+    }    // TTS가 비활성화 상태이면 큐에 추가하지 않음
     if (!_isEnabled) {
       debugPrint('[TtsService] TTS 비활성화 상태로 큐 추가 무시');
       return;
@@ -200,7 +197,7 @@ class TtsService {
     StackTrace stackTrace = StackTrace.current;
     if (!stackTrace.toString().contains('_checkAndProcessCompleteSentence') &&
         !stackTrace.toString().contains('flush')) {
-      textToAdd = MarkdownTextCleaner.cleanText(text);
+      textToAdd = TextCleaner.cleanForTTS(text);
       debugPrint(
         '[TtsService] 텍스트 정돈 완료: "${textToAdd.length > 50 ? '${textToAdd.substring(0, 50)}...' : textToAdd}"',
       );
@@ -401,7 +398,7 @@ class TtsService {
   Future<void> _checkAndProcessCompleteSentence() async {
     if (_tokenQueue.isEmpty) return;
 
-    // 큐의 모든 토큰을 하나의 문자열로 합칩니다.
+  // 큐의 모든 토큰을 하나의 문자열로 합칩니다.
     final combinedText = _tokenQueue.join('');
 
     // 정규식을 사용하여 문장의 끝을 찾습니다. (마침표, 느낌표, 물음표)
@@ -415,7 +412,7 @@ class TtsService {
       debugPrint('[TtsService] 완성된 문장 발견: "$completeSentence"');
 
       // 완성된 문장을 정돈
-      final cleanedSentence = MarkdownTextCleaner.cleanText(completeSentence);
+      final cleanedSentence = TextCleaner.cleanForTTS(completeSentence);
 
       // 정돈된 문장을 TTS 큐에 추가
       if (cleanedSentence.isNotEmpty) {
@@ -441,7 +438,6 @@ class TtsService {
       }
     }
   }
-
   /// 토큰 큐의 모든 내용을 TTS 큐로 전달합니다.
   Future<void> flush() async {
     if (_tokenQueue.isEmpty) {
@@ -455,7 +451,7 @@ class TtsService {
     _tokenQueue.clear();
 
     // 텍스트 정돈
-    final cleanedText = MarkdownTextCleaner.cleanText(combinedText);
+    final cleanedText = TextCleaner.cleanForTTS(combinedText);
     debugPrint('[TtsService] flush: 정돈된 텍스트: "$cleanedText"');
 
     // TTS 큐에 추가
