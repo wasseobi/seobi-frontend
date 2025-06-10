@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../services/insight/insight_service.dart';
 import '../../../../services/insight/models/insight_detail_api.dart';
 
@@ -222,7 +223,7 @@ class InsightArticle extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // 메타 정보 - 링크별로 분리하여 표시
+        // 메타 정보 - 접을 수 있는 링크 표시
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -238,22 +239,10 @@ class InsightArticle extends StatelessWidget {
               ],
             ),
 
-            // 소스 링크들 (개별 처리)
+            // 소스 링크들 (접을 수 있는 형태)
             if (insight.source.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.source, size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  const Text(
-                    '출처:',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              ..._buildSourceLinks(insight.source),
+              _buildExpandableSourceLinks(context, insight.source),
             ],
           ],
         ),
@@ -284,9 +273,9 @@ class InsightArticle extends StatelessWidget {
     return '${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}';
   }
 
-  List<Widget> _buildSourceLinks(String source) {
-    // 여러 링크를 파싱 (쉼표 또는 중괄호로 구분)
-    String cleanSource = source.replaceAll(RegExp(r'[{}]'), ''); // 중괄호 제거
+  Widget _buildExpandableSourceLinks(BuildContext context, String source) {
+    // 여러 링크를 파싱
+    String cleanSource = source.replaceAll(RegExp(r'[{}]'), '');
     List<String> links =
         cleanSource
             .split(',')
@@ -295,50 +284,97 @@ class InsightArticle extends StatelessWidget {
             .toList();
 
     if (links.isEmpty) {
-      return [
-        Text(
-          source,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-          overflow: TextOverflow.ellipsis,
-        ),
-      ];
+      return Text(
+        source,
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+        overflow: TextOverflow.ellipsis,
+      );
     }
 
-    return links.map((link) {
-      // URL을 보기 좋게 줄여서 표시
-      String displayText = _shortenUrl(link);
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.blue.shade200),
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero, // 패딩 제거
+      childrenPadding: const EdgeInsets.only(left: 20, top: 8),
+      initiallyExpanded: links.length <= 2, // 링크가 2개 이하면 기본으로 펼침
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.source, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Text(
+            '출처 (${links.length}개)',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.normal,
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.link, size: 12, color: Colors.blue.shade600),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  displayText,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.blue.shade700,
-                    decoration: TextDecoration.underline,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ),
-            ],
+        ],
+      ),
+      trailing: Icon(
+        Icons.keyboard_arrow_down,
+        size: 16,
+        color: Colors.grey.shade600,
+      ),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children:
+                links.map((link) {
+                  String displayText = _shortenUrl(link);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: GestureDetector(
+                      onTap: () => _launchUrl(link),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.link,
+                              size: 12,
+                              color: Colors.blue.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                displayText,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.blue.shade700,
+                                  decoration: TextDecoration.underline,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.open_in_new,
+                              size: 10,
+                              color: Colors.blue.shade600,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
           ),
         ),
-      );
-    }).toList();
+      ],
+    );
   }
 
   String _shortenUrl(String url) {
@@ -366,5 +402,29 @@ class InsightArticle extends StatelessWidget {
     }
 
     return cleanUrl.length > 40 ? '${cleanUrl.substring(0, 37)}...' : cleanUrl;
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    try {
+      // URL이 프로토콜을 포함하지 않으면 https:// 추가
+      if (!urlString.startsWith('http://') &&
+          !urlString.startsWith('https://')) {
+        urlString = 'https://$urlString';
+      }
+
+      final Uri url = Uri.parse(urlString);
+
+      if (await canLaunchUrl(url)) {
+        await launchUrl(
+          url,
+          mode: LaunchMode.externalApplication, // 외부 브라우저에서 열기
+        );
+      } else {
+        // URL을 열 수 없는 경우 에러 메시지 표시
+        debugPrint('Could not launch $urlString');
+      }
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+    }
   }
 }
