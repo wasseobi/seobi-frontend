@@ -15,6 +15,9 @@ class ReportCardListViewModel extends ChangeNotifier {
   bool _isDailyLoading = false;
   bool _isWeeklyLoading = false;
 
+  // dispose 체크를 위한 플래그 추가
+  bool _isDisposed = false;
+
   // Service 인스턴스 - ReportService와 AuthService만 필요
   final ReportService _reportService = ReportService();
   final AuthService _authService = AuthService();
@@ -116,15 +119,22 @@ class ReportCardListViewModel extends ChangeNotifier {
       // Service 사용으로 변경 - 간단해짐!
       final dailyModel = await _reportService.generateDailyReport();
 
-      _updateSingleReport(dailyModel);
-      debugPrint('✅ Daily 리포트 생성 완료 및 UI 업데이트 (Service)');
+      // dispose 체크 추가
+      if (!_isDisposed) {
+        _updateSingleReport(dailyModel);
+        debugPrint('✅ Daily 리포트 생성 완료 및 UI 업데이트 (Service)');
+      }
     } catch (e) {
       debugPrint('❌ Daily 리포트 생성 실패: $e');
       // Daily 실패 시 해당 카드만 에러 상태로 표시
-      _updateDailyReportError();
+      if (!_isDisposed) {
+        _updateDailyReportError();
+      }
     } finally {
-      _isDailyLoading = false;
-      _checkAndUpdateOverallLoading(); // 전체 로딩 상태 체크
+      if (!_isDisposed) {
+        _isDailyLoading = false;
+        _checkAndUpdateOverallLoading(); // 전체 로딩 상태 체크
+      }
     }
   }
 
@@ -139,20 +149,30 @@ class ReportCardListViewModel extends ChangeNotifier {
       // Service 사용으로 변경 - 간단해짐!
       final weeklyModel = await _reportService.generateWeeklyReport();
 
-      _updateSingleReport(weeklyModel);
-      debugPrint('✅ Weekly 리포트 생성 완료 및 UI 업데이트 (Service)');
+      // dispose 체크 추가
+      if (!_isDisposed) {
+        _updateSingleReport(weeklyModel);
+        debugPrint('✅ Weekly 리포트 생성 완료 및 UI 업데이트 (Service)');
+      }
     } catch (e) {
       debugPrint('❌ Weekly 리포트 생성 실패: $e');
       // Weekly 실패 시 해당 카드만 에러 상태로 표시
-      _updateWeeklyReportError();
+      if (!_isDisposed) {
+        _updateWeeklyReportError();
+      }
     } finally {
-      _isWeeklyLoading = false;
-      _checkAndUpdateOverallLoading(); // 전체 로딩 상태 체크
+      if (!_isDisposed) {
+        _isWeeklyLoading = false;
+        _checkAndUpdateOverallLoading(); // 전체 로딩 상태 체크
+      }
     }
   }
 
   /// 전체 로딩 상태 체크 및 업데이트
   void _checkAndUpdateOverallLoading() {
+    // dispose 체크 추가
+    if (_isDisposed) return;
+
     // 모든 개별 로딩이 완료되면 전체 로딩도 완료
     if (!_isDailyLoading && !_isWeeklyLoading) {
       _isLoading = false;
@@ -163,6 +183,9 @@ class ReportCardListViewModel extends ChangeNotifier {
 
   /// 단일 리포트 업데이트 (즉시 UI 반영)
   void _updateSingleReport(ReportCardModel newReport) {
+    // dispose 체크 추가
+    if (_isDisposed) return;
+
     final existingIndex = _reports.indexWhere((r) => r.type == newReport.type);
     if (existingIndex != -1) {
       _reports[existingIndex] = newReport;
@@ -178,6 +201,9 @@ class ReportCardListViewModel extends ChangeNotifier {
 
   /// Daily 리포트 에러 상태 업데이트
   void _updateDailyReportError() {
+    // dispose 체크 추가
+    if (_isDisposed) return;
+
     final dailyIndex = _reports.indexWhere(
       (r) => r.type == ReportCardType.daily,
     );
@@ -192,6 +218,9 @@ class ReportCardListViewModel extends ChangeNotifier {
 
   /// Weekly 리포트 에러 상태 업데이트
   void _updateWeeklyReportError() {
+    // dispose 체크 추가
+    if (_isDisposed) return;
+
     final weeklyIndex = _reports.indexWhere(
       (r) => r.type == ReportCardType.weekly,
     );
@@ -264,5 +293,14 @@ class ReportCardListViewModel extends ChangeNotifier {
       reportType:
           selectedReport.type.toString().split('.').last, // enum을 문자열로 변환
     );
+  }
+
+  /// dispose 메서드 오버라이드
+  @override
+  void dispose() {
+    debugPrint('🗑️ ReportCardListViewModel dispose 시작');
+    _isDisposed = true;
+    super.dispose();
+    debugPrint('✅ ReportCardListViewModel dispose 완료');
   }
 }
