@@ -52,14 +52,49 @@ class TaskCardModel {
 
   /// cron 문자열을 한국어로 변환
   static String cronToKorean(String cron) {
-    // 간단 예시, 실제로는 더 많은 케이스를 추가할 수 있음
-    if (cron == '0 10 * * 1') return '매주 월요일 오전 10시';
-    if (cron == '0 7 * * *') return '매일 오전 7시';
-    if (cron == '0 9 * * 1') return '매주 월요일 오전 9시';
-    if (cron == '0 8 * * 1') return '매주 월요일 오전 8시';
-    if (cron == '0 0 * * *') return '매일 자정';
+    // 요일 매핑
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    final parts = cron.split(' ');
+    if (parts.length == 5) {
+      final minute = parts[0];
+      final hour = parts[1];
+      final dayOfMonth = parts[2];
+      final month = parts[3];
+      final dayOfWeek = parts[4];
+
+      // 시간 변환
+      String minuteStr = minute.padLeft(2, '0');
+      int hourInt = int.tryParse(hour) ?? 0;
+      String ampm = hourInt < 12 ? '오전' : '오후';
+      int displayHour = hourInt % 12 == 0 ? 12 : hourInt % 12;
+      if (hourInt == 0 && minute == '0') {
+        ampm = '';
+        displayHour = 0;
+        return '매일 자정';
+      } else if (hourInt == 12 && minute == '0') {
+        ampm = '';
+        displayHour = 12;
+        return '매일 정오';
+      }
+
+      // 매주 ~요일 ~시
+      if (dayOfWeek != '*' && int.tryParse(dayOfWeek) != null) {
+        final dayIdx = int.parse(dayOfWeek);
+        if (dayIdx >= 0 && dayIdx <= 6) {
+          return '매주 ${days[dayIdx]}요일 $ampm $displayHour시${minute != '0' ? ' $minuteStr분' : ''}';
+        }
+      }
+      // 매달 n일 ~시
+      if (dayOfMonth != '*' && int.tryParse(dayOfMonth) != null) {
+        return '매달 $dayOfMonth일 $ampm $displayHour시${minute != '0' ? ' $minuteStr분' : ''}';
+      }
+      // 매일 ~시
+      if (dayOfWeek == '*' && dayOfMonth == '*') {
+        return '매일 $ampm $displayHour시${minute != '0' ? ' $minuteStr분' : ''}';
+      }
+    }
     if (cron.isEmpty) return '';
-    // fallback: 원본 cron 문자열 반환
+    // fallback
     return cron;
   }
 
