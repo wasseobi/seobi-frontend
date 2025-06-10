@@ -8,6 +8,8 @@ class ScheduleCardModel {
   final String location;
   final ScheduleType type;
   final String registeredTime;
+  final String? startAtRaw;
+  final String? createdAtRaw;
 
   ScheduleCardModel({
     required this.id,
@@ -16,6 +18,8 @@ class ScheduleCardModel {
     required this.location,
     this.type = ScheduleType.list,
     required this.registeredTime,
+    this.startAtRaw,
+    this.createdAtRaw,
   });
 
   /// Map에서 ScheduleCardModel 객체로 변환하는 팩토리 메소드
@@ -26,6 +30,8 @@ class ScheduleCardModel {
       time: map['time'] as String,
       location: map['location'] as String,
       registeredTime: map['registeredTime']?.toString() ?? '',
+      startAtRaw: map['startAtRaw']?.toString(),
+      createdAtRaw: map['createdAtRaw']?.toString(),
       type:
           map['type'] != null
               ? ScheduleType.values.firstWhere(
@@ -44,6 +50,8 @@ class ScheduleCardModel {
       'time': time,
       'location': location,
       'registeredTime': registeredTime,
+      'startAtRaw': startAtRaw,
+      'createdAtRaw': createdAtRaw,
       'type': type.toString().split('.').last,
     };
   }
@@ -56,6 +64,8 @@ class ScheduleCardModel {
     String? location,
     ScheduleType? type,
     String? registeredTime,
+    String? startAtRaw,
+    String? createdAtRaw,
   }) {
     return ScheduleCardModel(
       id: id ?? this.id,
@@ -64,6 +74,8 @@ class ScheduleCardModel {
       location: location ?? this.location,
       type: type ?? this.type,
       registeredTime: registeredTime ?? this.registeredTime,
+      startAtRaw: startAtRaw ?? this.startAtRaw,
+      createdAtRaw: createdAtRaw ?? this.createdAtRaw,
     );
   }
 }

@@ -148,20 +148,32 @@ class ScheduleCardListViewModel extends ChangeNotifier {
   void sortSchedules(bool isUrgentFirst) {
     _isUrgentFirst = isUrgentFirst;
     if (isUrgentFirst) {
-      // 시간 순으로 정렬 (임박순)
+      // 임박순: startAtRaw 오름차순
       _schedules.sort((a, b) {
-        DateTime? aStart = _parseDateTime(a.time);
-        DateTime? bStart = _parseDateTime(b.time);
+        DateTime? aStart =
+            a.startAtRaw != null && a.startAtRaw!.isNotEmpty
+                ? DateTime.tryParse(a.startAtRaw!)
+                : null;
+        DateTime? bStart =
+            b.startAtRaw != null && b.startAtRaw!.isNotEmpty
+                ? DateTime.tryParse(b.startAtRaw!)
+                : null;
         if (aStart == null && bStart == null) return 0;
         if (aStart == null) return 1;
         if (bStart == null) return -1;
         return aStart.compareTo(bStart);
       });
     } else {
-      // 등록 순으로 정렬
+      // 등록순: createdAtRaw 오름차순
       _schedules.sort((a, b) {
-        DateTime? aReg = _parseDateTime(a.registeredTime);
-        DateTime? bReg = _parseDateTime(b.registeredTime);
+        DateTime? aReg =
+            a.createdAtRaw != null && a.createdAtRaw!.isNotEmpty
+                ? DateTime.tryParse(a.createdAtRaw!)
+                : null;
+        DateTime? bReg =
+            b.createdAtRaw != null && b.createdAtRaw!.isNotEmpty
+                ? DateTime.tryParse(b.createdAtRaw!)
+                : null;
         if (aReg == null && bReg == null) return 0;
         if (aReg == null) return 1;
         if (bReg == null) return -1;
@@ -200,6 +212,8 @@ class ScheduleCardListViewModel extends ChangeNotifier {
             schedule.createdAt is DateTime
                 ? _formatRegisteredTime(schedule.createdAt)
                 : schedule.createdAt,
+        'startAtRaw': schedule.startAt?.toIso8601String() ?? '',
+        'createdAtRaw': schedule.createdAt?.toIso8601String() ?? '',
         'type': 'list',
       };
     }).toList();
