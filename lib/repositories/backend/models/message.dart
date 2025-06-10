@@ -1,5 +1,5 @@
 /// 메시지 타입 열거형
-enum MessageType { user, assistant, tool_call, tool_result, error }
+enum MessageType { user, assistant, toolCall, toolResult, error, summary }
 
 /// 채팅 메시지 모델 클래스
 class Message {
@@ -13,7 +13,8 @@ class Message {
   final MessageType type;
 
   /// 메시지 제목 (선택적)
-  /// tool_call의 경우 호출하는 도구의 이름이 들어감
+  /// - tool_call: 호출하는 도구의 이름
+  /// - summary: 세션 제목
   final String? title;
 
   /// 메시지 내용 (필수)
@@ -21,10 +22,14 @@ class Message {
   /// - tool_call: 함수 이름/인자 정보가 담긴 json
   /// - tool_result: 도구 실행 결과가 담긴 json
   /// - error: 오류 내용
+  /// - summary: 세션 요약 내용
   final String content;
 
   /// 메시지 생성 시각
   final DateTime timestamp;
+
+  ///  summary 타입일 때에만 사용되는 세션 종료 시각
+  final DateTime? sessionFinishedAt;
 
   Message({
     this.id = '',
@@ -33,6 +38,7 @@ class Message {
     this.title,
     required this.content,
     DateTime? timestamp,
+    this.sessionFinishedAt,
   }) : timestamp = timestamp ?? DateTime.now();
 
   /// JSON에서 Message 객체 생성
@@ -50,7 +56,7 @@ class Message {
         break;
       case 'assistant':
         if (metadata != null && metadata['tool_calls'] != null) {
-          type = MessageType.tool_call;
+          type = MessageType.toolCall;
           title = metadata['tool_calls'][0]['function']['name'] as String;
           content =
               metadata['tool_calls'][0]['function']['arguments'] as String;
@@ -64,7 +70,7 @@ class Message {
           content = '도구 실행 결과가 없습니다.';
           title = '도구 실행 오류';
         } else {
-          type = MessageType.tool_result;
+          type = MessageType.toolResult;
           title = '도구 실행 완료' as String?;
           content = metadata['result']['content'] as String;
           break;

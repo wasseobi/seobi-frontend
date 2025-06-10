@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
+import 'package:seobi_app/ui/components/chat/messages/summary_message.dart';
 import 'messages/user_message.dart';
 import 'messages/tool_call_message.dart';
 import 'messages/tool_result_message.dart';
@@ -37,7 +38,8 @@ class _MessageListState extends State<MessageList> {
   }
 
   void _scrollListener() {
-    final currentShow = _scrollController.hasClients && _scrollController.offset > 300;
+    final currentShow =
+        _scrollController.hasClients && _scrollController.offset > 300;
     if (currentShow != _showScrollButton) {
       setState(() {
         _showScrollButton = currentShow;
@@ -98,7 +100,9 @@ class _MessageListState extends State<MessageList> {
     // 지정된 세션 ID가 있는 경우 해당 세션부터 시작
     int startSessionIndex = 0;
     if (widget.sessionId != null) {
-      startSessionIndex = allSessions.indexWhere((s) => s.id == widget.sessionId);
+      startSessionIndex = allSessions.indexWhere(
+        (s) => s.id == widget.sessionId,
+      );
       if (startSessionIndex == -1) startSessionIndex = 0;
     }
 
@@ -109,12 +113,21 @@ class _MessageListState extends State<MessageList> {
     // 이미 로드된 세션들의 메시지만 표시
     for (final session in sessionsToShow) {
       if (session.isLoaded) {
+        if (session.finishAt != null) {
+          final summaryMessage = Message(
+            id: 'summary-${session.id}',
+            sessionId: session.id,
+            type: MessageType.summary,
+            title: session.title,
+            content: session.description != null ? session.description! : '',
+            timestamp: session.startAt,
+            sessionFinishedAt: session.finishAt,
+          );
+          allMessages.add(summaryMessage);
+        }
         allMessages.addAll(session.messages);
       }
     }
-
-    // 메시지를 시간순으로 정렬 (최신 메시지가 먼저 오도록)
-    allMessages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
     return RefreshIndicator(
       onRefresh: _handleRefresh,
@@ -122,7 +135,10 @@ class _MessageListState extends State<MessageList> {
     );
   }
 
-  Widget _buildMessagesListView(List<Message> messages, String? pendingMessage) {
+  Widget _buildMessagesListView(
+    List<Message> messages,
+    String? pendingMessage,
+  ) {
     return ListView.builder(
       padding: const EdgeInsets.all(8),
       reverse: true,
@@ -145,16 +161,30 @@ class _MessageListState extends State<MessageList> {
       case MessageType.user:
         return UserMessage(content: [message.content]);
       case MessageType.assistant:
-        return AssistantMessage(content: [message.content], timestamp: message.timestamp);
-      case MessageType.tool_call:
+        return AssistantMessage(
+          content: [message.content],
+          timestamp: message.timestamp,
+        );
+      case MessageType.toolCall:
         return ToolCallMessage(
           title: message.title ?? 'Unknown Tool',
           content: [message.content],
         );
-      case MessageType.tool_result:
+      case MessageType.toolResult:
         return ToolResultMessage(content: [message.content]);
       case MessageType.error:
         return ErrorMessage(content: [message.content]);
+      case MessageType.summary:
+        return SummaryMessage(
+          content: [message.content],
+          title: message.title ?? '세션이 종료되었습니다.',
+          description:
+              message.content.isNotEmpty
+                  ? message.content
+                  : '세션 내용을 요약하는 중이니 잠시 기다려주세요...',
+          startDate: message.timestamp,
+          endDate: message.sessionFinishedAt!,
+        );
     }
   }
 }

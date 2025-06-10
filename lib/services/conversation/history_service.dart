@@ -258,7 +258,7 @@ class HistoryService extends ChangeNotifier {
     final session = getSessionById(sessionId);
     
     if (session != null) {
-      final updatedMessages = [...session.messages, message];
+      final updatedMessages = [message, ...session.messages];
       final updatedSession = session.copyWith(messages: updatedMessages);
       updateSession(updatedSession);
       debugPrint('[HistoryService] 메시지 추가: ${message.id} → ${sessionId}');
