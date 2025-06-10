@@ -24,8 +24,8 @@ class TaskCardModel {
   factory TaskCardModel.fromAutoTask(AutoTask autoTask) {
     // 남은 시간(meta.remaining_time) 파싱
     String remaining = autoTask.meta?['remaining_time']?.toString() ?? '-';
-    // 반복/스케줄 정보
-    String schedule = autoTask.repeat ?? '';
+    // 반복/스케줄 정보 (cron -> 자연어 변환)
+    String schedule = cronToKorean(autoTask.repeat ?? '');
     // 활성화 상태
     bool isEnabled = autoTask.active;
     // 액션 리스트 (task_list)
@@ -48,6 +48,19 @@ class TaskCardModel {
       actions: actions,
       progress: progress,
     );
+  }
+
+  /// cron 문자열을 한국어로 변환
+  static String cronToKorean(String cron) {
+    // 간단 예시, 실제로는 더 많은 케이스를 추가할 수 있음
+    if (cron == '0 10 * * 1') return '매주 월요일 오전 10시';
+    if (cron == '0 7 * * *') return '매일 오전 7시';
+    if (cron == '0 9 * * 1') return '매주 월요일 오전 9시';
+    if (cron == '0 8 * * 1') return '매주 월요일 오전 8시';
+    if (cron == '0 0 * * *') return '매일 자정';
+    if (cron.isEmpty) return '';
+    // fallback: 원본 cron 문자열 반환
+    return cron;
   }
 
   static double _calcProgress(String remaining) {

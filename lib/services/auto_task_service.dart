@@ -43,8 +43,8 @@ class AutoTaskService {
     }
   }
 
-  Future<void> updateActiveStatus(String autoTaskId, bool active) async {
-    final url = Uri.parse('$baseUrl/autotask/$autoTaskId/active');
+  Future<void> updateActiveStatus(String id, bool active) async {
+    final url = Uri.parse('$baseUrl/autotask/$id/active?active=$active');
     final accessToken = await AuthService().accessToken;
     final response = await http.put(
       url,
@@ -53,7 +53,6 @@ class AutoTaskService {
         if (accessToken != null && accessToken.isNotEmpty)
           'Authorization': 'Bearer $accessToken',
       },
-      body: json.encode({'active': active}),
     );
     if (response.statusCode != 200) {
       throw Exception('자동업무 활성/비활성 변경 실패: \\${response.statusCode}');

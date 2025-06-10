@@ -22,8 +22,10 @@ class TaskCardListViewModel extends ChangeNotifier {
   /// 비동기로 AutoTask 불러와서 초기화
   static Future<TaskCardListViewModel> fromUserId(String userId) async {
     final service = AutoTaskService();
-    final autoTasks = await service.fetchActiveTasks(userId);
-    return TaskCardListViewModel.withAutoTasks(autoTasks);
+    final activeTasks = await service.fetchActiveTasks(userId);
+    final inactiveTasks = await service.fetchInactiveTasks(userId);
+    final allTasks = [...activeTasks, ...inactiveTasks];
+    return TaskCardListViewModel.withAutoTasks(allTasks);
   }
 
   /// Task 활성화 상태 토글 (API 연동)
