@@ -1,31 +1,289 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import '../../../../services/insight/insight_service.dart';
+import '../../../../services/insight/models/insight_detail_api.dart';
 
 class InsightArticle extends StatelessWidget {
-  const InsightArticle({super.key});
+  final String? articleId;
+  final InsightService _insightService = InsightService();
+
+  InsightArticle({super.key, this.articleId});
 
   @override
   Widget build(BuildContext context) {
+    if (articleId == null) {
+      return _buildErrorContent(context, '인사이트 ID가 없습니다');
+    }
+
+    // 예시 데이터 ID인 경우 더미 콘텐츠 표시
+    if (articleId == '1' || articleId == '2' || articleId == '3') {
+      return _buildDummyContent(context, articleId!);
+    }
+
+    // 실제 API 호출
+    return FutureBuilder<InsightDetailApi?>(
+      future: _insightService.getInsightDetail(articleId!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingContent(context);
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorContent(context, '오류: ${snapshot.error}');
+        }
+
+        if (!snapshot.hasData || snapshot.data == null) {
+          return _buildErrorContent(context, '인사이트를 찾을 수 없습니다');
+        }
+
+        return _buildInsightContent(context, snapshot.data!);
+      },
+    );
+  }
+
+  Widget _buildLoadingContent(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Insight',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        ),
+        _buildHeader(context, 'Insight'),
         const SizedBox(height: 16),
-        // Add your insight content here
-        const Text('Insight content goes here'),
+        const Center(child: CircularProgressIndicator()),
+        const SizedBox(height: 24),
+        const Center(
+          child: Text(
+            '인사이트를 불러오는 중...',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ),
       ],
     );
+  }
+
+  Widget _buildErrorContent(BuildContext context, String message) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(context, 'Insight'),
+        const SizedBox(height: 16),
+        Center(
+          child: Column(
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDummyContent(BuildContext context, String id) {
+    final dummyData = {
+      '1': {
+        'title': '주간 업무 분석',
+        'keywords': ['생산성', '업무패턴', '시간관리'],
+      },
+      '2': {
+        'title': '월간 성과 리포트',
+        'keywords': ['목표달성', '성과지표', '개선점'],
+      },
+      '3': {
+        'title': '업무 효율성 분석',
+        'keywords': ['업무효율', '시간분배', '최적화'],
+      },
+    };
+
+    final data = dummyData[id]!;
+
+    return Column(
+      children: [
+        _buildHeader(context, data['title'] as String),
+        const SizedBox(height: 16),
+
+        // 키워드 표시
+        Wrap(
+          children:
+              (data['keywords'] as List<String>)
+                  .map((kw) => Chip(label: Text('#$kw')))
+                  .toList(),
+        ),
+
+        const SizedBox(height: 16),
+        const Text('예시 데이터입니다. 실제 백엔드 연동 후 실제 데이터가 표시됩니다.'),
+      ],
+    );
+  }
+
+  Widget _buildInsightContent(BuildContext context, InsightDetailApi insight) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(context, insight.title),
+        const SizedBox(height: 16),
+
+        // 키워드 태그들
+        if (insight.keywords.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children:
+                insight.keywords.map((keyword) {
+                  return Chip(
+                    label: Text(
+                      '#$keyword',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    backgroundColor: Colors.blue.shade50,
+                    labelStyle: TextStyle(color: Colors.blue.shade700),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  );
+                }).toList(),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // 인사이트 내용 (마크다운 렌더링) - 완전한 오버플로우 방지
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child:
+              insight.content.isNotEmpty
+                  ? SingleChildScrollView(
+                    child: MarkdownBody(
+                      data: insight.content,
+                      selectable: true,
+                      softLineBreak: true,
+                      fitContent: false, // 컨텐츠 크기 자동 조정
+                      styleSheet: MarkdownStyleSheet(
+                        p: const TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                        h1: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        h2: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        h3: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        code: TextStyle(
+                          backgroundColor: Colors.grey.shade200,
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                        ),
+                        codeblockDecoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        blockquote: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        listBullet: const TextStyle(color: Colors.black54),
+                        a: const TextStyle(
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                          fontSize: 14, // 링크 폰트 크기 명시적 지정
+                        ),
+                      ),
+                    ),
+                  )
+                  : const Text(
+                    '내용이 없습니다.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Colors.black87,
+                    ),
+                  ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 메타 정보 - 오버플로우 방지
+        Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.schedule, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  _formatDate(insight.createdAt),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+            if (insight.source.isNotEmpty)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.source, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      insight.source,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, String title) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime dateTime) {
+    return '${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}';
   }
 }

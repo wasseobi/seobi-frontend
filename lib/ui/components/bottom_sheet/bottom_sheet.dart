@@ -8,6 +8,7 @@ Future<void> showCommonBottomSheet({
   required ReportCardType type,
   Map<String, dynamic>? content,
   String? reportType,
+  String? articleId,
 }) {
   Widget content_widget;
   switch (type) {
@@ -15,7 +16,7 @@ Future<void> showCommonBottomSheet({
       content_widget = ReportArticle(content: content, reportType: reportType);
       break;
     case ReportCardType.insight:
-      content_widget = const InsightArticle();
+      content_widget = InsightArticle(articleId: articleId);
       break;
   }
 
