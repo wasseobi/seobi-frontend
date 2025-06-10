@@ -32,7 +32,7 @@ class ReportCardListViewModel extends ChangeNotifier {
   ReportCardListViewModel() {
     debugPrint('🏗️ ReportCardListViewModel 생성자 - Service 기반 모드');
     _loadDefaultCards();
-    _generateNewReports();
+    _loadCachedDataFirst();
   }
 
   /// 기본 로딩 카드들을 먼저 표시
@@ -65,14 +65,9 @@ class ReportCardListViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 새 리포트 생성 (개선된 실시간 업데이트 방식)
-  Future<void> _generateNewReports() async {
-    debugPrint('🚀 새 리포트 생성 시작 - 실시간 업데이트 방식');
-
-    _isLoading = true;
-    _isDailyLoading = true;
-    _isWeeklyLoading = true;
-    notifyListeners();
+  /// 캐시된 데이터를 먼저 로드하고 필요시 새로 생성
+  Future<void> _loadCachedDataFirst() async {
+    debugPrint('📋 캐시된 데이터 우선 로드 시작');
 
     try {
       final userId = _authService.userId;
@@ -86,15 +81,83 @@ class ReportCardListViewModel extends ChangeNotifier {
         return;
       }
 
+      // 1단계: 기존 리포트 목록 조회 (캐시 우선)
+      try {
+        final cachedReports = await _reportService.loadAllReports();
+        if (cachedReports.isNotEmpty) {
+          debugPrint('✅ 캐시된 리포트 데이터 발견: ${cachedReports.length}개');
+          _reports.clear();
+          _reports.addAll(cachedReports);
+
+          // 월간 리포트가 없으면 추가 (백엔드 미구현이므로)
+          final hasMonthlyReport = _reports.any(
+            (r) => r.type == ReportCardType.monthly,
+          );
+          if (!hasMonthlyReport) {
+            debugPrint('🗓️ 월간 리포트 누락 - 미구현 카드 추가');
+            _reports.add(
+              const ReportCardModel(
+                id: 'monthly_placeholder',
+                type: ReportCardType.monthly,
+                title: '월간 리포트',
+                subtitle: '서비스 준비 중',
+                activeDots: 0, // 미구현 상태
+              ),
+            );
+          }
+
+          notifyListeners();
+
+          // 캐시가 있으면 새 생성은 건너뛰고 종료
+          debugPrint('🎯 캐시 데이터 사용으로 새 생성 건너뛰기');
+          return;
+        }
+      } catch (e) {
+        debugPrint('⚠️ 캐시된 데이터 로드 실패, 새로 생성 진행: $e');
+      }
+
+      // 2단계: 캐시가 없거나 실패한 경우에만 새로 생성
+      debugPrint('🚀 캐시 데이터 없음 - 새 리포트 생성 시작');
+      await _generateNewReports();
+    } catch (e) {
+      debugPrint('❌ 캐시 우선 로드 실패: $e');
+      _initializeReports(); // 실패 시 예시 데이터로 fallback
+    }
+  }
+
+  /// 새 리포트 생성 (개선된 실시간 업데이트 방식)
+  Future<void> _generateNewReports() async {
+    debugPrint('🚀 새 리포트 생성 시작 - 실시간 업데이트 방식');
+
+    _isLoading = true;
+    _isDailyLoading = true;
+    _isWeeklyLoading = true;
+    notifyListeners();
+
+    try {
+      final userId = _authService.userId;
+      final authToken = await _authService.accessToken;
+
       debugPrint('📡 새 리포트 생성 API 호출 시작... User ID: $userId');
+
+      // userId 및 authToken null 체크
+      if (userId == null) {
+        debugPrint('❌ userId가 null입니다. 예시 데이터를 사용합니다.');
+        _initializeReports();
+        _isDailyLoading = false;
+        _isWeeklyLoading = false;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
 
       // Daily와 Weekly를 병렬로 처리하되, 완료되는 즉시 UI 업데이트
 
       // Daily 리포트 생성 (Service 사용)
-      _generateDailyReportAsync(userId, authToken);
+      _generateDailyReportAsync();
 
       // Weekly 리포트 생성 (Service 사용으로 변경)
-      _generateWeeklyReportAsync(userId, authToken);
+      _generateWeeklyReportAsync();
     } catch (e) {
       debugPrint('❌ 리포트 생성 전체 실패: $e');
       _initializeReports(); // 실패 시 예시 데이터로 fallback
@@ -109,10 +172,7 @@ class ReportCardListViewModel extends ChangeNotifier {
   }
 
   /// Daily 리포트 비동기 생성 및 즉시 업데이트 (Service 사용)
-  Future<void> _generateDailyReportAsync(
-    String userId,
-    String? authToken,
-  ) async {
+  Future<void> _generateDailyReportAsync() async {
     try {
       debugPrint('⏳ Daily 리포트 생성 중... (Service 사용)');
 
@@ -139,10 +199,7 @@ class ReportCardListViewModel extends ChangeNotifier {
   }
 
   /// Weekly 리포트 비동기 생성 및 즉시 업데이트 (Service 사용으로 변경)
-  Future<void> _generateWeeklyReportAsync(
-    String userId,
-    String? authToken,
-  ) async {
+  Future<void> _generateWeeklyReportAsync() async {
     try {
       debugPrint('⏳ Weekly 리포트 생성 중... (Service 사용)');
 
@@ -176,6 +233,24 @@ class ReportCardListViewModel extends ChangeNotifier {
     // 모든 개별 로딩이 완료되면 전체 로딩도 완료
     if (!_isDailyLoading && !_isWeeklyLoading) {
       _isLoading = false;
+
+      // 월간 리포트가 없으면 추가 (백엔드 미구현이므로)
+      final hasMonthlyReport = _reports.any(
+        (r) => r.type == ReportCardType.monthly,
+      );
+      if (!hasMonthlyReport) {
+        debugPrint('🗓️ 생성 완료 후 월간 리포트 추가');
+        _reports.add(
+          const ReportCardModel(
+            id: 'monthly_placeholder',
+            type: ReportCardType.monthly,
+            title: '월간 리포트',
+            subtitle: '서비스 준비 중',
+            activeDots: 0, // 미구현 상태
+          ),
+        );
+      }
+
       debugPrint('🎉 모든 리포트 생성 작업 완료');
       notifyListeners();
     }
@@ -247,6 +322,7 @@ class ReportCardListViewModel extends ChangeNotifier {
   /// 예시 Report 생성 메서드
   void _initializeReports() {
     debugPrint('📝 예시 데이터 생성');
+    _reports.clear();
     _reports.addAll([
       ReportCardModel(
         id: '1',
@@ -267,8 +343,8 @@ class ReportCardListViewModel extends ChangeNotifier {
         id: '3',
         type: ReportCardType.monthly,
         title: '월간 리포트',
-        subtitle: '23일 후 업데이트',
-        activeDots: 4, // 완료 시 모든 dot
+        subtitle: '서비스 준비 중',
+        activeDots: 0, // 미구현 상태
       ),
     ]);
     notifyListeners();

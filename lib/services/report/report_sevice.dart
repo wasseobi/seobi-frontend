@@ -9,12 +9,49 @@ import '../models/report_card_types.dart';
 ✅ 원시 데이터 → UI 모델 변환
 ✅ 복잡한 데이터 조작
 ✅ ViewModel이 사용하기 쉬운 형태로 가공
+✅ 싱글톤 패턴으로 앱 생명 주기 동안 한 번만 초기화
 
 */
 
-/// 리포트 비즈니스 로직을 담당하는 Service
+/// 리포트 비즈니스 로직을 담당하는 Service (싱글톤)
 class ReportService {
+  // 싱글톤 패턴 구현
+  static final ReportService _instance = ReportService._internal();
+  factory ReportService() => _instance;
+  ReportService._internal();
+
   final ReportRepository _repository = ReportRepository();
+
+  // 캐시된 데이터
+  List<ReportCardModel>? _cachedReports;
+  DateTime? _lastLoadTime;
+
+  // 캐시 유효 시간 (5분)
+  static const Duration _cacheValidDuration = Duration(minutes: 5);
+
+  // 초기화 상태 추적
+  bool _isInitialized = false;
+
+  /// 서비스 초기화
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    debugPrint('🏗️ ReportService 싱글톤 초기화 시작');
+    try {
+      // 필요한 초기화 작업이 있다면 여기에 추가
+      _isInitialized = true;
+      debugPrint('✅ ReportService 싱글톤 초기화 완료');
+    } catch (e) {
+      debugPrint('❌ ReportService 초기화 실패: $e');
+      rethrow;
+    }
+  }
+
+  /// 캐시된 데이터가 유효한지 확인
+  bool get _isCacheValid {
+    if (_cachedReports == null || _lastLoadTime == null) return false;
+    return DateTime.now().difference(_lastLoadTime!) < _cacheValidDuration;
+  }
 
   /// Daily 리포트 생성 및 모델 변환
   Future<ReportCardModel> generateDailyReport() async {
@@ -71,9 +108,17 @@ class ReportService {
     }
   }
 
-  /// 기존 리포트 목록 조회 및 모델 변환
-  Future<List<ReportCardModel>> loadAllReports() async {
-    debugPrint('🔧 Service: 리포트 목록 로드 시작');
+  /// 기존 리포트 목록 조회 및 모델 변환 (캐시 적용)
+  Future<List<ReportCardModel>> loadAllReports({
+    bool forceRefresh = false,
+  }) async {
+    debugPrint('🔧 Service: 리포트 목록 로드 시작 (캐시 체크)');
+
+    // 캐시가 유효하고 강제 새로고침이 아니면 캐시된 데이터 반환
+    if (!forceRefresh && _isCacheValid) {
+      debugPrint('✅ Service: 캐시된 리포트 데이터 반환 (${_cachedReports!.length}개)');
+      return List.from(_cachedReports!);
+    }
 
     try {
       final reportsData = await _repository.getAllReports();
@@ -84,10 +129,21 @@ class ReportService {
             return _convertApiResponseToModel(reportData);
           }).toList();
 
+      // 캐시 업데이트
+      _cachedReports = convertedReports;
+      _lastLoadTime = DateTime.now();
+
       debugPrint('✅ Service: 리포트 목록 로드 및 변환 완료 (${convertedReports.length}개)');
       return convertedReports;
     } catch (e) {
       debugPrint('❌ Service: 리포트 목록 로드 실패 - $e');
+
+      // API 실패 시 캐시된 데이터가 있으면 반환
+      if (_cachedReports != null) {
+        debugPrint('⚠️ Service: API 실패, 캐시된 데이터 반환');
+        return List.from(_cachedReports!);
+      }
+
       rethrow; // 에러를 상위로 전달
     }
   }
@@ -183,6 +239,21 @@ class ReportService {
     }
   }
 
+  /// 캐시 클리어
+  void clearCache() {
+    debugPrint('🗑️ Service: 캐시 클리어');
+    _cachedReports = null;
+    _lastLoadTime = null;
+  }
+
   /// 사용자 로그인 상태 확인
   bool get isUserLoggedIn => _repository.isUserLoggedIn;
+
+  /// 서비스 정리
+  Future<void> dispose() async {
+    debugPrint('🗑️ ReportService 정리 시작');
+    clearCache();
+    // 필요한 정리 작업이 있다면 여기에 추가
+    debugPrint('✅ ReportService 정리 완료');
+  }
 }

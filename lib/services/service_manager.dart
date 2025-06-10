@@ -4,6 +4,7 @@ import 'package:seobi_app/services/tts/tts_service.dart';
 import 'auth/auth_service.dart';
 import 'conversation/conversation_service2.dart';
 import 'stt/stt_service.dart';
+import 'report/report_sevice.dart';
 import '../repositories/local_storage/local_storage_repository.dart';
 
 /// 모든 서비스 초기화 관리자
@@ -28,6 +29,15 @@ class ServiceManager {
       final authService = AuthService();
       await authService.init();
       debugPrint('[ServiceManager] ✅ 인증 서비스 초기화 완료');
+
+      // 리포트 서비스 초기화 (싱글톤)
+      try {
+        final reportService = ReportService();
+        await reportService.initialize();
+        debugPrint('[ServiceManager] ✅ 리포트 서비스 초기화 완료');
+      } catch (e) {
+        debugPrint('[ServiceManager] ⚠️ 리포트 서비스 초기화 실패 (앱 계속 실행): $e');
+      }
 
       // STT 서비스 초기화
       try {
@@ -93,6 +103,15 @@ class ServiceManager {
         debugPrint('[ServiceManager] ✅ 대화 서비스 정리 완료');
       } catch (e) {
         debugPrint('[ServiceManager] ⚠️ 대화 서비스 정리 실패: $e');
+      }
+
+      // 리포트 서비스 정리
+      try {
+        final reportService = ReportService();
+        await reportService.dispose();
+        debugPrint('[ServiceManager] ✅ 리포트 서비스 정리 완료');
+      } catch (e) {
+        debugPrint('[ServiceManager] ⚠️ 리포트 서비스 정리 실패: $e');
       }
 
       // 인증 서비스 정리
