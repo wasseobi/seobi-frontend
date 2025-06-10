@@ -57,27 +57,78 @@ class Message {
       case 'assistant':
         if (metadata != null && metadata['tool_calls'] != null) {
           type = MessageType.toolCall;
-          title = metadata['tool_calls'][0]['function']['name'] as String;
-          content =
-              metadata['tool_calls'][0]['function']['arguments'] as String;
+          final toolCalls = metadata['tool_calls'] as List<dynamic>;
+          if (toolCalls.isNotEmpty) {
+            final toolCall = toolCalls[0];
+            final function = toolCall['function'] as Map<String, dynamic>?;
+            if (function != null) {
+              title = function['name'] as String;
+              // 함수 인자를 JSON 형식으로 포맷팅
+              try {
+                final arguments = function['arguments'] as String;
+                content = '```json\n$arguments\n```';
+              } catch (e) {
+                content = '';
+              }
+            }
+          }
           break;
         } else {
           type = MessageType.assistant;
         }
+        break;
       case 'tool':
-        if (metadata == null || metadata['result'] == null) {
+        if (metadata == null) {
           type = MessageType.error;
           content = '도구 실행 결과가 없습니다.';
           title = '도구 실행 오류';
-        } else {
+        } else if (metadata['tool_call_id'] != null) {
           type = MessageType.toolResult;
-          title = '도구 실행 완료' as String?;
-          content = metadata['result']['content'] as String;
-          break;
+          title = metadata['tool_name'] as String? ?? '';
+
+          // 결과 포맷팅 처리
+          if (metadata['result'] != null &&
+              metadata['result']['content'] != null) {
+            final toolResults = metadata['result']['content'];
+
+            // 결과가 JSON 문자열이 아닌 경우 처리
+            String formattedResults;
+            if (toolResults is String) {
+              formattedResults = toolResults;
+            } else {
+              try {
+                formattedResults = toolResults.toString();
+              } catch (e) {
+                formattedResults = '';
+              }
+            }
+
+            // 마크다운 형식에 맞게 결과 포맷팅
+            if (formattedResults.trim().startsWith('{') ||
+                formattedResults.trim().startsWith('[')) {
+              content = '```json\n$formattedResults\n```';
+            } else {
+              content = formattedResults;
+            }
+          } else {
+            // 일반 문자열 처리 (일반적인 도구 결과)
+            try {
+              if (content.trim().startsWith('{') ||
+                  content.trim().startsWith('[')) {
+                content = '```json\n$content\n```';
+              }
+            } catch (e) {
+              // 오류 처리 생략 - 기존 콘텐츠 유지
+            }
+          }
+        } else {
+          type = MessageType.error;
+          title = '알 수 없는 도구 응답';
         }
         break;
       default:
         type = MessageType.error;
+        title = '알 수 없는 메시지 유형';
     }
 
     return Message(
