@@ -1,3 +1,6 @@
+import '../../../../services/insight/models/insight_article_api.dart';
+import '../../../../services/insight/models/insight_detail_api.dart';
+
 /// Insight 데이터 모델
 class InsightCardModel {
   final String id;
@@ -29,6 +32,31 @@ class InsightCardModel {
       keywords: keywordsList,
       date: map['date']?.toString() ?? '',
     );
+  }
+
+  /// API 목록 응답에서 InsightCardModel로 변환하는 팩토리 메소드
+  factory InsightCardModel.fromApiArticle(InsightArticleApi apiModel) {
+    return InsightCardModel(
+      id: apiModel.id,
+      title: apiModel.title,
+      keywords: [], // 목록 조회에서는 키워드가 제공되지 않음
+      date: _formatDate(apiModel.createdAt),
+    );
+  }
+
+  /// API 상세 응답에서 InsightCardModel로 변환하는 팩토리 메소드
+  factory InsightCardModel.fromApiDetail(InsightDetailApi apiModel) {
+    return InsightCardModel(
+      id: apiModel.id,
+      title: apiModel.title,
+      keywords: apiModel.keywords,
+      date: _formatDate(apiModel.createdAt),
+    );
+  }
+
+  /// 날짜를 사용자 친화적 형식으로 변환
+  static String _formatDate(DateTime dateTime) {
+    return '${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.day.toString().padLeft(2, '0')}';
   }
 
   /// InsightCardModel을 Map으로 변환
