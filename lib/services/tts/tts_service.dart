@@ -191,14 +191,29 @@ class TtsService {
       return;
     }
 
+    // _checkAndProcessCompleteSentence 또는 flush에서 이미 정돈된 텍스트인지 확인
+    // 내부에서 호출될 때는 이미 정돈된 텍스트이므로 다시 정돈하지 않음
+    String textToAdd = text;
+
+    // 직접 호출된 경우에만 텍스트 정돈 (중복 정돈 방지)
+    // _checkAndProcessCompleteSentence 또는 flush에서 직접 호출한 경우가 아니면 정돈
+    StackTrace stackTrace = StackTrace.current;
+    if (!stackTrace.toString().contains('_checkAndProcessCompleteSentence') &&
+        !stackTrace.toString().contains('flush')) {
+      textToAdd = MarkdownTextCleaner.cleanText(text);
+      debugPrint(
+        '[TtsService] 텍스트 정돈 완료: "${textToAdd.length > 50 ? '${textToAdd.substring(0, 50)}...' : textToAdd}"',
+      );
+    }
+
     debugPrint(
-      '[TtsService] 텍스트 큐에 추가: "${text.length > 50 ? '${text.substring(0, 50)}...' : text}"',
+      '[TtsService] 텍스트 큐에 추가: "${textToAdd.length > 50 ? '${textToAdd.substring(0, 50)}...' : textToAdd}"',
     );
     debugPrint(
       '[TtsService] 현재 상태 - 재생중: $_isPlaying, 일시정지: $_isPaused, 큐 크기: ${_textQueue.length}',
     );
 
-    _textQueue.add(text);
+    _textQueue.add(textToAdd);
 
     // 현재 재생 중이 아니고 일시정지 상태도 아니라면 즉시 재생 시작
     if (!_isPlaying && !_isPaused) {
@@ -333,8 +348,7 @@ class TtsService {
       if (_tokenQueue.isEmpty) {
         debugPrint('[TtsService] 토큰 큐도 비어있음 - 타이머 시작');
         _startIdleTimer();
-      }
-      else {
+      } else {
         debugPrint('[TtsService] 토큰 큐에 항목이 남아있음: ');
       }
     } else {
@@ -398,22 +412,18 @@ class TtsService {
       // 문장이 완성된 경우 (마침표, 느낌표, 물음표가 발견된 경우)
       final endIndex = match.end;
       final completeSentence = combinedText.substring(0, endIndex);
-
       debugPrint('[TtsService] 완성된 문장 발견: "$completeSentence"');
 
-      await addToQueue(completeSentence);
-
-
       // 완성된 문장을 정돈
-      // final cleanedSentence = MarkdownTextCleaner.cleanText(completeSentence);
+      final cleanedSentence = MarkdownTextCleaner.cleanText(completeSentence);
 
-      // 완성된 문장을 TTS 큐에 추가
-      // if (cleanedSentence.isNotEmpty) {
-      //   debugPrint('[TtsService] 정돈된 문장 추가: "$cleanedSentence"');
-      //   await addToQueue(cleanedSentence);
-      // } else {
-      //   debugPrint('[TtsService] 정돈된 문장이 비어있어 추가하지 않음');
-      // }
+      // 정돈된 문장을 TTS 큐에 추가
+      if (cleanedSentence.isNotEmpty) {
+        debugPrint('[TtsService] 정돈된 문장 추가: "$cleanedSentence"');
+        await addToQueue(cleanedSentence);
+      } else {
+        debugPrint('[TtsService] 정돈된 문장이 비어있어 추가하지 않음');
+      }
 
       // 토큰 큐를 비우고 남은 토큰을 다시 큐에 넣습니다.
       _tokenQueue.clear();
@@ -437,18 +447,22 @@ class TtsService {
     if (_tokenQueue.isEmpty) {
       debugPrint('[TtsService] 토큰 큐가 비어있어 flush 작업 없음');
       return;
-    }
-
-    // 큐의 모든 토큰을 하나의 문자열로 합치기
+    } // 큐의 모든 토큰을 하나의 문자열로 합치기
     final combinedText = _tokenQueue.join('');
     debugPrint('[TtsService] flush: 토큰 큐의 모든 내용을 TTS로 전송: "$combinedText"');
 
     // 토큰 큐 비우기
     _tokenQueue.clear();
 
+    // 텍스트 정돈
+    final cleanedText = MarkdownTextCleaner.cleanText(combinedText);
+    debugPrint('[TtsService] flush: 정돈된 텍스트: "$cleanedText"');
+
     // TTS 큐에 추가
-    if (combinedText.trim().isNotEmpty) {
-      await addToQueue(combinedText);
+    if (cleanedText.trim().isNotEmpty) {
+      await addToQueue(cleanedText);
+    } else {
+      debugPrint('[TtsService] flush: 정돈된 텍스트가 비어있어 추가하지 않음');
     }
   }
 }

@@ -67,7 +67,7 @@ class MarkdownTextCleaner {
     result = result.replaceAll(RegExp(r'\|[-:]+\|[-:]+\|'), ''); // 헤더 구분선 제거
     result = result.replaceAllMapped(
       RegExp(r'\|(.*?)\|'), 
-      (match) => (match.group(1)?.trim() ?? '') + ' '
+      (match) => '${match.group(1)?.trim() ?? ''} '
     );
     
     // 여러 개의 연속된 공백을 하나로 줄이기
@@ -130,13 +130,20 @@ class MarkdownTextCleaner {
     result = result.replaceAll(RegExp(r'[\u{1F600}-\u{1F64F}]', unicode: true), '');  // 이모티콘
     result = result.replaceAll(RegExp(r'[\u{1F300}-\u{1F5FF}]', unicode: true), '');  // 기호 및 픽토그램
     result = result.replaceAll(RegExp(r'[\u{1F680}-\u{1F6FF}]', unicode: true), '');  // 교통 및 지도 기호
-    result = result.replaceAll(RegExp(r'[\u{2600}-\u{26FF}]', unicode: true), '');    // 기타 기호
-    
-    // 연속된 마침표 등을 하나로 변경
+    result = result.replaceAll(RegExp(r'[\u{2600}-\u{26FF}]', unicode: true), '');    // 기타 기호    // 연속된 마침표 등을 하나로 변경
     result = result.replaceAll(RegExp(r'\.{2,}'), '.');
     
-    // 불필요한 특수문자 제거 (TTS 읽기에 방해가 되는 것들)
-    result = result.replaceAll(RegExp(r'[^\w\s\.\,\?\!]'), ' ');
+    // 불필요한 특수문자만 제거 (TTS 읽기에 방해가 되는 특수 기호들)
+    // 모든 언어 문자는 보존하고 명시적으로 특정 특수 기호만 제거
+    final specialCharsToRemove = [
+      '#', '%', '^', '~', '`', '\$', '@', '*', '+', '=',
+      '<', '>', '[', ']', '{', '}', '|', '\\', '/', '_',
+      '(', ')', ';', ':', '"', '\'',
+    ];
+    
+    for (final char in specialCharsToRemove) {
+      result = result.replaceAll(char, ' ');
+    }
     
     // 여러 개의 연속된 공백을 하나로 줄이기
     result = result.replaceAll(RegExp(r'\s+'), ' ');

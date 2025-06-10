@@ -113,7 +113,6 @@ class _MessageListState extends State<MessageList> {
     // 이미 로드된 세션들의 메시지만 표시
     for (final session in sessionsToShow) {
       if (session.isLoaded) {
-
         if (session.finishAt != null) {
           final summaryMessage = Message(
             id: 'summary-${session.id}',
@@ -178,8 +177,11 @@ class _MessageListState extends State<MessageList> {
       case MessageType.summary:
         return SummaryMessage(
           content: [message.content],
-          title: message.title,
-          description: message.content,
+          title: message.title ?? '세션이 종료되었습니다.',
+          description:
+              message.content.isNotEmpty
+                  ? message.content
+                  : '세션 내용을 요약하는 중이니 잠시 기다려주세요...',
           startDate: message.timestamp,
           endDate: message.sessionFinishedAt!,
         );
