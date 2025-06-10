@@ -6,6 +6,8 @@ import '../../repositories/local_storage/local_storage_repository.dart';
 import '../../repositories/backend/i_backend_repository.dart';
 import './models/auth_result.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../report/report_sevice.dart';
 
 class AuthService extends ChangeNotifier {
   static final AuthService _instance = AuthService._internal();
@@ -110,6 +112,10 @@ class AuthService extends ChangeNotifier {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _removeAuthInfoFromStorage();
+
+    // Article 캐시 삭제
+    await _clearArticleCaches();
+
     notifyListeners();
   }
 
@@ -120,6 +126,26 @@ class AuthService extends ChangeNotifier {
     await _storage.setString('photoUrl', '');
     await _storage.setString('accessToken', '');
     await _storage.setString('userId', '');
+  }
+
+  /// Article 관련 캐시들을 모두 삭제합니다
+  Future<void> _clearArticleCaches() async {
+    try {
+      debugPrint('[AuthService] 🗑️ Article 캐시 삭제 시작');
+
+      // 1. Report 캐시 삭제 (ReportService 사용)
+      final reportService = ReportService();
+      await reportService.clearCache();
+
+      // 2. Insight 캐시 삭제 (SharedPreferences 직접 사용)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('insight_cards_state');
+
+      debugPrint('[AuthService] ✅ Article 캐시 삭제 완료');
+    } catch (e) {
+      debugPrint('[AuthService] ⚠️ Article 캐시 삭제 실패: $e');
+      // 실패해도 로그아웃은 계속 진행
+    }
   }
 
   /// 리소스 정리
