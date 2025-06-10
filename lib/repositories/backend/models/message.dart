@@ -30,7 +30,6 @@ class Message {
 
   ///  summary 타입일 때에만 사용되는 세션 종료 시각
   final DateTime? sessionFinishedAt;
-
   Message({
     this.id = '',
     this.sessionId = '',
@@ -39,7 +38,7 @@ class Message {
     required this.content,
     DateTime? timestamp,
     this.sessionFinishedAt,
-  }) : timestamp = timestamp ?? DateTime.now();
+  }) : timestamp = timestamp ?? DateTime.now().toUtc();
 
   /// JSON에서 Message 객체 생성
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -129,15 +128,13 @@ class Message {
       default:
         type = MessageType.error;
         title = '알 수 없는 메시지 유형';
-    }
-
-    return Message(
+    }    return Message(
       id: json['id'] as String,
       sessionId: json['session_id'] as String,
       type: type,
       title: title,
       content: content,
-      timestamp: DateTime.parse(json['timestamp'] as String),
+      timestamp: DateTime.parse(json['timestamp'] as String).toUtc(),
     );
   }
 
