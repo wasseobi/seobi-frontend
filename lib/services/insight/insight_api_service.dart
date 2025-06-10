@@ -92,7 +92,7 @@ class InsightApiService {
         {}, // POST body는 빈 객체 (API 문서에 따르면 body 없음)
         (json) => InsightDetailApi.fromJson(json),
         expectedStatus: 201, // 생성 성공 시 201 또는 200
-        timeout: const Duration(seconds: 30), // 생성은 시간이 오래 걸릴 수 있음
+        timeout: const Duration(minutes: 5), // 생성은 시간이 오래 걸릴 수 있음 (최대 5분)
       );
     } catch (e) {
       throw Exception('인사이트 생성 실패: $e');

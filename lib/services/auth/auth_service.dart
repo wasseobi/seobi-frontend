@@ -8,6 +8,8 @@ import './models/auth_result.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../report/report_sevice.dart';
+import '../conversation/history_service.dart';
+import '../conversation/conversation_service2.dart';
 
 class AuthService extends ChangeNotifier {
   static final AuthService _instance = AuthService._internal();
@@ -128,10 +130,10 @@ class AuthService extends ChangeNotifier {
     await _storage.setString('userId', '');
   }
 
-  /// Article 관련 캐시들을 모두 삭제합니다
+  /// Article 및 대화 관련 캐시들을 모두 삭제합니다
   Future<void> _clearArticleCaches() async {
     try {
-      debugPrint('[AuthService] 🗑️ Article 캐시 삭제 시작');
+      debugPrint('[AuthService] 🗑️ Article 및 대화 캐시 삭제 시작');
 
       // 1. Report 캐시 삭제 (ReportService 사용)
       final reportService = ReportService();
@@ -141,10 +143,58 @@ class AuthService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('insight_cards_state');
 
-      debugPrint('[AuthService] ✅ Article 캐시 삭제 완료');
+      // 3. 채팅 관련 캐시 삭제
+      await _clearConversationCaches(prefs);
+
+      debugPrint('[AuthService] ✅ Article 및 대화 캐시 삭제 완료');
     } catch (e) {
-      debugPrint('[AuthService] ⚠️ Article 캐시 삭제 실패: $e');
+      debugPrint('[AuthService] ⚠️ Article 및 대화 캐시 삭제 실패: $e');
       // 실패해도 로그아웃은 계속 진행
+    }
+  }
+
+  /// 대화 관련 캐시들을 삭제합니다
+  Future<void> _clearConversationCaches(SharedPreferences prefs) async {
+    try {
+      debugPrint('[AuthService] 💬 대화 캐시 삭제 시작');
+
+      // 1. 대화 서비스 리소스 정리
+      try {
+        final conversationService = ConversationService2();
+        await conversationService.dispose();
+        debugPrint('[AuthService] ✅ ConversationService2 정리 완료');
+      } catch (e) {
+        debugPrint('[AuthService] ⚠️ ConversationService2 정리 실패: $e');
+      }
+
+      // 2. 히스토리 서비스의 대기 메시지 클리어
+      try {
+        final historyService = HistoryService();
+        if (historyService.hasPendingUserMessage) {
+          historyService.clearPendingUserMessage();
+        }
+        debugPrint('[AuthService] ✅ HistoryService 대기 메시지 클리어 완료');
+      } catch (e) {
+        debugPrint('[AuthService] ⚠️ HistoryService 정리 실패: $e');
+      }
+
+      // 3. SharedPreferences의 세션 관련 키들 삭제
+      await prefs.remove('active_session_id');
+      await prefs.remove('last_session_id');
+      await prefs.remove('session_start_time');
+
+      // 4. TTS 관련 사용자 설정 삭제 (사용자별 개인 설정)
+      await prefs.remove('tts_enabled');
+      await prefs.remove('tts_speed');
+      await prefs.remove('tts_pitch');
+      await prefs.remove('tts_volume');
+
+      // 5. 대기 중인 인사이트 생성 요청도 삭제 (추가)
+      await prefs.remove('pending_insight_request');
+
+      debugPrint('[AuthService] ✅ 대화 관련 SharedPreferences 삭제 완료');
+    } catch (e) {
+      debugPrint('[AuthService] ⚠️ 대화 캐시 삭제 실패: $e');
     }
   }
 
