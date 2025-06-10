@@ -167,10 +167,12 @@ class ConversationService2 {
       debugPrint('[ConversationService2] ⚠️ 종료할 활성 세션을 찾을 수 없음: $sessionId');
       return;
     }
-    
+
     try {
       // 백엔드에서 세션 종료
-      final closedSession = await _backendRepository.postSessionFinish(sessionId);
+      final closedSession = await _backendRepository.postSessionFinish(
+        sessionId,
+      );
       debugPrint('[ConversationService2] ✅ 세션 종료 완료: $sessionId');
 
       // 로컬에서도 세션 상태 업데이트
@@ -213,16 +215,17 @@ class ConversationService2 {
                 (session) => session.isActive,
                 orElse: () => _historyService.sessions.first,
               )
-              : null;      if (activeSession != null && activeSession.isActive) {
+              : null;
+      if (activeSession != null && activeSession.isActive) {
         await finishSession(activeSession.id);
-      } 
-      
+      }
+
       // 2. 대기 중인 사용자 메시지 정리
       if (_historyService.hasPendingUserMessage) {
         _historyService.clearPendingUserMessage();
         debugPrint('[ConversationService2] ✅ 대기 중인 메시지 정리 완료');
-      } 
-      
+      }
+
       // 3. 히스토리 서비스 정리
       (_historyService as ChangeNotifier).dispose();
       debugPrint('[ConversationService2] ✅ 히스토리 서비스 정리 완료');
