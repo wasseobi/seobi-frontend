@@ -20,7 +20,7 @@ class ConversationService2 {
   // 세션 자동 종료를 위한 타이머
   Timer? _sessionTimer;
   // 세션 자동 종료 시간 (3분)
-  static const Duration _sessionTimeout = Duration(minutes: 3);
+  static const Duration _sessionTimeout = Duration(minutes: 1);
   ConversationService2._internal();
 
   /// 초기화
@@ -155,28 +155,46 @@ class ConversationService2 {
 
   /// 타이머 시작 또는 재설정
   void _resetSessionTimer(String sessionId) {
+    debugPrint('[ConversationService2] ⏰ 세션 자동 종료 타이머 초기화: $sessionId');
     _sessionTimer?.cancel();
     _sessionTimer = Timer(_sessionTimeout, () => _autoFinishSession(sessionId));
+  }
+
+  /// 세션 종료
+  Future<void> finishSession(String sessionId) async {
+    final session = _historyService.getSessionById(sessionId);
+    if (session == null || !session.isActive) {
+      debugPrint('[ConversationService2] ⚠️ 종료할 활성 세션을 찾을 수 없음: $sessionId');
+      return;
+    }
+    
+    try {
+      // 백엔드에서 세션 종료
+      final closedSession = await _backendRepository.postSessionFinish(sessionId);
+      debugPrint('[ConversationService2] ✅ 세션 종료 완료: $sessionId');
+
+      // 로컬에서도 세션 상태 업데이트
+      final finishedSession = session.copyWith(
+        finishAt: closedSession.finishAt,
+        title: closedSession.title,
+        description: closedSession.description,
+      );
+      debugPrint(
+        '[ConversationService2] 세션 요약: ${finishedSession.title}, '
+        '설명: ${finishedSession.description}, '
+        '시작: ${finishedSession.startAt}, '
+        '종료: ${finishedSession.finishAt}',
+      );
+      _historyService.updateSession(finishedSession);
+    } catch (e) {
+      debugPrint('[ConversationService2] ⚠️ 세션 종료 실패: $e');
+    }
   }
 
   /// 세션 자동 종료
   Future<void> _autoFinishSession(String sessionId) async {
     debugPrint('[ConversationService2] ⏰ 세션 자동 종료 시작: $sessionId');
-
-    try {
-      // 백엔드에서 세션 종료
-      await _backendRepository.postSessionFinish(sessionId);
-
-      // 로컬 세션 상태 업데이트
-      final session = _historyService.getSessionById(sessionId);
-      if (session != null && session.isActive) {
-        final finishedSession = session.copyWith(finishAt: DateTime.now());
-        _historyService.updateSession(finishedSession);
-        debugPrint('[ConversationService2] ✅ 세션 자동 종료 완료: $sessionId');
-      }
-    } catch (e) {
-      debugPrint('[ConversationService2] ⚠️ 세션 자동 종료 실패: $e');
-    }
+    await finishSession(sessionId);
   }
 
   /// 리소스 정리
@@ -195,27 +213,17 @@ class ConversationService2 {
                 (session) => session.isActive,
                 orElse: () => _historyService.sessions.first,
               )
-              : null;
-
-      if (activeSession != null && activeSession.isActive) {
-        try {
-          // 백엔드에서 세션 종료
-          await _backendRepository.postSessionFinish(activeSession.id);
-          debugPrint('[ConversationService2] ✅ 활성 세션 종료: ${activeSession.id}');
-
-          // 로컬에서도 세션 상태 업데이트
-          final finishedSession = activeSession.copyWith(
-            finishAt: DateTime.now(),
-          );
-          _historyService.updateSession(finishedSession);
-        } catch (e) {
-          debugPrint('[ConversationService2] ⚠️ 활성 세션 종료 실패: $e');
-        }
-      } // 2. 대기 중인 사용자 메시지 정리
+              : null;      if (activeSession != null && activeSession.isActive) {
+        await finishSession(activeSession.id);
+      } 
+      
+      // 2. 대기 중인 사용자 메시지 정리
       if (_historyService.hasPendingUserMessage) {
         _historyService.clearPendingUserMessage();
         debugPrint('[ConversationService2] ✅ 대기 중인 메시지 정리 완료');
-      } // 3. 히스토리 서비스 정리
+      } 
+      
+      // 3. 히스토리 서비스 정리
       (_historyService as ChangeNotifier).dispose();
       debugPrint('[ConversationService2] ✅ 히스토리 서비스 정리 완료');
 
