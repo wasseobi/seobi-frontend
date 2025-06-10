@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:seobi_app/ui/constants/app_dimensions.dart';
+import '../../constants/dimensions/tab_dimensions.dart';
 
 class CustomTabBar extends StatelessWidget {
   final int selectedIndex;
@@ -20,7 +20,7 @@ class CustomTabBar extends StatelessWidget {
       padding: EdgeInsets.all(AppDimensions.paddingSmall * 0.5),
       decoration: BoxDecoration(
         color: Theme.of(context).appBarTheme.backgroundColor,
-        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(28),
       ),
       child: Stack(
         children: [
@@ -35,6 +35,7 @@ class CustomTabBar extends StatelessWidget {
               height: AppDimensions.buttonHeightMedium,
               decoration: BoxDecoration(
                 color: Theme.of(context).tabBarTheme.indicatorColor,
+                color: Theme.of(context).tabBarTheme.indicatorColor,
                 borderRadius: _getBorderRadius(selectedIndex),
               ),
             ),
@@ -43,12 +44,14 @@ class CustomTabBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(3, (index) => _buildTab(context, index)),
+            children: List.generate(3, (index) => _buildTab(context, index)),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildTab(BuildContext context, int index) {
   Widget _buildTab(BuildContext context, int index) {
     return GestureDetector(
       onTap: () => onTap(index),
@@ -71,7 +74,7 @@ class CustomTabBar extends StatelessWidget {
                     selectedIndex == index
                         ? Theme.of(context).tabBarTheme.labelColor
                         : Theme.of(context).tabBarTheme.unselectedLabelColor,
-                size: AppDimensions.iconSizeMedium,
+                size: TabDimensions.iconSize,
               ),
             ),
           ),
