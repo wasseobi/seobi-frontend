@@ -34,40 +34,48 @@ class _RelativeTimeState extends State<RelativeTime> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
-  }
-
-  String _getRelativeTimeText() {
+  }  String _getRelativeTimeText() {
     try {
       final now = DateTime.now();
-      final difference = now.difference(widget.dateTime);
+      // UTC 시간을 로컬 시간으로 변환
+      final localDateTime = widget.dateTime.toLocal();
+      final difference = now.difference(localDateTime);
       
-      final formatter = DateFormat('HH:mm');
-      final timeStr = formatter.format(widget.dateTime);
-      
-      // 1분 미만
+      // 상대 시간 계산 (방금 전, n분 전, n시간 전, n일 전, n년 전)
+      String relativeTime;
       if (difference.inMinutes < 1) {
-        return '방금 전, $timeStr';
+        relativeTime = '방금 전';
+      } else if (difference.inHours < 1) {
+        relativeTime = '${difference.inMinutes}분 전';
+      } else if (difference.inDays < 1) {
+        relativeTime = '${difference.inHours}시간 전';
+      } else if (difference.inDays < 365) {
+        relativeTime = '${difference.inDays}일 전';
+      } else {
+        final years = (difference.inDays / 365).floor();
+        relativeTime = '${years}년 전';
       }
       
-      // 1시간 미만
-      if (difference.inHours < 1) {
-        return '${difference.inMinutes}분 전, $timeStr';
+      // 실제 시간 계산
+      String actualTime;
+      // 날짜가 같은지 확인
+      bool isSameDay = now.year == localDateTime.year && 
+                      now.month == localDateTime.month && 
+                      now.day == localDateTime.day;
+      
+      if (isSameDay) {
+        // 같은 날짜면 시간만
+        actualTime = DateFormat('HH:mm').format(localDateTime);
+      } else if (localDateTime.year == now.year) {
+        // 날짜는 다르지만 같은 년도면 월일+시간
+        actualTime = DateFormat('MM월 dd일 HH:mm').format(localDateTime);
+      } else {
+        // 년도까지 다르면 연월일+시간
+        actualTime = DateFormat('yyyy년 MM월 dd일 HH:mm').format(localDateTime);
       }
       
-      // 24시간 미만
-      if (difference.inHours < 24) {
-        return '${difference.inHours}시간 전, $timeStr';
-      }
-      
-      // 같은 년도
-      if (widget.dateTime.year == now.year) {
-        final dateFormatter = DateFormat('MM월 dd일 HH:mm');
-        return dateFormatter.format(widget.dateTime);
-      }
-      
-      // 다른 년도
-      final fullFormatter = DateFormat('yyyy년 MM월 dd일 HH:mm');
-      return fullFormatter.format(widget.dateTime);
+      // 상대 시간과 실제 시간 조합
+      return '$relativeTime, $actualTime';
       
     } catch (e) {
       debugPrint('Error formatting date: $e');
