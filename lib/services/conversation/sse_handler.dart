@@ -94,7 +94,7 @@ class SseHandler {
         final message = Message(
           id: messageId,
           sessionId: sessionId,
-          type: MessageType.tool_call,
+          type: MessageType.toolCall,
           title: name,
           content: '''### 도구 호출
 ```json
@@ -140,7 +140,7 @@ $content
           Message(
             id: message.id,
             sessionId: message.sessionId,
-            type: MessageType.tool_call,
+            type: MessageType.toolCall,
             title: message.title,
             content: formattedContent,
             timestamp: message.timestamp,
@@ -206,7 +206,7 @@ $codeBlock''';
       Message(
         id: message.id,
         sessionId: message.sessionId,
-        type: MessageType.tool_result,
+        type: MessageType.toolResult,
         title: message.title,
         content: updatedContent,
         timestamp: message.timestamp,
