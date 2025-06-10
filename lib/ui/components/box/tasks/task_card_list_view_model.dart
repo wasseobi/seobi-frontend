@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../services/models/auto_task.dart';
-import '../../../../services/auto_task_service.dart';
+import '../../../../repositories/backend/models/auto_task.dart';
+import '../../../../services/autotask/auto_task_service.dart';
 import 'task_card_model.dart';
 
 /// TaskCard 리스트를 관리하는 ViewModel (AutoTask 기반)
@@ -16,7 +16,8 @@ class TaskCardListViewModel extends ChangeNotifier {
 
   /// AutoTask 리스트로 초기화하는 생성자
   TaskCardListViewModel.withAutoTasks(List<AutoTask> autoTasks) {
-    _tasks.addAll(autoTasks.map((e) => TaskCardModel.fromAutoTask(e)));
+    // 서비스 계층에서 가공된 데이터를 받아 TaskCardModel로 변환
+    _tasks.addAll(autoTasks.map((e) => AutoTaskService.toTaskCardModel(e)));
   }
 
   /// 비동기로 AutoTask 불러와서 초기화
