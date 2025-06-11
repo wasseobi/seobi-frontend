@@ -30,7 +30,6 @@ dependencies:
   flutter_dash: ^1.0.0
   url_launcher: ^6.2.5
   geolocator: ^14.0.1
-  screen_corner_radius: ^2.0.0
   
 dev_dependencies:
   flutter_test:
