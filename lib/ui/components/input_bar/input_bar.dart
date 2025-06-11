@@ -3,6 +3,8 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:provider/provider.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
 import 'package:seobi_app/ui/components/common/custom_button.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
+import 'package:seobi_app/ui/constants/dimensions/app_dimensions.dart';
 import 'input_bar_view_model.dart';
 
 class InputBar extends StatefulWidget {
@@ -11,8 +13,8 @@ class InputBar extends StatefulWidget {
   final Function(double height)? onHeightChanged;
 
   const InputBar({
-    super.key, 
-    required this.controller, 
+    super.key,
+    required this.controller,
     this.focusNode,
     this.onHeightChanged,
   });
@@ -28,8 +30,8 @@ class _InputBarState extends State<InputBar> {
 
   late final FocusNode _focusNode;
   late final InputBarViewModel _viewModel;
-  double? _previousBottomInset;  // IME/키보드 높이 변경 감지용
-  
+  double? _previousBottomInset; // IME/키보드 높이 변경 감지용
+
   @override
   void initState() {
     super.initState();
@@ -38,11 +40,11 @@ class _InputBarState extends State<InputBar> {
       textController: widget.controller,
       focusNode: _focusNode,
     );
-    
+
     // 텍스트 변경 리스너 추가
     widget.controller.addListener(_onTextChanged);
   }
-  
+
   void _onTextChanged() {
     // 텍스트가 변경될 때마다 높이를 다시 측정
     if (mounted) {
@@ -52,11 +54,12 @@ class _InputBarState extends State<InputBar> {
       });
     }
   }
+
   @override
   void dispose() {
     // 텍스트 변경 리스너 제거
     widget.controller.removeListener(_onTextChanged);
-    
+
     // 외부에서 제공된 focusNode가 아닐 경우에만 dispose
     if (widget.focusNode == null) {
       _focusNode.dispose();
@@ -124,20 +127,24 @@ class _InputBarState extends State<InputBar> {
   }
 
   BorderRadius _getContainerRadius(bool isKeyboardVisible) {
+    final radius = AppDimensions.borderRadiusLarge; // 반경 값
+
     return isKeyboardVisible
-        ? const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ) // 키보드가 보이면 위쪽만 둥글게
-        : BorderRadius.circular(16); // 모든 코너 둥글게
+        ? BorderRadius.only(
+            topLeft: Radius.circular(radius),
+            topRight: Radius.circular(radius),
+          ) // 키보드가 보이면 위쪽만 둥글게
+        : BorderRadius.circular(radius); // 모든 코너 둥글게
   }
+
   // 높이 측정을 위한 GlobalKey
   final GlobalKey _containerKey = GlobalKey();
-  
+
   // 높이 측정 및 콜백 호출 메서드
   void _measureAndNotifyHeight() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final RenderBox? renderBox = _containerKey.currentContext?.findRenderObject() as RenderBox?;
+      final RenderBox? renderBox =
+          _containerKey.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null && widget.onHeightChanged != null) {
         final size = renderBox.size;
         widget.onHeightChanged!(size.height);
@@ -149,12 +156,14 @@ class _InputBarState extends State<InputBar> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final previousBottomInset = _previousBottomInset ?? 0;
-    
+
     if (bottomInset != previousBottomInset) {
-      debugPrint('InputBar - IME/키보드 높이 변경: $previousBottomInset -> $bottomInset');
+      debugPrint(
+        'InputBar - IME/키보드 높이 변경: $previousBottomInset -> $bottomInset',
+      );
       _previousBottomInset = bottomInset;
     }
-    
+
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: Consumer<InputBarViewModel>(
