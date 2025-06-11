@@ -11,10 +11,14 @@ class BoxScreen extends StatefulWidget {
   State<BoxScreen> createState() => _BoxScreenState();
 }
 
-class _BoxScreenState extends State<BoxScreen> {
+class _BoxScreenState extends State<BoxScreen>
+    with AutomaticKeepAliveClientMixin {
   late TaskCardListViewModel _taskViewModel;
   late ScheduleCardListViewModel _scheduleViewModel;
   bool _isInitialized = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -45,6 +49,7 @@ class _BoxScreenState extends State<BoxScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     if (!_isInitialized) {
       return const SizedBox.shrink();
     }
