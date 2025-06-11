@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart';
 import '../../repositories/insight/insight_repository.dart';
 import '../../repositories/insight/i_insight_repository.dart';
 import '../../ui/components/articles/insights/insight_card_model.dart';
+import '../../services/auth/auth_service.dart';
 import 'models/insight_article_api.dart';
 import 'models/insight_detail_api.dart';
 
 /// Insight 관련 비즈니스 로직을 담당하는 서비스 클래스
 class InsightService {
   final IInsightRepository _repository;
+  final AuthService _authService = AuthService();
 
   InsightService({IInsightRepository? repository})
     : _repository = repository ?? InsightRepository();
@@ -19,13 +21,29 @@ class InsightService {
     }
   }
 
-  /// 특정 사용자의 인사이트 목록을 UI 모델로 변환하여 반환합니다
+  /// 사용자 인증 정보를 가져옵니다
+  Future<String> _getUserIdAndAuthenticate() async {
+    final user = await _authService.getUserInfo();
+    if (user == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+    if (user.accessToken == null) {
+      throw Exception('인증 토큰이 없습니다.');
+    }
+
+    // Repository에 인증 토큰 설정
+    setAuthToken(user.accessToken);
+    return user.id;
+  }
+
+  /// 현재 사용자의 인사이트 목록을 UI 모델로 변환하여 반환합니다 (AuthService 사용)
   ///
-  /// [userId] 사용자 UUID
   /// Returns: UI에서 사용할 수 있는 InsightCardModel 목록
-  /// Throws: Exception when API call fails
-  Future<List<InsightCardModel>> getUserInsights(String userId) async {
+  /// Throws: Exception when API call fails or user not logged in
+  Future<List<InsightCardModel>> getUserInsights() async {
     try {
+      // 인증 확인 및 사용자 ID 가져오기
+      final userId = await _getUserIdAndAuthenticate();
       debugPrint('[InsightService] 사용자 인사이트 목록 조회 시작: $userId');
 
       final apiInsights = await _repository.getUserInsights(userId);
@@ -50,6 +68,8 @@ class InsightService {
   /// Throws: Exception when API call fails or article not found
   Future<InsightDetailApi> getInsightDetail(String articleId) async {
     try {
+      // 인증 확인
+      await _getUserIdAndAuthenticate();
       debugPrint('[InsightService] 인사이트 상세 조회 시작: $articleId');
 
       final detail = await _repository.getInsightDetail(articleId);
@@ -62,13 +82,14 @@ class InsightService {
     }
   }
 
-  /// 사용자의 데이터를 기반으로 새로운 인사이트를 생성합니다
+  /// 현재 사용자의 데이터를 기반으로 새로운 인사이트를 생성합니다 (AuthService 사용)
   ///
-  /// [userId] 사용자 UUID
   /// Returns: 생성된 인사이트 상세 정보
   /// Throws: Exception when API call fails or generation fails
-  Future<InsightDetailApi> generateInsight(String userId) async {
+  Future<InsightDetailApi> generateInsight() async {
     try {
+      // 인증 확인 및 사용자 ID 가져오기
+      final userId = await _getUserIdAndAuthenticate();
       debugPrint('[InsightService] 새 인사이트 생성 시작: $userId');
 
       final newInsight = await _repository.generateInsight(userId);
@@ -88,6 +109,12 @@ class InsightService {
   InsightCardModel convertToUiModel(InsightDetailApi apiModel) {
     return InsightCardModel.fromApiDetail(apiModel);
   }
+
+  /// 사용자 인증 상태 확인
+  bool get isUserLoggedIn => _authService.isLoggedIn;
+
+  /// 사용자 ID 가져오기
+  String? get userId => _authService.userId;
 
   /// 서비스 정리 (필요한 경우)
   void dispose() {

@@ -50,7 +50,6 @@ class ReportCard extends StatelessWidget {
       if (report.type == ReportCardType.daily) {
         return Container(
           width: double.infinity,
-          height: dailyCardHeight,
           padding: EdgeInsets.fromLTRB(
             containerWidth * ReportCardDimensions.dailyCardPaddingLeftPercent,
             containerWidth * ReportCardDimensions.dailyCardPaddingTopPercent,
@@ -63,52 +62,50 @@ class ReportCard extends StatelessWidget {
               containerWidth * ReportCardDimensions.dailyCardRadiusPercent,
             ),
           ),
-          child: Stack(
-            fit: StackFit.expand,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Background Image (Right side)
-              if (report.imageUrl != null)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: imageWidth,
-                    height: dailyCardHeight,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: NetworkImage(report.imageUrl!),
-                        fit: BoxFit.cover,
+              // 왼쪽: ProgressRing + 텍스트
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ReportCardProgressRing(
+                      progress: report.progress,
+                      size: progressRingSize,
+                      isLoading: _isCardLoading(),
+                    ),
+                    SizedBox(height: spacing),
+                    Text(
+                      report.title,
+                      style: PretendardStyles.semiBold16.copyWith(
+                        color: AppColors.black100,
                       ),
                     ),
+                    SizedBox(height: spacing * 0.2),
+                    Text(
+                      report.subtitle,
+                      style: PretendardStyles.regular12.copyWith(
+                        color: AppColors.gray100,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 오른쪽: 배경 이미지 (있을 때만)
+              if (report.imageUrl != null)
+                Container(
+                  width: imageWidth,
+                  height: imageWidth, // 정사각형 비율로 맞춤
+                  margin: EdgeInsets.only(left: spacing),
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: NetworkImage(report.imageUrl!),
+                      fit: BoxFit.cover,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-
-              // Content
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ReportCardProgressRing(
-                    progress: report.progress,
-                    size: progressRingSize,
-                    isLoading: _isCardLoading(), // 개별 카드 로딩 상태 사용
-                  ),
-                  SizedBox(height: spacing),
-                  Text(
-                    report.title,
-                    style: PretendardStyles.semiBold16.copyWith(
-                      color: AppColors.black100,
-                    ),
-                  ),
-                  SizedBox(height: spacing * 0.2),
-                  Text(
-                    report.subtitle,
-                    style: PretendardStyles.regular12.copyWith(
-                      color: AppColors.gray100,
-                    ),
-                  ),
-                  const Spacer(),
-                ],
-              ),
             ],
           ),
         );
@@ -116,7 +113,6 @@ class ReportCard extends StatelessWidget {
         // Weekly and Monthly cards
         return Container(
           width: double.infinity,
-          height: smallCardHeight,
           padding: EdgeInsets.all(
             containerWidth * ReportCardDimensions.smallCardPaddingPercent,
           ),
