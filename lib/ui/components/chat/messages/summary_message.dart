@@ -57,13 +57,7 @@ class SummaryMessage extends StatelessWidget {
 
     return Column(
       children: [
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(8.0),
+        Card.outlined(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
