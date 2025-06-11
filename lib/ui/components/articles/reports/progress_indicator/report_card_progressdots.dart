@@ -34,7 +34,6 @@ class ReportCardProgressDots extends StatelessWidget {
         height: largeDotSize,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.green100),
           strokeCap: StrokeCap.round,
         ),
       );
@@ -54,7 +53,12 @@ class ReportCardProgressDots extends StatelessWidget {
             width: isLargeDot ? largeDotSize : smallDotSize,
             height: isLargeDot ? largeDotSize : smallDotSize,
             decoration: ShapeDecoration(
-              color: isActive ? AppColors.green100 : AppColors.gray40,
+              color:
+                  isActive
+                      ? Theme.of(context).progressIndicatorTheme.color
+                      : Theme.of(
+                        context,
+                      ).progressIndicatorTheme.circularTrackColor,
               shape: const OvalBorder(),
             ),
           ),
