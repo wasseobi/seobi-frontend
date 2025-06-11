@@ -28,6 +28,12 @@ class SseHandler {
   void handleEvent(dynamic data, String sessionId, String userId) {
     final type = data['type'] as String;
 
+    if (type == 'user' && !_historyService.isGenerating) {
+      _historyService.setGeneratingAnswer(true);
+    } else if (_historyService.isGenerating) {
+      _historyService.setGeneratingAnswer(false);
+    }
+
     switch (type) {
       case 'user':
         _handleUserMessage(data, sessionId, userId);
