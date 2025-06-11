@@ -22,13 +22,12 @@ class LightTheme {
       tertiaryContainer: AppColors.white80,
       onTertiaryContainer: AppColors.black100,
 
-      surface: Colors.white,
+      surface: AppColors.white100,
       onSurface: AppColors.black100,
 
-      error: Colors.red,
+      error: AppColors.red100,
     ),
 
-    scaffoldBackgroundColor: Colors.white,
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.main100,
       foregroundColor: AppColors.black100,
