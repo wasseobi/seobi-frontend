@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import 'tasks/task_card_list.dart';
 import 'tasks/task_card_list_view_model.dart';
 import 'schedules/schedule_card_list.dart';
@@ -35,11 +36,11 @@ class _BoxContentState extends State<BoxContent>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(height: AppDimensions.paddingMedium),
-          TaskCardList(width: double.infinity, viewModel: widget.taskViewModel),
+          TaskCardList(width: double.infinity, viewModel: taskViewModel),
           SizedBox(height: AppDimensions.paddingLarge),
           ScheduleCardList(
             width: double.infinity,
-            viewModel: widget.scheduleViewModel,
+            viewModel: scheduleViewModel,
           ),
           SizedBox(
             height:

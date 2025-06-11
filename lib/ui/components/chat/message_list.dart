@@ -147,7 +147,7 @@ class _MessageListState extends State<MessageList> {
         messages.length + (pendingMessage != null || isGenerating ? 1 : 0);
 
     return ListView.builder(
-      padding: EdgeInsets.only(bottom: AppDimensions.paddingLarge),
+      padding: EdgeInsets.only(bottom: AppDimensions.paddingLarge + AppDimensions.borderRadiusLarge),
       reverse: true,
       controller: _scrollController,
       itemCount: count,

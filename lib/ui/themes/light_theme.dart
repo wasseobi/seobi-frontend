@@ -53,11 +53,12 @@ class LightTheme {
     cardTheme: const CardThemeData(
       color: AppColors.white100,
       elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(
           Radius.circular(AppDimensions.borderRadiusSmall),
         ),
-        side: BorderSide(color: AppColors.gray80, width: 1),
+        side: BorderSide(color: AppColors.gray40, width: 1),
       ),
     ),
 
@@ -83,7 +84,7 @@ class LightTheme {
       ),
     ),
 
-    iconButtonTheme: IconButtonThemeData(
+    iconButtonTheme: const IconButtonThemeData(
       style: ButtonStyle(
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
@@ -99,9 +100,35 @@ class LightTheme {
       ),
     ),
 
-    floatingActionButtonTheme: FloatingActionButtonThemeData(
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
       elevation: 0.0,
       shape: CircleBorder(side: BorderSide(color: AppColors.gray40, width: 1)),
+    ),
+
+    textButtonTheme: const TextButtonThemeData(
+      style: ButtonStyle(
+        foregroundColor: WidgetStatePropertyAll(AppColors.black100),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(
+              Radius.circular(AppDimensions.borderRadiusSmall),
+            ),
+          ),
+        ),
+      ),
+    ),
+
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.all(AppColors.switchHandle),
+      trackColor: WidgetStateProperty.resolveWith<Color>(
+        (Set<WidgetState> states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.green100;
+          }
+          return AppColors.gray80;
+        },
+      ),
+      trackOutlineColor: WidgetStateProperty.all(AppColors.gray40),
     ),
   );
 }
