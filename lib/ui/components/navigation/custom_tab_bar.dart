@@ -99,19 +99,19 @@ class CustomTabBar extends StatelessWidget {
     if (index == 0) {
       return BorderRadius.only(
         topLeft: Radius.circular(AppDimensions.borderRadiusLarge),
-        topRight: Radius.circular(AppDimensions.borderRadiusExtraSmall),
+        topRight: Radius.circular(AppDimensions.borderRadiusSmall),
         bottomLeft: Radius.circular(AppDimensions.borderRadiusLarge),
-        bottomRight: Radius.circular(AppDimensions.borderRadiusExtraSmall),
+        bottomRight: Radius.circular(AppDimensions.borderRadiusSmall),
       );
     } else if (index == 2) {
       return BorderRadius.only(
-        topLeft: Radius.circular(AppDimensions.borderRadiusExtraSmall),
+        topLeft: Radius.circular(AppDimensions.borderRadiusSmall),
         topRight: Radius.circular(AppDimensions.borderRadiusLarge),
-        bottomLeft: Radius.circular(AppDimensions.borderRadiusExtraSmall),
+        bottomLeft: Radius.circular(AppDimensions.borderRadiusSmall),
         bottomRight: Radius.circular(AppDimensions.borderRadiusLarge),
       );
     }
-    return BorderRadius.circular(AppDimensions.borderRadiusExtraSmall);
+    return BorderRadius.circular(AppDimensions.borderRadiusSmall);
   }
 
   IconData _getIcon(int index) {
