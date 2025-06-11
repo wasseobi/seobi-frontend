@@ -36,11 +36,15 @@ class _BoxContentState extends State<BoxContent>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(height: AppDimensions.paddingMedium),
-          TaskCardList(width: double.infinity, viewModel: taskViewModel),
+          TaskCardList(width: double.infinity, viewModel: widget.taskViewModel),
           SizedBox(height: AppDimensions.paddingLarge),
           ScheduleCardList(
             width: double.infinity,
-            viewModel: scheduleViewModel,
+            viewModel: widget.scheduleViewModel,
+          ),
+          SizedBox(
+            height:
+                AppDimensions.paddingLarge + AppDimensions.borderRadiusLarge,
           ),
           SizedBox(
             height:
