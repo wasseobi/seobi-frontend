@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_fonts.dart';
 
 class FilterToggleButton extends StatefulWidget {
   final ValueChanged<bool>? onChanged;
+  final double? height;
 
-  const FilterToggleButton({super.key, this.onChanged});
+  const FilterToggleButton({super.key, this.onChanged, this.height});
 
   @override
   State<FilterToggleButton> createState() => _FilterToggleButtonState();
@@ -16,20 +18,18 @@ class _FilterToggleButtonState extends State<FilterToggleButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          isUrgent = !isUrgent;
-        });
-        widget.onChanged?.call(isUrgent);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(9),
-        clipBehavior: Clip.antiAlias,
-        decoration: ShapeDecoration(
-          color: AppColors.white100,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return IntrinsicHeight(
+      child: TextButton(
+        onPressed: () {
+          setState(() {
+            isUrgent = !isUrgent;
+          });
+          widget.onChanged?.call(isUrgent);
+        },
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.paddingMedium,
+            vertical: AppDimensions.paddingSmall,
           ),
         ),
         child: Row(
@@ -41,7 +41,7 @@ class _FilterToggleButtonState extends State<FilterToggleButton> {
               size: 20,
               color: AppColors.gray100,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppDimensions.paddingSmall),
             Text(
               isUrgent ? '임박순' : '등록순',
               style: PretendardStyles.semiBold14.copyWith(
