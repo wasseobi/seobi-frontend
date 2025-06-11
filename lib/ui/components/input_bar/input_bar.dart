@@ -123,10 +123,11 @@ class _InputBarState extends State<InputBar> {
   EdgeInsetsGeometry _getContainerMargin(bool isKeyboardVisible) {
   EdgeInsetsGeometry _getContainerMargin(bool isKeyboardVisible) {
     return isKeyboardVisible
-        ? EdgeInsets
-            .zero // 키보드가 보이면 좌우하단 패딩 없음
-        : const EdgeInsets.symmetric(
-          horizontal: AppDimensions.paddingSmall,
+        ? EdgeInsets.zero // 키보드가 보이면 좌우하단 패딩 없음
+        : const EdgeInsets.only(
+          left: AppDimensions.paddingSmall,
+          right: AppDimensions.paddingSmall,
+          bottom: AppDimensions.paddingSmall,
         ); // 기본 패딩
   }
 
