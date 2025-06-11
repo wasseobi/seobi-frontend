@@ -3,6 +3,7 @@ import 'package:seobi_app/repositories/backend/backend_repository.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
 import '../auth/auth_service.dart';
 import '../audio/audio_service.dart';
+import '../audio/audio_service.dart';
 import 'models/session.dart';
 
 /// 대화 히스토리를 관리하는 서비스
@@ -12,6 +13,7 @@ class HistoryService extends ChangeNotifier {
 
   final BackendRepository _backendRepository = BackendRepository();
   final AuthService _authService = AuthService();
+  final AudioService _audioService = AudioService();
   final AudioService _audioService = AudioService();
 
   /// 모든 세션 정보 (최신 → 오래된 순서)
@@ -112,6 +114,14 @@ class HistoryService extends ChangeNotifier {
   void setGeneratingAnswer(bool isGenerating) {
     _isGeneratingAnswer = isGenerating;
     debugPrint('[HistoryService] 응답 생성 상태 변경: $_isGeneratingAnswer');
+    
+    // 응답 생성 시작할 때 오디오 재생
+    if (isGenerating) {
+      _audioService.playLooping('assets/audio/pencil.mp3');
+    } else {
+      _audioService.playOnce('assets/audio/positive_beep.mp3');
+    }
+    
     notifyListeners();
   }
 
@@ -408,8 +418,9 @@ class HistoryService extends ChangeNotifier {
     _pendingUserMessage = message;
     if (message != null) {
       _audioService.playOnce('assets/audio/book_open.mp3');
+      _audioService.playOnce('assets/audio/book_open.mp3');
     }
-
+    
     notifyListeners();
   }
 
