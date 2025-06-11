@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import 'message_styles.dart';
 
 class UserMessage extends StatelessWidget {
@@ -23,7 +25,7 @@ class UserMessage extends StatelessWidget {
               child: SizedBox(
                 width: AppDimensions.progressIndicatorMedium,
                 height: AppDimensions.progressIndicatorMedium,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(color: AppColors.main100),
               ),
             ),
           // 메시지 컨테이너
