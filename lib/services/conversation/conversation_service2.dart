@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:seobi_app/repositories/gps/gps_repository.dart';
+import 'package:seobi_app/services/audio/audio_service.dart';
 import 'package:seobi_app/services/auth/auth_service.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
 import 'package:seobi_app/repositories/backend/backend_repository.dart';
@@ -17,6 +18,7 @@ class ConversationService2 {
   final AuthService _authService = AuthService();
   final HistoryService _historyService = HistoryService();
   final TtsService _ttsService = TtsService();
+  final AudioService _audioService = AudioService();
 
   final BackendRepository _backendRepository = BackendRepository();
   final GpsRepository _gpsRepository = GpsRepository();
