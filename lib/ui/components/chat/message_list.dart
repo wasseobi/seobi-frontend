@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
 import 'package:seobi_app/ui/components/chat/messages/summary_message.dart';
-import 'package:seobi_app/ui/constants/app_colors.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import 'messages/user_message.dart';
 import 'messages/tool_call_message.dart';
@@ -148,9 +147,7 @@ class _MessageListState extends State<MessageList> {
         messages.length + (pendingMessage != null || isGenerating ? 1 : 0);
 
     return ListView.builder(
-      padding: EdgeInsets.only(
-        bottom: AppDimensions.paddingLarge + AppDimensions.borderRadiusLarge,
-      ),
+      padding: EdgeInsets.only(bottom: AppDimensions.paddingLarge),
       reverse: true,
       controller: _scrollController,
       itemCount: count,

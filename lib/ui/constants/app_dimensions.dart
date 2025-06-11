@@ -30,11 +30,22 @@ class AppDimensions {
   static const double iconSizeMedium = 24.0;
   static const double iconSizeLarge = 32.0;
 
+  // Button Sizes
+  static const double buttonHeightSmall = 36.0;
+  static const double buttonHeightMedium = 48.0;
+  static const double buttonHeightLarge = 60.0;
+
   // Border Radius
   static final double borderRadiusLarge = max(
     screenCornerRadius?.topLeft ?? 0.0,
     12.0,
   );
   static final double borderRadiusMedium = borderRadiusLarge * 2.0 / 3.0;
-  static final double borderRadiusSmall = borderRadiusSmall * 3.0;
-}
+  static final double borderRadiusSmall = borderRadiusLarge / 3.0;
+  static final double borderRadiusExtraSmall = borderRadiusSmall / 6.0;
+
+  // Elevations
+  static const double elevationSmall = 2.0;
+  static const double elevationMedium = 4.0;
+  static const double elevationLarge = 8.0;
+} 

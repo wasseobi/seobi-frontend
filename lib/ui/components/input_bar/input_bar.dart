@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:provider/provider.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
-import 'package:seobi_app/ui/components/common/custom_button.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
-import 'package:seobi_app/ui/constants/dimensions/app_dimensions.dart';
 import 'input_bar_view_model.dart';
 
 class InputBar extends StatefulWidget {
@@ -97,6 +95,8 @@ class _InputBarState extends State<InputBar> {
                   ? IconButton(
                     onPressed: viewModel.clearText,
                     icon: const Icon(Icons.close),
+                    onPressed: viewModel.clearText,
+                    icon: const Icon(Icons.close),
                   )
                   : null,
         ),
@@ -107,44 +107,26 @@ class _InputBarState extends State<InputBar> {
   // 전송/음성 버튼 빌드 메서드
   Widget _buildActionButton(BuildContext context, bool isEmpty) {
     final viewModel = Provider.of<InputBarViewModel>(context);
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        IconButton.filled(
-          icon: Icon(viewModel.actionButtonIcon),
-          color: Colors.white,
-          onPressed: viewModel.handleButtonPress,
-          style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.all<Color>(
-              viewModel.actionButtonColor,
-            ),
-          ),
+    return IconButton.filled(
+      icon: Icon(viewModel.actionButtonIcon),
+      color: Colors.white,
+      onPressed: viewModel.handleButtonPress,
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.all<Color>(
+          viewModel.actionButtonColor,
         ),
-
-        if (viewModel.isSendingAfterTts)
-          SizedBox(
-            width: AppDimensions.buttonHeightMedium,
-            height: AppDimensions.buttonHeightMedium,
-            child: GestureDetector(
-              onTap: viewModel.handleButtonPress,
-              child: CircularProgressIndicator(
-                value: viewModel.getTimerProgress(),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 
   // 컨테이너 스타일 관련 메서드들
   EdgeInsetsGeometry _getContainerMargin(bool isKeyboardVisible) {
+  EdgeInsetsGeometry _getContainerMargin(bool isKeyboardVisible) {
     return isKeyboardVisible
         ? EdgeInsets
             .zero // 키보드가 보이면 좌우하단 패딩 없음
-        : const EdgeInsets.only(
-          left: AppDimensions.paddingSmall,
-          right: AppDimensions.paddingSmall,
-          bottom: AppDimensions.paddingSmall,
+        : const EdgeInsets.symmetric(
+          horizontal: AppDimensions.paddingSmall,
         ); // 기본 패딩
   }
 
@@ -158,7 +140,19 @@ class _InputBarState extends State<InputBar> {
           topLeft: Radius.circular(radius),
           topRight: Radius.circular(radius),
         ) // 키보드가 보이면 위쪽만 둥글게
+          topLeft: Radius.circular(radius),
+          topRight: Radius.circular(radius),
+        ) // 키보드가 보이면 위쪽만 둥글게
         : BorderRadius.circular(radius); // 모든 코너 둥글게
+  }
+
+  EdgeInsets _getContainerPadding(bool isKeyboardVisible) {
+    return isKeyboardVisible
+        ? const EdgeInsets.symmetric(
+          horizontal: AppDimensions.paddingMedium,
+          vertical: AppDimensions.paddingSmall,
+        )
+        : const EdgeInsets.all(AppDimensions.paddingSmall);
   }
 
   // 높이 측정을 위한 GlobalKey
@@ -206,12 +200,14 @@ class _InputBarState extends State<InputBar> {
                 child: Padding(
                   padding: _getContainerMargin(isKeyboardVisible),
                   child: Material(
+                  padding: _getContainerMargin(isKeyboardVisible),
+                  child: Material(
                     key: _containerKey,
+                    shape: RoundedRectangleBorder(
                     shape: RoundedRectangleBorder(
                       borderRadius: _getContainerRadius(isKeyboardVisible),
                       side: BorderSide(color: AppColors.gray40, width: 1),
                     ),
-                    color: AppColors.white100,
                     child: Padding(
                       padding: _getContainerPadding(isKeyboardVisible),
                       child: Row(

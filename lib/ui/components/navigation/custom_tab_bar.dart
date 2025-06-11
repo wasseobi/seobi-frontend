@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/dimensions/tab_dimensions.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 
 class CustomTabBar extends StatelessWidget {
   final int selectedIndex;
@@ -18,19 +18,28 @@ class CustomTabBar extends StatelessWidget {
         vertical: AppDimensions.paddingSmall,
       ),
       padding: EdgeInsets.all(AppDimensions.paddingSmall * 0.5),
+      margin: const EdgeInsets.symmetric(
+        vertical: AppDimensions.paddingSmall,
+      ),
+      padding: EdgeInsets.all(AppDimensions.paddingSmall * 0.5),
       decoration: BoxDecoration(
         color: Theme.of(context).appBarTheme.backgroundColor,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
       ),
       child: Stack(
         children: [
           AnimatedPositioned(
             duration: const Duration(milliseconds: 100),
+            duration: const Duration(milliseconds: 100),
             curve: Curves.easeInOut,
+            left: selectedIndex * (AppDimensions.buttonHeightMedium + AppDimensions.paddingSmall),
             left: selectedIndex * (AppDimensions.buttonHeightMedium + AppDimensions.paddingSmall),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 100),
+              duration: const Duration(milliseconds: 100),
               curve: Curves.easeInOut,
+              width: AppDimensions.buttonHeightMedium,
+              height: AppDimensions.buttonHeightMedium,
               width: AppDimensions.buttonHeightMedium,
               height: AppDimensions.buttonHeightMedium,
               decoration: BoxDecoration(
@@ -58,7 +67,10 @@ class CustomTabBar extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: EdgeInsets.only(left: index > 0 ? AppDimensions.paddingSmall : 0),
+        padding: EdgeInsets.only(left: index > 0 ? AppDimensions.paddingSmall : 0),
         child: SizedBox(
+          width: AppDimensions.buttonHeightMedium,
+          height: AppDimensions.buttonHeightMedium,
           width: AppDimensions.buttonHeightMedium,
           height: AppDimensions.buttonHeightMedium,
           child: Center(
@@ -74,7 +86,7 @@ class CustomTabBar extends StatelessWidget {
                     selectedIndex == index
                         ? Theme.of(context).tabBarTheme.labelColor
                         : Theme.of(context).tabBarTheme.unselectedLabelColor,
-                size: TabDimensions.iconSize,
+                size: AppDimensions.iconSizeMedium,
               ),
             ),
           ),
@@ -87,19 +99,19 @@ class CustomTabBar extends StatelessWidget {
     if (index == 0) {
       return BorderRadius.only(
         topLeft: Radius.circular(AppDimensions.borderRadiusLarge),
-        topRight: Radius.circular(AppDimensions.borderRadiusSmall),
+        topRight: Radius.circular(AppDimensions.borderRadiusExtraSmall),
         bottomLeft: Radius.circular(AppDimensions.borderRadiusLarge),
-        bottomRight: Radius.circular(AppDimensions.borderRadiusSmall),
+        bottomRight: Radius.circular(AppDimensions.borderRadiusExtraSmall),
       );
     } else if (index == 2) {
       return BorderRadius.only(
-        topLeft: Radius.circular(AppDimensions.borderRadiusSmall),
+        topLeft: Radius.circular(AppDimensions.borderRadiusExtraSmall),
         topRight: Radius.circular(AppDimensions.borderRadiusLarge),
-        bottomLeft: Radius.circular(AppDimensions.borderRadiusSmall),
+        bottomLeft: Radius.circular(AppDimensions.borderRadiusExtraSmall),
         bottomRight: Radius.circular(AppDimensions.borderRadiusLarge),
       );
     }
-    return BorderRadius.circular(AppDimensions.borderRadiusSmall);
+    return BorderRadius.circular(AppDimensions.borderRadiusExtraSmall);
   }
 
   IconData _getIcon(int index) {
