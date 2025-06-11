@@ -1,5 +1,4 @@
 class AppDimensions {
-  // Screen Corner Radius
   // Padding
   static const double paddingExtraSmall = 4.0;
   static const double paddingSmall = 8.0;
@@ -36,4 +35,9 @@ class AppDimensions {
   static const double elevationSmall = 2.0;
   static const double elevationMedium = 4.0;
   static const double elevationLarge = 8.0;
+
+  // Report Indicators
+  static const double reportIndicatorSmall = 8.0;
+  static const double reportIndicatorMedium = 16.0;
+  static const double reportIndicatorLarge = 28.0;
 }
