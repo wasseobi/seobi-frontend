@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:seobi_app/services/tts/tts_service.dart';
 import 'package:seobi_app/services/stt/stt_service.dart';
@@ -33,6 +35,8 @@ class InputBarViewModel extends ChangeNotifier {
   final FocusNode focusNode;
   Timer? _messageTimer; // 메시지 전송 타이머
   Timer? _animationTimer;
+  Timer? _messageTimer; // 메시지 전송 타이머
+  Timer? _animationTimer;
 
   // 메시지 전송 시 알림을 받을 리스너 목록
   final List<OnMessageSentCallback> _onMessageSentListeners = [];
@@ -52,19 +56,14 @@ class InputBarViewModel extends ChangeNotifier {
 
   // 액션 버튼 상태 게터
   IconData get actionButtonIcon {
-    switch (actionButtonState) {
-      case ActionButtonState.toSend:
-        return Icons.send;
-      case ActionButtonState.toRecord:
-        return Icons.mic;
-      case ActionButtonState.toStopRecord:
-        return Icons.stop;
-      case ActionButtonState.toCancelSendAfterStt:
-        return Icons.replay;
-      case ActionButtonState.toStopTts:
-        return Icons.volume_off;
-      case ActionButtonState.none:
-        return Icons.block; // 기본 아이콘
+    if (_currentMode == InputBarMode.text) {
+      return isEmpty ? Icons.mic : Icons.send;
+    } else {
+      return isRecording
+          ? Icons.stop
+          : isSendingAfterTts
+          ? Icons.replay
+          : Icons.mic;
     }
   }
 
@@ -109,6 +108,8 @@ class InputBarViewModel extends ChangeNotifier {
   void dispose() {
     _cancelMessageTimer();
     _cancelAnimationTimer();
+    _cancelMessageTimer();
+    _cancelAnimationTimer();
     textController.removeListener(notifyListeners);
     // 포커스 리스너 제거
     focusNode.removeListener(_onFocusChange);
@@ -120,6 +121,65 @@ class InputBarViewModel extends ChangeNotifier {
     }
     _onMessageSentListeners.clear();
     super.dispose();
+  }
+
+  static const _timerDuration = Duration(seconds: 2);
+  DateTime? _timerStartTime;
+
+  // 타이머 진행률을 반환하는 메소드 (0.0 ~ 1.0)
+  double getTimerProgress() {
+    if (_messageTimer == null || _timerStartTime == null) return 0.0;
+
+    final elapsed = DateTime.now().difference(_timerStartTime!);
+    return (elapsed.inMilliseconds / _timerDuration.inMilliseconds).clamp(
+      0.0,
+      1.0,
+    );
+  }
+
+  // 타이머 취소 메소드
+  void _cancelMessageTimer() {
+    debugPrint('[InputBarViewModel] 메시지 전송 타이머 취소');
+    _messageTimer?.cancel();
+    _messageTimer = null;
+    _timerStartTime = null;
+    _cancelAnimationTimer();
+    _isSendingAfterTts = false;
+    notifyListeners();
+  }
+
+  // 타이머 시작 메소드
+  void _startMessageTimer() {
+    debugPrint('[InputBarViewModel] 메시지 전송 타이머 시작');
+    _cancelMessageTimer(); // 기존 타이머가 있다면 취소
+    _isSendingAfterTts = true;
+    _timerStartTime = DateTime.now(); // 타이머 시작 시간 기록
+    _messageTimer = Timer(_timerDuration, () async {
+      if (_isSendingAfterTts && _currentMode == InputBarMode.voice) {
+        await sendMessage();
+        _isSendingAfterTts = false;
+        _timerStartTime = null;
+        notifyListeners();
+      }
+    });
+    _startAnimationTimer(); // 애니메이션 타이머 시작
+    notifyListeners(); // 타이머 시작 시 UI 업데이트
+  }
+
+  void _cancelAnimationTimer() {
+    _animationTimer?.cancel();
+    _animationTimer = null;
+  }
+
+  void _startAnimationTimer() {
+    _cancelAnimationTimer();
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (_messageTimer != null) {
+        notifyListeners();
+      } else {
+        _cancelAnimationTimer();
+      }
+    });
   }
 
   static const _timerDuration = Duration(seconds: 2);
@@ -267,47 +327,12 @@ class InputBarViewModel extends ChangeNotifier {
       return isEmpty ? ActionButtonState.toRecord : ActionButtonState.toSend;
     } else {
       if (isRecording) {
-        return ActionButtonState.toStopRecord;
-      } else if (isSendingAfterTts) {
-        return ActionButtonState.toCancelSendAfterStt;
-      } else if (_isTtsSpeaking) {
-        return ActionButtonState.toStopTts;
-      } else {
-        return ActionButtonState.toRecord;
-      }
-    }
-  }
-
-  // 액션 버튼 핸들러
-  void handleButtonPress() {
-    debugPrint('[InputBarViewModel] 액션 버튼 클릭: 현재 모드 = $_currentMode');
-    // 현재 모드에 따라 다른 동작 수행
-    switch (actionButtonState) {
-      case ActionButtonState.toSend:
-        // 텍스트 모드에서 메시지 전송
-        sendMessage();
-        break;
-      case ActionButtonState.toRecord:
-        // 텍스트 모드에서 음성 모드로 전환
-        switchToVoiceMode();
-        break;
-      case ActionButtonState.toStopRecord:
-        // 음성 모드에서 음성 입력 중지
         stopVoiceInput();
-        break;
-      case ActionButtonState.toCancelSendAfterStt:
-        // STT 후 메시지 전송 취소
+      } else if (!_isSendingAfterTts) {
+        startVoiceInput();
+      } else {
         _cancelMessageTimer();
-        break;
-      case ActionButtonState.toStopTts:
-        // TTS 음성 출력 중지
-        _isTtsSpeaking = false;
-        _ttsService.stop();
-        notifyListeners();
-        break;
-      case ActionButtonState.none:
-        // 아무 동작도 하지 않음
-        break;
+      }
     }
   }
 
@@ -327,8 +352,12 @@ class InputBarViewModel extends ChangeNotifier {
 
     final lastText = textController.text;
 
+    final lastText = textController.text;
+
     await _sttService.startListening(
       onResult: (text, isFinal) {
+        textController.text =
+            lastText.trim().isNotEmpty ? '$lastText $text' : text;
         textController.text =
             lastText.trim().isNotEmpty ? '$lastText $text' : text;
         if (isFinal) {
@@ -337,11 +366,15 @@ class InputBarViewModel extends ChangeNotifier {
           debugPrint(
             '[InputBarViewModel]: 음성 인식 결과 최종 확정 - "${textController.text}"',
           );
+          debugPrint(
+            '[InputBarViewModel]: 음성 인식 결과 최종 확정 - "${textController.text}"',
+          );
           notifyListeners();
 
           // **STT 완료 시 기존 TTS 중단 후 피드백 제공**
           _ttsService.stop().then((_) {
             // TTS 피드백 후 메시지 전송
+            _startMessageTimer();
             _startMessageTimer();
           });
         }
