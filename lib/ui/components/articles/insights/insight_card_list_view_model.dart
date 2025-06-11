@@ -219,6 +219,7 @@ class InsightCardListViewModel extends ChangeNotifier {
           date: DateTime.now().toString().substring(0, 10),
         ),
       );
+      notifyListeners();
     }
   }
 
@@ -279,8 +280,6 @@ class InsightCardListViewModel extends ChangeNotifier {
 
   /// 마지막 인사이트 생성 날짜 확인 및 자동 생성 (일주일 기준)
   Future<void> _checkAndGenerateWeeklyInsight() async {
-    if (_insights.isEmpty) return;
-
     try {
       final realInsights =
           _insights.where((insight) => insight.id != 'generating').toList();
@@ -288,6 +287,8 @@ class InsightCardListViewModel extends ChangeNotifier {
       if (realInsights.isEmpty) {
         // 인사이트가 없으면 첫 인사이트 생성
         debugPrint('[ViewModel] 인사이트 없음 - 첫 인사이트 생성 (비동기)');
+        _showGeneratingCard();
+        notifyListeners();
         await _requestInsightGenerationAsync();
         return;
       }
@@ -313,6 +314,8 @@ class InsightCardListViewModel extends ChangeNotifier {
         debugPrint(
           '[ViewModel] 마지막 인사이트가 ${daysDifference}일 전 생성됨 - 새 인사이트 자동 생성 시작 (비동기)',
         );
+        _showGeneratingCard();
+        notifyListeners();
         await _requestInsightGenerationAsync();
       } else {
         debugPrint('[ViewModel] 아직 일주일이 지나지 않음 - 자동 생성 스킵');
