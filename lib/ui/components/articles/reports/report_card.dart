@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_fonts.dart';
-import '../../../constants/dimensions/report_card_dimensions.dart';
 import 'progress_indicator/report_card_progressring.dart';
 import 'progress_indicator/report_card_progressdots.dart';
 import '../../../../services/models/report_card_model.dart';
@@ -30,59 +30,96 @@ class ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get screen width for relative sizing
-    final screenWidth = MediaQuery.of(context).size.width;
-    final horizontalPadding =
-        screenWidth * ReportCardDimensions.horizontalPaddingPercent;
-    final containerWidth = screenWidth - (horizontalPadding * 2);
-
-    // Calculate relative sizes
-    final dailyCardHeight =
-        containerWidth * ReportCardDimensions.dailyCardHeightPercent;
-    final smallCardHeight =
-        containerWidth * ReportCardDimensions.smallCardHeightPercent;
-    final imageWidth = containerWidth * ReportCardDimensions.imageWidthPercent;
-    final progressRingSize =
-        containerWidth * ReportCardDimensions.progressRingSizePercent;
-    final spacing = containerWidth * ReportCardDimensions.spacingPercent;
-
     Widget buildCardContent() {
       if (report.type == ReportCardType.daily) {
-        return Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(
-            containerWidth * ReportCardDimensions.dailyCardPaddingLeftPercent,
-            containerWidth * ReportCardDimensions.dailyCardPaddingTopPercent,
-            containerWidth * ReportCardDimensions.dailyCardPaddingRightPercent,
-            containerWidth * ReportCardDimensions.dailyCardPaddingBottomPercent,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.white100,
-            borderRadius: BorderRadius.circular(
-              containerWidth * ReportCardDimensions.dailyCardRadiusPercent,
+        return Card(
+          child: Padding(
+            padding: EdgeInsets.all(AppDimensions.paddingMedium),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 왼쪽: ProgressRing + 텍스트
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ReportCardProgressRing(
+                        progress: report.progress,
+                        size: AppDimensions.reportIndicatorLarge,
+                        isLoading: _isCardLoading(),
+                      ),
+
+                      SizedBox(height: AppDimensions.paddingMedium),
+
+                      Text(
+                        report.title,
+                        style: PretendardStyles.semiBold16.copyWith(
+                          color: AppColors.black100,
+                        ),
+                      ),
+
+                      SizedBox(height: AppDimensions.paddingSmall),
+
+                      Text(
+                        report.subtitle,
+                        style: PretendardStyles.regular12.copyWith(
+                          color: AppColors.gray100,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 오른쪽: 배경 이미지 (있을 때만)
+                if (report.imageUrl != null)
+                  Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(report.imageUrl!),
+                        fit: BoxFit.cover,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+              ],
             ),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 왼쪽: ProgressRing + 텍스트
-              Expanded(
-                child: Column(
+        );
+      } else {
+        // Weekly and Monthly cards
+        return Card(
+          child: Padding(
+            padding: EdgeInsets.all(AppDimensions.paddingMedium),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ReportCardProgressDots(
+                  type:
+                      report.type == ReportCardType.weekly
+                          ? ProgressDotsType.weekly
+                          : ProgressDotsType.monthly,
+                  activeDots: report.activeDots,
+                  largeDotSize: AppDimensions.reportIndicatorMedium,
+                  smallDotSize: AppDimensions.reportIndicatorSmall,
+                  spacing: AppDimensions.paddingExtraSmall,
+                  isLoading: _isCardLoading(), // 개별 카드 로딩 상태 사용
+                ),
+
+                SizedBox(height: AppDimensions.paddingMedium),
+
+                Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ReportCardProgressRing(
-                      progress: report.progress,
-                      size: progressRingSize,
-                      isLoading: _isCardLoading(),
-                    ),
-                    SizedBox(height: spacing),
                     Text(
                       report.title,
                       style: PretendardStyles.semiBold16.copyWith(
                         color: AppColors.black100,
                       ),
                     ),
-                    SizedBox(height: spacing * 0.2),
+
+                    SizedBox(height: AppDimensions.paddingSmall),
+
                     Text(
                       report.subtitle,
                       style: PretendardStyles.regular12.copyWith(
@@ -91,79 +128,8 @@ class ReportCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-              // 오른쪽: 배경 이미지 (있을 때만)
-              if (report.imageUrl != null)
-                Container(
-                  width: imageWidth,
-                  height: imageWidth, // 정사각형 비율로 맞춤
-                  margin: EdgeInsets.only(left: spacing),
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: NetworkImage(report.imageUrl!),
-                      fit: BoxFit.cover,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-            ],
-          ),
-        );
-      } else {
-        // Weekly and Monthly cards
-        return Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(
-            containerWidth * ReportCardDimensions.smallCardPaddingPercent,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.white100,
-            borderRadius: BorderRadius.circular(
-              containerWidth * ReportCardDimensions.smallCardRadiusPercent,
+              ],
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ReportCardProgressDots(
-                type:
-                    report.type == ReportCardType.weekly
-                        ? ProgressDotsType.weekly
-                        : ProgressDotsType.monthly,
-                activeDots: report.activeDots,
-                largeDotSize:
-                    containerWidth * ReportCardDimensions.largeDotSizePercent,
-                smallDotSize:
-                    containerWidth * ReportCardDimensions.smallDotSizePercent,
-                spacing:
-                    containerWidth * ReportCardDimensions.dotsSpacingPercent,
-                isLoading: _isCardLoading(), // 개별 카드 로딩 상태 사용
-              ),
-              SizedBox(
-                height:
-                    containerWidth * ReportCardDimensions.titleSpacingPercent,
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    report.title,
-                    style: PretendardStyles.semiBold16.copyWith(
-                      color: AppColors.black100,
-                    ),
-                  ),
-                  SizedBox(height: spacing * 0.2),
-                  Text(
-                    report.subtitle,
-                    style: PretendardStyles.regular12.copyWith(
-                      color: AppColors.gray100,
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
         );
       }
