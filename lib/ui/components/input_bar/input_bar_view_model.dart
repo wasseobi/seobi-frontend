@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:seobi_app/services/tts/tts_service.dart';
 import 'package:seobi_app/services/stt/stt_service.dart';
@@ -19,6 +21,8 @@ class InputBarViewModel extends ChangeNotifier {
   final ConversationService2 _conversationService = ConversationService2();
   final TextEditingController textController;
   final FocusNode focusNode;
+  Timer? _messageTimer; // 메시지 전송 타이머
+  Timer? _animationTimer;
 
   // 메시지 전송 시 알림을 받을 리스너 목록
   final List<OnMessageSentCallback> _onMessageSentListeners = [];
@@ -40,7 +44,11 @@ class InputBarViewModel extends ChangeNotifier {
     if (_currentMode == InputBarMode.text) {
       return isEmpty ? Icons.mic : Icons.send;
     } else {
-      return isRecording ? Icons.stop : Icons.mic;
+      return isRecording
+          ? Icons.stop
+          : isSendingAfterTts
+          ? Icons.replay
+          : Icons.mic;
     }
   }
 
@@ -83,6 +91,8 @@ class InputBarViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _cancelMessageTimer();
+    _cancelAnimationTimer();
     textController.removeListener(notifyListeners);
     // 포커스 리스너 제거
     focusNode.removeListener(_onFocusChange);
@@ -94,6 +104,65 @@ class InputBarViewModel extends ChangeNotifier {
     }
     _onMessageSentListeners.clear();
     super.dispose();
+  }
+
+  static const _timerDuration = Duration(seconds: 2);
+  DateTime? _timerStartTime;
+
+  // 타이머 진행률을 반환하는 메소드 (0.0 ~ 1.0)
+  double getTimerProgress() {
+    if (_messageTimer == null || _timerStartTime == null) return 0.0;
+
+    final elapsed = DateTime.now().difference(_timerStartTime!);
+    return (elapsed.inMilliseconds / _timerDuration.inMilliseconds).clamp(
+      0.0,
+      1.0,
+    );
+  }
+
+  // 타이머 취소 메소드
+  void _cancelMessageTimer() {
+    debugPrint('[InputBarViewModel] 메시지 전송 타이머 취소');
+    _messageTimer?.cancel();
+    _messageTimer = null;
+    _timerStartTime = null;
+    _cancelAnimationTimer();
+    _isSendingAfterTts = false;
+    notifyListeners();
+  }
+
+  // 타이머 시작 메소드
+  void _startMessageTimer() {
+    debugPrint('[InputBarViewModel] 메시지 전송 타이머 시작');
+    _cancelMessageTimer(); // 기존 타이머가 있다면 취소
+    _isSendingAfterTts = true;
+    _timerStartTime = DateTime.now(); // 타이머 시작 시간 기록
+    _messageTimer = Timer(_timerDuration, () async {
+      if (_isSendingAfterTts && _currentMode == InputBarMode.voice) {
+        await sendMessage();
+        _isSendingAfterTts = false;
+        _timerStartTime = null;
+        notifyListeners();
+      }
+    });
+    _startAnimationTimer(); // 애니메이션 타이머 시작
+    notifyListeners(); // 타이머 시작 시 UI 업데이트
+  }
+
+  void _cancelAnimationTimer() {
+    _animationTimer?.cancel();
+    _animationTimer = null;
+  }
+
+  void _startAnimationTimer() {
+    _cancelAnimationTimer();
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (_messageTimer != null) {
+        notifyListeners();
+      } else {
+        _cancelAnimationTimer();
+      }
+    });
   }
 
   // TTS 상태 변경 시 호출되는 메서드
@@ -188,8 +257,10 @@ class InputBarViewModel extends ChangeNotifier {
       // 음성 모드에서의 동작
       if (isRecording) {
         stopVoiceInput();
-      } else {
+      } else if (!_isSendingAfterTts) {
         startVoiceInput();
+      } else {
+        _cancelMessageTimer();
       }
     }
   }
@@ -208,25 +279,24 @@ class InputBarViewModel extends ChangeNotifier {
     debugPrint('InputBar: 음성 인식 시작');
     notifyListeners();
 
+    final lastText = textController.text;
+
     await _sttService.startListening(
       onResult: (text, isFinal) {
-        textController.text = text;
+        textController.text =
+            lastText.trim().isNotEmpty ? '$lastText $text' : text;
         if (isFinal) {
           _isRecording = false;
           _isSendingAfterTts = true;
-          debugPrint('[InputBarViewModel]: 음성 인식 결과 최종 확정 - "${text}"');
+          debugPrint(
+            '[InputBarViewModel]: 음성 인식 결과 최종 확정 - "${textController.text}"',
+          );
           notifyListeners();
 
           // **STT 완료 시 기존 TTS 중단 후 피드백 제공**
           _ttsService.stop().then((_) {
             // TTS 피드백 후 메시지 전송
-            Future.delayed(const Duration(seconds: 2), () async {
-              if (_isSendingAfterTts) {
-                await sendMessage(); // 비동기 메서드로 변경
-                _isSendingAfterTts = false;
-                notifyListeners();
-              }
-            });
+            _startMessageTimer();
           });
         }
       },
