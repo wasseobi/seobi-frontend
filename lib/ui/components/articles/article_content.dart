@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import 'reports/report_card_list.dart';
 import 'reports/report_card_list_view_model.dart';
 import 'insights/insight_card_list.dart';
@@ -16,18 +17,17 @@ class ArticleContent extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InsightCardListViewModel()),
       ],
       child: const SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 20),
-              ReportCardList(),
-              SizedBox(height: 32),
-              InsightCardList(),
-              SizedBox(height: 32),
-            ],
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: AppDimensions.paddingMedium),
+
+            ReportCardList(),
+
+            SizedBox(height: AppDimensions.paddingMedium),
+
+            InsightCardList(),
+          ],
         ),
       ),
     );
