@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import 'package:seobi_app/ui/themes/dark_theme.dart';
 import 'package:seobi_app/ui/themes/light_theme.dart';
 import 'services/service_manager.dart';
@@ -7,8 +6,6 @@ import 'ui/screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await AppDimensions.initialize();
 
   // 앱 종료 시 리소스 정리를 위한 바인딩 설정
   WidgetsBinding.instance.addObserver(
