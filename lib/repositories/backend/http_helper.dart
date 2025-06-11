@@ -508,7 +508,7 @@ class HttpHelper {
             yield {'type': 'done'};
             continue;
           }
-          
+
           if (jsonStr.isNotEmpty && jsonStr != '[DONE]') {
             try {
               final dynamic jsonData = jsonDecode(jsonStr);

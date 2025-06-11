@@ -104,25 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         // 보관함 화면 (일정 연동)
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
-                          child: FutureBuilder(
-                            future: _loadScheduleViewModel(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              if (snapshot.hasError) {
-                                return Center(
-                                  child: Text(
-                                    '일정 불러오기 실패: \\${snapshot.error}',
-                                  ),
-                                );
-                              }
-                              return BoxScreen();
-                            },
-                          ),
+                          child: BoxScreen(),
                         ),
 
                         // 통계 화면
