@@ -40,6 +40,7 @@ dev_dependencies:
   path_provider_platform_interface: ^2.1.2
   plugin_platform_interface: ^2.1.8
   mocktail: ^1.0.3
+  flutter_launcher_icons: "^0.14.4"
 
 flutter:
   uses-material-design: true
@@ -49,3 +50,12 @@ flutter:
     - assets/audio/pencil.mp3
     - assets/audio/positive_beep.mp3
     - .env
+
+# dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  remove_alpha_ios: true
+  image_path_android: "assets/app_icons/playstore.png"
+  image_path_ios: "assets/app_icons/appstore.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
