@@ -60,43 +60,39 @@ class _ScheduleCardListState extends State<ScheduleCardList> {
                 SizedBox(height: ScheduleCardDimensions.listSpacing),
                 if (widget.height != null)
                   Expanded(
-                    child: GridView.builder(
+                    child: GridView.count(
                       padding: EdgeInsets.zero,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: ScheduleCardDimensions.crossAxisCount,
-                        crossAxisSpacing: ScheduleCardDimensions.gridSpacing,
-                        mainAxisSpacing: ScheduleCardDimensions.gridSpacing,
-                        childAspectRatio: ScheduleCardDimensions.aspectRatio,
-                      ),
-                      itemCount: _viewModel.schedules.length,
-                      itemBuilder: (context, index) {
-                        return ScheduleCard(
-                          schedule: _viewModel.schedules[index].copyWith(
-                            type: ScheduleType.list,
-                          ),
-                        );
-                      },
+                      crossAxisCount: 2,
+                      crossAxisSpacing: ScheduleCardDimensions.gridSpacing,
+                      mainAxisSpacing: ScheduleCardDimensions.gridSpacing,
+                      childAspectRatio: 1.1,
+                      children:
+                          _viewModel.schedules.map((schedule) {
+                            return ScheduleCard(
+                              schedule: schedule.copyWith(
+                                type: ScheduleType.list,
+                              ),
+                            );
+                          }).toList(),
                     ),
                   )
                 else
-                  GridView.builder(
+                  GridView.count(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     padding: EdgeInsets.zero,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: ScheduleCardDimensions.crossAxisCount,
-                      crossAxisSpacing: ScheduleCardDimensions.gridSpacing,
-                      mainAxisSpacing: ScheduleCardDimensions.gridSpacing,
-                      childAspectRatio: ScheduleCardDimensions.aspectRatio,
-                    ),
-                    itemCount: _viewModel.schedules.length,
-                    itemBuilder: (context, index) {
-                      return ScheduleCard(
-                        schedule: _viewModel.schedules[index].copyWith(
-                          type: ScheduleType.list,
-                        ),
-                      );
-                    },
+                    crossAxisCount: 2,
+                    crossAxisSpacing: ScheduleCardDimensions.gridSpacing,
+                    mainAxisSpacing: ScheduleCardDimensions.gridSpacing,
+                    childAspectRatio: 1.1,
+                    children:
+                        _viewModel.schedules.map((schedule) {
+                          return ScheduleCard(
+                            schedule: schedule.copyWith(
+                              type: ScheduleType.list,
+                            ),
+                          );
+                        }).toList(),
                   ),
               ],
             ),
