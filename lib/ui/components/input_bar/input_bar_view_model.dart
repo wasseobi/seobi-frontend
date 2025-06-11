@@ -24,6 +24,16 @@ enum ActionButtonState {
   none, // 아무 동작도 하지 않음
 }
 
+/// 액션 버튼의 상태
+enum ActionButtonState {
+  toSend, // 대기 상태
+  toRecord, // 음성 녹음 중
+  toStopRecord, // 음성 녹음 중지
+  toCancelSendAfterStt, // STT 후 메시지 전송 취소
+  toStopTts, // TTS 음성 출력 중지
+  none, // 아무 동작도 하지 않음
+}
+
 /// 메시지 전송 이벤트에 대한 콜백 타입 정의
 typedef OnMessageSentCallback = void Function(String message);
 
@@ -47,6 +57,7 @@ class InputBarViewModel extends ChangeNotifier {
   bool _isSendingAfterTts = false;
   bool _isSending = false; // 메시지 전송 중 상태 추가
   bool _isTtsSpeaking = false;
+  bool _isTtsSpeaking = false;
   // 게터
   InputBarMode get currentMode => _currentMode;
   bool get isRecording => _isRecording;
@@ -56,14 +67,19 @@ class InputBarViewModel extends ChangeNotifier {
 
   // 액션 버튼 상태 게터
   IconData get actionButtonIcon {
-    if (_currentMode == InputBarMode.text) {
-      return isEmpty ? Icons.mic : Icons.send;
-    } else {
-      return isRecording
-          ? Icons.stop
-          : isSendingAfterTts
-          ? Icons.replay
-          : Icons.mic;
+    switch (actionButtonState) {
+      case ActionButtonState.toSend:
+        return Icons.send;
+      case ActionButtonState.toRecord:
+        return Icons.mic;
+      case ActionButtonState.toStopRecord:
+        return Icons.stop;
+      case ActionButtonState.toCancelSendAfterStt:
+        return Icons.replay;
+      case ActionButtonState.toStopTts:
+        return Icons.volume_off;
+      case ActionButtonState.none:
+        return Icons.block; // 기본 아이콘
     }
   }
 
@@ -247,13 +263,18 @@ class InputBarViewModel extends ChangeNotifier {
     if (currentState == TtsState.idle) {
       debugPrint('[InputBarViewModel] 🔊 TTS 상태 변경 감지: IDLE 상태로 전환됨');
       if (currentMode == InputBarMode.voice && _isTtsSpeaking) {
+      if (currentMode == InputBarMode.voice && _isTtsSpeaking) {
         startVoiceInput();
       }
+      _isTtsSpeaking = false;
+      notifyListeners();
       _isTtsSpeaking = false;
       notifyListeners();
       // idle 상태에서 필요한 추가 작업이 있으면 여기에 구현
     } else if (currentState == TtsState.playing) {
       debugPrint('[InputBarViewModel] 🔊 TTS 상태 변경 감지: PLAYING 상태로 전환됨');
+      _isTtsSpeaking = true;
+      notifyListeners();
       _isTtsSpeaking = true;
       notifyListeners();
     }
@@ -306,6 +327,7 @@ class InputBarViewModel extends ChangeNotifier {
 
     _currentMode = InputBarMode.voice;
     debugPrint('[InputBarViewModel] 음성 모드로 전환');
+    debugPrint('[InputBarViewModel] 음성 모드로 전환');
     focusNode.unfocus(); // 음성 모드로 전환 시 텍스트 필드 포커스 해제
     startVoiceInput(); // 음성 입력 시작
     notifyListeners();
@@ -323,16 +345,53 @@ class InputBarViewModel extends ChangeNotifier {
   }
 
   ActionButtonState get actionButtonState {
+  ActionButtonState get actionButtonState {
     if (_currentMode == InputBarMode.text) {
+      return isEmpty ? ActionButtonState.toRecord : ActionButtonState.toSend;
       return isEmpty ? ActionButtonState.toRecord : ActionButtonState.toSend;
     } else {
       if (isRecording) {
-        stopVoiceInput();
-      } else if (!_isSendingAfterTts) {
-        startVoiceInput();
+        return ActionButtonState.toStopRecord;
+      } else if (isSendingAfterTts) {
+        return ActionButtonState.toCancelSendAfterStt;
+      } else if (_isTtsSpeaking) {
+        return ActionButtonState.toStopTts;
       } else {
-        _cancelMessageTimer();
+        return ActionButtonState.toRecord;
       }
+    }
+  }
+
+  // 액션 버튼 핸들러
+  void handleButtonPress() {
+    debugPrint('[InputBarViewModel] 액션 버튼 클릭: 현재 모드 = $_currentMode');
+    // 현재 모드에 따라 다른 동작 수행
+    switch (actionButtonState) {
+      case ActionButtonState.toSend:
+        // 텍스트 모드에서 메시지 전송
+        sendMessage();
+        break;
+      case ActionButtonState.toRecord:
+        // 텍스트 모드에서 음성 모드로 전환
+        switchToVoiceMode();
+        break;
+      case ActionButtonState.toStopRecord:
+        // 음성 모드에서 음성 입력 중지
+        stopVoiceInput();
+        break;
+      case ActionButtonState.toCancelSendAfterStt:
+        // STT 후 메시지 전송 취소
+        _cancelMessageTimer();
+        break;
+      case ActionButtonState.toStopTts:
+        // TTS 음성 출력 중지
+        _isTtsSpeaking = false;
+        _ttsService.stop();
+        notifyListeners();
+        break;
+      case ActionButtonState.none:
+        // 아무 동작도 하지 않음
+        break;
     }
   }
 
