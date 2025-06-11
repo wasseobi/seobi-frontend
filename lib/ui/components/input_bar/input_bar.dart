@@ -101,22 +101,40 @@ class _InputBarState extends State<InputBar> {
   // 전송/음성 버튼 빌드 메서드
   Widget _buildActionButton(BuildContext context, bool isEmpty) {
     final viewModel = Provider.of<InputBarViewModel>(context);
-    return IconButton.filled(
-      icon: Icon(viewModel.actionButtonIcon),
-      color: Colors.white,
-      onPressed: viewModel.handleButtonPress,
-      style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.all<Color>(
-          viewModel.actionButtonColor,
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton.filled(
+          icon: Icon(viewModel.actionButtonIcon),
+          color: Colors.white,
+          onPressed: viewModel.handleButtonPress,
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.all<Color>(
+              viewModel.actionButtonColor,
+            ),
+          ),
         ),
-      ),
+
+        if (viewModel.isSendingAfterTts)
+          SizedBox(
+            width: AppDimensions.buttonHeightMedium,
+            height: AppDimensions.buttonHeightMedium,
+            child: GestureDetector(
+              onTap: viewModel.handleButtonPress,
+              child: CircularProgressIndicator(
+                value: viewModel.getTimerProgress(),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
   // 컨테이너 스타일 관련 메서드들
   EdgeInsetsGeometry _getContainerMargin(bool isKeyboardVisible) {
     return isKeyboardVisible
-        ? EdgeInsets.zero // 키보드가 보이면 좌우하단 패딩 없음
+        ? EdgeInsets
+            .zero // 키보드가 보이면 좌우하단 패딩 없음
         : const EdgeInsets.only(
           left: AppDimensions.paddingSmall,
           right: AppDimensions.paddingSmall,
