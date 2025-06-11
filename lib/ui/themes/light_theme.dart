@@ -17,6 +17,11 @@ class LightTheme {
       secondaryContainer: AppColors.white80,
       onSecondaryContainer: AppColors.black100,
 
+      tertiary: AppColors.white80,
+      onTertiary: AppColors.black100,
+      tertiaryContainer: AppColors.white80,
+      onTertiaryContainer: AppColors.black100,
+
       surface: Colors.white,
       onSurface: AppColors.black100,
 
@@ -39,6 +44,11 @@ class LightTheme {
       backgroundColor: AppColors.white100,
     ),
 
-    dividerColor: AppColors.main80
+    dividerColor: AppColors.main80,
+
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: AppColors.green100,
+      circularTrackColor: AppColors.gray80,
+    ),
   );
 }

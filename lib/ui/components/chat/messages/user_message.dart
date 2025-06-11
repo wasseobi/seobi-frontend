@@ -27,7 +27,6 @@ class UserMessage extends StatelessWidget {
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
                 ),
               ),
             ),
