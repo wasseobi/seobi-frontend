@@ -59,7 +59,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.only(bottomRight: Radius.circular(40)),
             ),
-            backgroundColor: AppColors.containerLight,
             child: SafeArea(
               child: Column(
                 children: [
@@ -74,7 +73,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     child: Divider(
                       height: 1,
                       thickness: 1,
-                      color: AppColors.main80,
+                      color: Theme.of(context).dividerColor,
                     ),
                   ),
                   // 최하단 프로필 카드
