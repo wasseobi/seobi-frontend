@@ -26,6 +26,30 @@ class _TaskCardListState extends State<TaskCardList> {
     _viewModel = widget.viewModel ?? TaskCardListViewModel();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _viewModel,
+      builder: (context, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TitleCard(
+              section: 'Autotask™',
+              sectionKr: '자동업무',
+              count: _viewModel.tasks.length,
+            ),
+            SizedBox(height: AppDimensions.paddingMedium),
+            if (widget.height != null)
+              Expanded(child: _buildTaskList(isExpanded: true))
+            else
+              _buildTaskList(),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildTaskList({bool isExpanded = false}) {
     return ListView.builder(
       shrinkWrap: !isExpanded,
@@ -47,30 +71,6 @@ class _TaskCardListState extends State<TaskCardList> {
               _viewModel.toggleTaskStatus(task.id, value);
             },
           ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _viewModel,
-      builder: (context, _) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TitleCard(
-              section: 'Autotask™',
-              sectionKr: '자동업무',
-              count: _viewModel.tasks.length,
-            ),
-            SizedBox(height: AppDimensions.paddingMedium),
-            if (widget.height != null)
-              Expanded(child: _buildTaskList(isExpanded: true))
-            else
-              _buildTaskList(),
-          ],
         );
       },
     );
