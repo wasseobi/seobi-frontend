@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
 import 'package:seobi_app/ui/components/chat/messages/summary_message.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import 'messages/user_message.dart';
 import 'messages/tool_call_message.dart';
 import 'messages/tool_result_message.dart';
@@ -63,18 +64,14 @@ class _MessageListState extends State<MessageList> {
       listenable: HistoryService(),
       builder: (context, child) {
         return Stack(
+          alignment: Alignment.bottomCenter,
           children: [
             _buildMessageListView(context),
             if (_showScrollButton)
               Positioned(
-                right: 16,
-                bottom: 16,
+                bottom: AppDimensions.borderRadiusLarge + AppDimensions.paddingSmall,
                 child: FloatingActionButton(
-                  heroTag: 'scrollToBottom',
                   mini: true,
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black54,
-                  elevation: 2,
                   onPressed: _scrollToBottom,
                   child: const Icon(Icons.arrow_downward),
                 ),
@@ -140,7 +137,7 @@ class _MessageListState extends State<MessageList> {
     String? pendingMessage,
   ) {
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: EdgeInsets.only(bottom: AppDimensions.paddingLarge),
       reverse: true,
       controller: _scrollController,
       itemCount: messages.length + (pendingMessage != null ? 1 : 0),
