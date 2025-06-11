@@ -41,6 +41,7 @@ dev_dependencies:
   plugin_platform_interface: ^2.1.8
   mocktail: ^1.0.3
   flutter_launcher_icons: "^0.14.4"
+  flutter_launcher_icons: "^0.14.4"
 
 flutter:
   uses-material-design: true
