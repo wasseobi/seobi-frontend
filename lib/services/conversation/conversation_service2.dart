@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:seobi_app/repositories/gps/gps_repository.dart';
 import 'package:seobi_app/services/auth/auth_service.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
 import 'package:seobi_app/repositories/backend/backend_repository.dart';
@@ -12,10 +13,13 @@ class ConversationService2 {
   static final ConversationService2 _instance =
       ConversationService2._internal();
   factory ConversationService2() => _instance;
+  
   final AuthService _authService = AuthService();
   final HistoryService _historyService = HistoryService();
-  final BackendRepository _backendRepository = BackendRepository();
   final TtsService _ttsService = TtsService();
+
+  final BackendRepository _backendRepository = BackendRepository();
+  final GpsRepository _gpsRepository = GpsRepository();
 
   // 세션 자동 종료를 위한 타이머
   Timer? _sessionTimer;
@@ -33,6 +37,8 @@ class ConversationService2 {
 
     // TtsService 초기화
     await _ttsService.initialize();
+
+    
 
     debugPrint('[ConversationService2] 서비스 초기화 완료');
   }
@@ -118,7 +124,9 @@ class ConversationService2 {
         sessionId: session.id,
         userId: userId,
         content: content,
+        location: (await _gpsRepository.getCurrentPosition()).toJson(),
       ); // 스트림 리스닝 시작
+
       await for (final data in stream) {
         try {
           if (data is Map<String, dynamic>) {

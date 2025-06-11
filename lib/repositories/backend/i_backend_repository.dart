@@ -38,6 +38,7 @@ abstract class IBackendRepository {
     required String sessionId,
     required String userId,
     required String content,
+    Map<String, dynamic>? location,
   });
 
   //========================================

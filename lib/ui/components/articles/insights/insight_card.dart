@@ -19,7 +19,7 @@ class InsightCard extends StatelessWidget {
           context,
           listen: false,
         );
-        viewModel.showInsightBottomSheet(context);
+        viewModel.showInsightBottomSheet(context, insight.id);
       },
       child: Container(
         width: InsightCardDimensions.width,
@@ -38,48 +38,55 @@ class InsightCard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Left side: Text Info
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: InsightCardDimensions.contentPaddingHorizontal,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
-                    insight.title,
-                    style: PretendardStyles.semiBold16.copyWith(
-                      color: AppColors.gray100,
+            // Left side: Text Info (Expanded로 감싸서 오버플로우 방지)
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: InsightCardDimensions.contentPaddingHorizontal,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title (오버플로우 처리 추가)
+                    Text(
+                      insight.title,
+                      style: PretendardStyles.semiBold16.copyWith(
+                        color: AppColors.gray100,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2, // 최대 2줄까지 표시
                     ),
-                  ),
-                  SizedBox(height: InsightCardDimensions.spacingSmall),
+                    SizedBox(height: InsightCardDimensions.spacingSmall),
 
-                  // Keywords Row
-                  Row(
-                    children:
-                        insight.keywords.map((kw) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Text(
-                              '#$kw',
-                              style: PretendardStyles.semiBold14.copyWith(
-                                color: AppColors.gray80,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                  ),
-                  SizedBox(height: InsightCardDimensions.spacingSmall),
-
-                  // Date
-                  Text(
-                    insight.date,
-                    style: PretendardStyles.medium10.copyWith(
-                      color: AppColors.gray100,
+                    // Keywords Row (오버플로우 처리 추가)
+                    SizedBox(
+                      width: double.infinity,
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children:
+                            insight.keywords.take(3).map((kw) {
+                              // 최대 3개 키워드만 표시
+                              return Text(
+                                '#$kw',
+                                style: PretendardStyles.semiBold14.copyWith(
+                                  color: AppColors.gray80,
+                                ),
+                              );
+                            }).toList(),
+                      ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: InsightCardDimensions.spacingSmall),
+
+                    // Date
+                    Text(
+                      insight.date,
+                      style: PretendardStyles.medium10.copyWith(
+                        color: AppColors.gray100,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
