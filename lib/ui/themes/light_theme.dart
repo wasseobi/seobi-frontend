@@ -46,7 +46,7 @@ class LightTheme {
 
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       color: AppColors.green100,
-      circularTrackColor: AppColors.gray80,
+      circularTrackColor: AppColors.gray40,
     ),
 
     cardTheme: const CardThemeData(

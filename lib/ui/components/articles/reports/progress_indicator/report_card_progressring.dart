@@ -30,7 +30,7 @@ class ReportCardProgressRing extends StatelessWidget {
             width: size,
             height: size,
             decoration: ShapeDecoration(
-              color: AppColors.gray40,
+              color: Theme.of(context).progressIndicatorTheme.circularTrackColor,
               shape: const OvalBorder(),
             ),
           ),
@@ -45,8 +45,9 @@ class ReportCardProgressRing extends StatelessWidget {
                       ? null
                       : progress.clamp(0.0, 1.0), // 로딩 중이면 null (무한 애니메이션)
               strokeWidth: 3,
-              backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.green100),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).progressIndicatorTheme.color!,
+              ),
               strokeCap: StrokeCap.round,
             ),
           ),
