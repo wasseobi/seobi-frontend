@@ -7,11 +7,7 @@ class UserMessage extends StatelessWidget {
   final List<String> content;
   final bool isPending;
 
-  const UserMessage({
-    super.key,
-    this.isPending = false,
-    required this.content,
-  });
+  const UserMessage({super.key, this.isPending = false, required this.content});
   @override
   Widget build(BuildContext context) {
     return Align(
@@ -27,9 +23,7 @@ class UserMessage extends StatelessWidget {
               child: SizedBox(
                 width: AppDimensions.progressIndicatorMedium,
                 height: AppDimensions.progressIndicatorMedium,
-                child: CircularProgressIndicator(
-                  color: AppColors.main100
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
           // 메시지 컨테이너
@@ -40,9 +34,13 @@ class UserMessage extends StatelessWidget {
             decoration: MessageDecorations.userDecoration,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: content.map((text) => 
-                Text(text, style: MessageStyles.defaultTextStyle)
-              ).toList(),
+              children:
+                  content
+                      .map(
+                        (text) =>
+                            Text(text, style: MessageStyles.defaultTextStyle),
+                      )
+                      .toList(),
             ),
           ),
         ],
