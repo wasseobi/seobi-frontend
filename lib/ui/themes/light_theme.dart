@@ -62,11 +62,10 @@ class LightTheme {
       style: ButtonStyle(
         backgroundColor: WidgetStatePropertyAll(AppColors.white100),
         foregroundColor: WidgetStatePropertyAll(AppColors.black100),
-        elevation: WidgetStatePropertyAll(0),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(16)),
-            side: BorderSide(color: AppColors.gray80, width: 1),
+            side: BorderSide(color: AppColors.gray40, width: 1),
           ),
         ),
       ),

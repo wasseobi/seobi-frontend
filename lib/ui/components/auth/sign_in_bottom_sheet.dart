@@ -96,7 +96,7 @@ class _SignInBottomSheetContentState extends State<_SignInBottomSheetContent> {
                     ),
                     const SizedBox(height: 5),
                     const Text(
-                      '바로 가입하고 AI 비서를 만나보세요',
+                      '바로 가입하고 서비를 만나보세요',
                       style: TextStyle(
                         color: Color(0xFF7D7D7D),
                         fontSize: 16,
