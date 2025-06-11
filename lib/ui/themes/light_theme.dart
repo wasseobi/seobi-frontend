@@ -23,7 +23,7 @@ class LightTheme {
       tertiaryContainer: AppColors.white80,
       onTertiaryContainer: AppColors.black100,
 
-      surface: AppColors.white100,
+      surface: AppColors.gray40,
       onSurface: AppColors.black100,
 
       error: AppColors.red100,
@@ -57,7 +57,7 @@ class LightTheme {
         borderRadius: BorderRadius.all(
           Radius.circular(AppDimensions.borderRadiusSmall),
         ),
-        side: BorderSide(color: AppColors.gray40, width: 1),
+        side: BorderSide(color: AppColors.gray80, width: 1),
       ),
     ),
 
@@ -85,14 +85,11 @@ class LightTheme {
 
     iconButtonTheme: IconButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: WidgetStatePropertyAll(AppColors.whiteBlur),
-        foregroundColor: WidgetStatePropertyAll(AppColors.black100),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.all(
               Radius.circular(AppDimensions.borderRadiusLarge),
             ),
-            // side: BorderSide(color: AppColors.gray40, width: 1),
           ),
         ),
         iconSize: WidgetStatePropertyAll(AppDimensions.iconSizeMedium),
