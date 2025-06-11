@@ -48,14 +48,7 @@ class _GoogleSignInButtonContent extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : () => _handleSignIn(context),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.buttonLightBg,
-          foregroundColor: AppColors.textLight,
-          elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: RoundedRectangleBorder(
-            side: const BorderSide(width: 1, color: Color(0xFFADB3BC)),
-            borderRadius: BorderRadius.circular(12),
-          ),
         ),
         child:
             isLoading

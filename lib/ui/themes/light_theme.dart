@@ -26,6 +26,7 @@ class LightTheme {
       onSurface: AppColors.black100,
 
       error: AppColors.red100,
+      surfaceTint: AppColors.gray40,
     ),
 
     appBarTheme: const AppBarTheme(
@@ -55,6 +56,20 @@ class LightTheme {
       //   borderRadius: BorderRadius.all(Radius.circular(12)),
       //   side: BorderSide(color: AppColors.gray80, width: 1),
       // ),
+    ),
+
+    elevatedButtonTheme: const ElevatedButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: WidgetStatePropertyAll(AppColors.white100),
+        foregroundColor: WidgetStatePropertyAll(AppColors.black100),
+        elevation: WidgetStatePropertyAll(0),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+            side: BorderSide(color: AppColors.gray80, width: 1),
+          ),
+        ),
+      ),
     ),
   );
 }
