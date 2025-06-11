@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 
 /// 점선을 그리기 위한 CustomPainter 클래스
 class DashedLinePainter extends CustomPainter {
@@ -65,6 +67,7 @@ class SummaryMessage extends StatelessWidget {
         Card.outlined(
           child: Padding(
             padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+            padding: const EdgeInsets.all(AppDimensions.paddingMedium),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -82,6 +85,11 @@ class SummaryMessage extends StatelessWidget {
                         size: AppDimensions.iconSizeSmall,
                       ),
                       const SizedBox(width: AppDimensions.paddingSmall),
+                      const Icon(
+                        Icons.chat_outlined,
+                        size: AppDimensions.iconSizeSmall,
+                      ),
+                      const SizedBox(width: AppDimensions.paddingSmall),
                       Text(
                         title!.trim(),
                         style: TextStyle(
@@ -92,6 +100,7 @@ class SummaryMessage extends StatelessWidget {
                     ],
                   ),
 
+                const SizedBox(height: AppDimensions.paddingMedium),
                 const SizedBox(height: AppDimensions.paddingMedium),
 
                 // 세션 요약(설명)
@@ -107,15 +116,18 @@ class SummaryMessage extends StatelessWidget {
                   ),
 
                 const SizedBox(height: AppDimensions.paddingMedium),
+                const SizedBox(height: AppDimensions.paddingMedium),
 
                 // 세션 기간 - 맨 아래로 이동
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppDimensions.paddingMedium,
                     vertical: AppDimensions.paddingSmall,
+                    horizontal: AppDimensions.paddingMedium,
+                    vertical: AppDimensions.paddingSmall,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.gray40,
+                    color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(
                       AppDimensions.borderRadiusSmall,
                     ),
@@ -126,7 +138,12 @@ class SummaryMessage extends StatelessWidget {
                         Icons.calendar_today,
                         size: AppDimensions.iconSizeSmall,
                         color: AppColors.gray80,
+                        size: AppDimensions.iconSizeSmall,
+                        color: AppColors.gray80,
                       ),
+
+                      const SizedBox(width: AppDimensions.paddingMedium),
+
 
                       const SizedBox(width: AppDimensions.paddingMedium),
 
@@ -161,7 +178,15 @@ class SummaryMessage extends StatelessWidget {
         CustomPaint(
           painter: DashedLinePainter(),
           size: const Size(double.infinity, 1),
+
+        const SizedBox(height: AppDimensions.paddingMedium),
+
+        CustomPaint(
+          painter: DashedLinePainter(),
+          size: const Size(double.infinity, 1),
         ),
+
+        const SizedBox(height: AppDimensions.paddingLarge),
 
         const SizedBox(height: AppDimensions.paddingLarge),
       ],
