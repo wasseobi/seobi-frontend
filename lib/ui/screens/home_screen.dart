@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import '../components/navigation/custom_navigation_bar.dart';
 import '../components/drawer/custom_drawer.dart';
@@ -90,79 +91,84 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         key: _scaffoldKey,
         drawer: const CustomDrawer(),
-        body: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  CustomNavigationBar(
-                    selectedTabIndex: _selectedIndex,
-                    onTabChanged: _onTabTapped,
-                    onMenuPressed: () {
-                      _scaffoldKey.currentState?.openDrawer();
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: AppGradients.lightBG,
+          ),
+          child: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    CustomNavigationBar(
+                      selectedTabIndex: _selectedIndex,
+                      onTabChanged: _onTabTapped,
+                      onMenuPressed: () {
+                        _scaffoldKey.currentState?.openDrawer();
+                      },
+                    ),
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: _onPageChanged,
+                        physics: const BouncingScrollPhysics(),
+                        children: [
+                          // 채팅 화면
+                          Padding(padding: pageInset, child: ChatScreen()),
+
+                          // 보관함 화면 (일정 연동)
+                          Padding(
+                            padding: pageInset,
+                            child: FutureBuilder(
+                              future: _loadScheduleViewModel(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
+                                if (snapshot.hasError) {
+                                  return Center(
+                                    child: Text(
+                                      '일정 불러오기 실패: \\${snapshot.error}',
+                                    ),
+                                  );
+                                }
+                                return BoxScreen();
+                              },
+                            ),
+                          ),
+
+                          // 통계 화면
+                          Padding(
+                            padding: pageInset,
+                            child: const ArticleScreen(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ), // 입력 바
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: InputBar(
+                    controller: _chatController,
+                    focusNode: _focusNode,
+                    onHeightChanged: (height) {
+                      // 입력 바의 높이가 변경될 때 상태 업데이트
+                      if (mounted && height != _inputBarHeight) {
+                        setState(() {
+                          _inputBarHeight = height;
+                        });
+                      }
                     },
                   ),
-                  Expanded(
-                    child: PageView(
-                      controller: _pageController,
-                      onPageChanged: _onPageChanged,
-                      physics: const BouncingScrollPhysics(),
-                      children: [
-                        // 채팅 화면
-                        Padding(padding: pageInset, child: ChatScreen()),
-
-                        // 보관함 화면 (일정 연동)
-                        Padding(
-                          padding: pageInset,
-                          child: FutureBuilder(
-                            future: _loadScheduleViewModel(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              if (snapshot.hasError) {
-                                return Center(
-                                  child: Text(
-                                    '일정 불러오기 실패: \\${snapshot.error}',
-                                  ),
-                                );
-                              }
-                              return BoxScreen();
-                            },
-                          ),
-                        ),
-
-                        // 통계 화면
-                        Padding(
-                          padding: pageInset,
-                          child: const ArticleScreen(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ), // 입력 바
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: InputBar(
-                  controller: _chatController,
-                  focusNode: _focusNode,
-                  onHeightChanged: (height) {
-                    // 입력 바의 높이가 변경될 때 상태 업데이트
-                    if (mounted && height != _inputBarHeight) {
-                      setState(() {
-                        _inputBarHeight = height;
-                      });
-                    }
-                  },
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

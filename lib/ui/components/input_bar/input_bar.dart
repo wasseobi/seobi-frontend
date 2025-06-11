@@ -208,6 +208,7 @@ class _InputBarState extends State<InputBar> {
                       borderRadius: _getContainerRadius(isKeyboardVisible),
                       side: BorderSide(color: AppColors.gray40, width: 1),
                     ),
+                    color: AppColors.white100,
                     child: Padding(
                       padding: _getContainerPadding(isKeyboardVisible),
                       child: Row(
