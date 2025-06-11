@@ -27,6 +27,7 @@ class AppColors {
   static const Color main100 = Color(0xFFFF7B34);
   static const Color main80 = Color(0xFFFFB289);
   static const Color green100 = Color(0xFF03C009);
+  static const Color red100 = Color(0xFFFF0000);
 
   // general/text
   static const Color textDarkPrimary = white100;
