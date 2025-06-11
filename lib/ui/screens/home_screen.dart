@@ -120,9 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 );
                               }
-                              final viewModel =
-                                  snapshot.data as ScheduleCardListViewModel?;
-                              return BoxScreen(scheduleViewModel: viewModel);
+                              return BoxScreen();
                             },
                           ),
                         ),

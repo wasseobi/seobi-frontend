@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'schedule_card_model.dart';
+import '../../../../services/schedule/schedule_service.dart';
+import '../../../../services/auth/auth_service.dart';
+import '../../../../repositories/backend/models/schedule.dart';
 
 /// ScheduleCard 리스트를 관리하는 ViewModel
 class ScheduleCardListViewModel extends ChangeNotifier {
   List<ScheduleCardModel> _schedules = [];
   bool _isUrgentFirst = false;
+  Timer? _refreshTimer;
+  String? _userId;
+  final ScheduleService _scheduleService = ScheduleService();
+  final AuthService _authService = AuthService();
+
   static const String _storageKey = 'schedule_cards_state';
   static const String _sortingKey = 'schedule_sorting_state';
 
@@ -27,7 +36,59 @@ class ScheduleCardListViewModel extends ChangeNotifier {
     _schedules = schedules;
   }
 
-  /// 저장된 Schedule 상태 불러오기
+  /// API에서 Schedule 데이터를 불러와서 초기화 + 자동 refresh 시작
+  static Future<ScheduleCardListViewModel> fromUserId(String userId) async {
+    final viewModel = ScheduleCardListViewModel();
+    viewModel._userId = userId;
+    await viewModel.refreshSchedules(); // 초기 데이터 로드
+    viewModel.startAutoRefresh(); // 자동 refresh 시작
+    return viewModel;
+  }
+
+  /// 30초마다 자동 refresh 시작
+  void startAutoRefresh() {
+    _refreshTimer?.cancel(); // 기존 타이머가 있다면 취소
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      refreshSchedules();
+    });
+  }
+
+  /// 자동 refresh 중지
+  void stopAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  /// Schedule 목록 새로고침 (API 호출)
+  Future<void> refreshSchedules() async {
+    if (_userId == null) return;
+
+    try {
+      final schedules = await _scheduleService.fetchSchedules(_userId!);
+      final scheduleMapList = fromScheduleList(schedules);
+
+      _schedules.clear();
+      _schedules.addAll(
+        scheduleMapList.map((map) => ScheduleCardModel.fromMap(map)),
+      );
+
+      // 현재 정렬 상태 유지
+      if (_isUrgentFirst) {
+        sortSchedules(true);
+      }
+
+      // SharedPreferences에도 저장 (백업용)
+      _saveSchedules();
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Schedule refresh 오류: $e');
+      // API 실패 시 로컬 데이터 사용
+      await _loadSchedules();
+    }
+  }
+
+  /// 저장된 Schedule 상태 불러오기 (API 실패 시 백업용)
   Future<void> _loadSchedules() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -86,7 +147,7 @@ class ScheduleCardListViewModel extends ChangeNotifier {
     }
   }
 
-  /// 예시 Schedule 생성 메서드
+  /// 예시 Schedule 생성 메서드 (API 실패 시 백업용)
   void _generateSampleSchedules() {
     _schedules = [
       ScheduleCardModel(
@@ -194,24 +255,21 @@ class ScheduleCardListViewModel extends ChangeNotifier {
     }
   }
 
-  /// API에서 받아온 Schedule 리스트를 ScheduleCardModel용 Map 리스트로 변환
-  static List<Map<String, dynamic>> fromScheduleList(List schedules) {
+  /// API Schedule 리스트를 ScheduleCardModel용 Map 리스트로 변환
+  static List<Map<String, dynamic>> fromScheduleList(List<Schedule> schedules) {
     return schedules.map((schedule) {
       return {
-        'id':
-            schedule.id is int
-                ? schedule.id
-                : schedule.id.hashCode, // id가 String이면 hashCode 사용
+        'id': schedule.id.hashCode, // String id를 int로 변환
         'title': schedule.title,
         'time':
-            schedule.startAt is DateTime
+            schedule.startAt != null
                 ? _formatDateTime(schedule.startAt)
-                : schedule.startAt,
+                : '시간 미정',
         'location': schedule.location,
         'registeredTime':
-            schedule.createdAt is DateTime
+            schedule.createdAt != null
                 ? _formatRegisteredTime(schedule.createdAt)
-                : schedule.createdAt,
+                : '등록시간 미정',
         'startAtRaw': schedule.startAt?.toIso8601String() ?? '',
         'createdAtRaw': schedule.createdAt?.toIso8601String() ?? '',
         'type': 'list',
@@ -246,5 +304,11 @@ class ScheduleCardListViewModel extends ChangeNotifier {
     if (dateTime == null) return '';
     // 날짜만 추출해서 'yyyy-MM-dd 등록함' 포맷으로 반환
     return '${dateTime.year.toString().padLeft(4, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} 등록함';
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel(); // Timer 정리
+    super.dispose();
   }
 }

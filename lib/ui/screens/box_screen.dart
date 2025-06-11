@@ -5,29 +5,43 @@ import '../components/box/tasks/task_card_list_view_model.dart';
 import '../../services/auth/auth_service.dart';
 
 class BoxScreen extends StatelessWidget {
-  final ScheduleCardListViewModel? scheduleViewModel;
-  const BoxScreen({super.key, this.scheduleViewModel});
+  const BoxScreen({super.key});
 
-  Future<TaskCardListViewModel> _loadTaskViewModel() async {
+  Future<Map<String, dynamic>> _loadViewModels() async {
     final userId = AuthService().userId;
     if (userId == null || userId.isEmpty) {
-      return TaskCardListViewModel();
+      return {
+        'taskViewModel': TaskCardListViewModel(),
+        'scheduleViewModel': ScheduleCardListViewModel(),
+      };
     }
-    return await TaskCardListViewModel.fromUserId(userId);
+
+    // TaskCardListViewModel과 ScheduleCardListViewModel을 동시에 로드
+    final results = await Future.wait([
+      TaskCardListViewModel.fromUserId(userId),
+      ScheduleCardListViewModel.fromUserId(userId),
+    ]);
+
+    return {'taskViewModel': results[0], 'scheduleViewModel': results[1]};
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<TaskCardListViewModel>(
-      future: _loadTaskViewModel(),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadViewModels(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('자동업무 불러오기 실패: \\${snapshot.error}'));
+          return Center(child: Text('데이터 불러오기 실패: ${snapshot.error}'));
         }
-        final taskViewModel = snapshot.data;
+
+        final data = snapshot.data!;
+        final taskViewModel = data['taskViewModel'] as TaskCardListViewModel;
+        final scheduleViewModel =
+            data['scheduleViewModel'] as ScheduleCardListViewModel;
+
         return BoxContent(
           taskViewModel: taskViewModel,
           scheduleViewModel: scheduleViewModel,
