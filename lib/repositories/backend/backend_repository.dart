@@ -6,6 +6,8 @@ import 'package:seobi_app/repositories/backend/models/user.dart';
 import 'package:seobi_app/repositories/backend/models/session.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
 import 'http_helper.dart';
+import 'models/schedule.dart';
+import 'models/auto_task.dart';
 
 class BackendRepository implements IBackendRepository {
   static final BackendRepository _instance = BackendRepository._internal();
@@ -243,5 +245,67 @@ class BackendRepository implements IBackendRepository {
     // TODO: swagger_new.json 활성화 시 구현
     debugPrint('[BackendRepository] Insights API는 아직 미구현 상태입니다.');
     return null;
+  }
+
+  Future<List<Schedule>> getSchedulesByUserId(
+    String userId, {
+    String? accessToken,
+  }) async {
+    return _http.getList(
+      '/schedule/$userId',
+      (json) => Schedule.fromJson(json),
+      headers:
+          accessToken != null && accessToken.isNotEmpty
+              ? {'Authorization': 'Bearer $accessToken'}
+              : {},
+    );
+  }
+
+  // AutoTask 활성 목록 조회
+  Future<List<AutoTask>> getActiveAutoTasksByUserId(
+    String userId, {
+    String? accessToken,
+  }) async {
+    return _http.getList(
+      '/autotask/$userId/active',
+      (json) => AutoTask.fromJson(json),
+      headers:
+          accessToken != null && accessToken.isNotEmpty
+              ? {'Authorization': 'Bearer $accessToken'}
+              : {},
+    );
+  }
+
+  // AutoTask 비활성 목록 조회
+  Future<List<AutoTask>> getInactiveAutoTasksByUserId(
+    String userId, {
+    String? accessToken,
+  }) async {
+    return _http.getList(
+      '/autotask/$userId/inactive',
+      (json) => AutoTask.fromJson(json),
+      headers:
+          accessToken != null && accessToken.isNotEmpty
+              ? {'Authorization': 'Bearer $accessToken'}
+              : {},
+    );
+  }
+
+  // AutoTask 활성/비활성 상태 변경
+  Future<void> updateAutoTaskActiveStatus(
+    String id,
+    bool active, {
+    String? accessToken,
+  }) async {
+    final url = '/autotask/$id/active?active=$active';
+    await _http.put(
+      url,
+      {},
+      (json) => null,
+      headers:
+          accessToken != null && accessToken.isNotEmpty
+              ? {'Authorization': 'Bearer $accessToken'}
+              : {},
+    );
   }
 }

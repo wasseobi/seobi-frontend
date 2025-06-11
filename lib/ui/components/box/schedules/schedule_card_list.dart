@@ -9,15 +9,22 @@ import 'schedule_types.dart';
 class ScheduleCardList extends StatefulWidget {
   final double? width;
   final double? height;
+  final ScheduleCardListViewModel? viewModel;
 
-  const ScheduleCardList({super.key, this.width, this.height});
+  const ScheduleCardList({super.key, this.width, this.height, this.viewModel});
 
   @override
   State<ScheduleCardList> createState() => _ScheduleCardListState();
 }
 
 class _ScheduleCardListState extends State<ScheduleCardList> {
-  final ScheduleCardListViewModel _viewModel = ScheduleCardListViewModel();
+  late final ScheduleCardListViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = widget.viewModel ?? ScheduleCardListViewModel();
+  }
 
   @override
   Widget build(BuildContext context) {

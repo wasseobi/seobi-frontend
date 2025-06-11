@@ -148,38 +148,103 @@ class ScheduleCardListViewModel extends ChangeNotifier {
   void sortSchedules(bool isUrgentFirst) {
     _isUrgentFirst = isUrgentFirst;
     if (isUrgentFirst) {
-      // 시간 순으로 정렬 (임박순)
+      // 임박순: startAtRaw 오름차순
       _schedules.sort((a, b) {
-        // Convert time strings to DateTime for proper comparison
-        final timeA = _parseTimeString(a.time);
-        final timeB = _parseTimeString(b.time);
-        return timeA.compareTo(timeB);
+        DateTime? aStart =
+            a.startAtRaw != null && a.startAtRaw!.isNotEmpty
+                ? DateTime.tryParse(a.startAtRaw!)
+                : null;
+        DateTime? bStart =
+            b.startAtRaw != null && b.startAtRaw!.isNotEmpty
+                ? DateTime.tryParse(b.startAtRaw!)
+                : null;
+        if (aStart == null && bStart == null) return 0;
+        if (aStart == null) return 1;
+        if (bStart == null) return -1;
+        return aStart.compareTo(bStart);
       });
     } else {
-      // 등록 순으로 정렬
+      // 등록순: createdAtRaw 오름차순
       _schedules.sort((a, b) {
-        // Convert registeredTime strings to DateTime for proper comparison
-        final timeA = DateTime.parse(a.registeredTime);
-        final timeB = DateTime.parse(b.registeredTime);
-        return timeB.compareTo(timeA); // Most recent first
+        DateTime? aReg =
+            a.createdAtRaw != null && a.createdAtRaw!.isNotEmpty
+                ? DateTime.tryParse(a.createdAtRaw!)
+                : null;
+        DateTime? bReg =
+            b.createdAtRaw != null && b.createdAtRaw!.isNotEmpty
+                ? DateTime.tryParse(b.createdAtRaw!)
+                : null;
+        if (aReg == null && bReg == null) return 0;
+        if (aReg == null) return 1;
+        if (bReg == null) return -1;
+        return aReg.compareTo(bReg);
       });
     }
     notifyListeners();
     _saveSortingState();
   }
 
-  /// Helper method to parse time string to DateTime
-  DateTime _parseTimeString(String timeStr) {
-    final now = DateTime.now();
-    final timeParts = timeStr.split(':');
-    if (timeParts.length != 2) return now;
-
+  /// 문자열을 DateTime으로 파싱 (yyyy-MM-dd 또는 yyyy-MM-dd 등록함 등 지원)
+  DateTime? _parseDateTime(String str) {
     try {
-      final hour = int.parse(timeParts[0]);
-      final minute = int.parse(timeParts[1]);
-      return DateTime(now.year, now.month, now.day, hour, minute);
-    } catch (e) {
-      return now;
+      final dateStr = str.split(' ')[0];
+      return DateTime.parse(dateStr);
+    } catch (_) {
+      return null;
     }
+  }
+
+  /// API에서 받아온 Schedule 리스트를 ScheduleCardModel용 Map 리스트로 변환
+  static List<Map<String, dynamic>> fromScheduleList(List schedules) {
+    return schedules.map((schedule) {
+      return {
+        'id':
+            schedule.id is int
+                ? schedule.id
+                : schedule.id.hashCode, // id가 String이면 hashCode 사용
+        'title': schedule.title,
+        'time':
+            schedule.startAt is DateTime
+                ? _formatDateTime(schedule.startAt)
+                : schedule.startAt,
+        'location': schedule.location,
+        'registeredTime':
+            schedule.createdAt is DateTime
+                ? _formatRegisteredTime(schedule.createdAt)
+                : schedule.createdAt,
+        'startAtRaw': schedule.startAt?.toIso8601String() ?? '',
+        'createdAtRaw': schedule.createdAt?.toIso8601String() ?? '',
+        'type': 'list',
+      };
+    }).toList();
+  }
+
+  /// DateTime을 'M월 d일 오전/오후 h시' 포맷 문자열로 변환
+  static String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    final month = dateTime.month;
+    final day = dateTime.day;
+    final hour = dateTime.hour;
+    final minute = dateTime.minute;
+    final isAm = hour < 12;
+    final displayHour =
+        hour == 0
+            ? 12
+            : hour > 12
+            ? hour - 12
+            : hour;
+    final ampm = isAm ? '오전' : '오후';
+    if (minute == 0) {
+      return '${month}월 ${day}일 $ampm ${displayHour}시';
+    } else {
+      return '${month}월 ${day}일 $ampm ${displayHour}시 ${minute}분';
+    }
+  }
+
+  /// DateTime을 'yyyy-MM-dd 등록함' 포맷 문자열로 변환
+  static String _formatRegisteredTime(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    // 날짜만 추출해서 'yyyy-MM-dd 등록함' 포맷으로 반환
+    return '${dateTime.year.toString().padLeft(4, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} 등록함';
   }
 }

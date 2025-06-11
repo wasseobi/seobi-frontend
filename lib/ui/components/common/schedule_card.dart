@@ -90,6 +90,8 @@ class ScheduleCard extends StatelessWidget {
                 Text(
                   schedule.registeredTime,
                   textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: PretendardStyles.medium10.copyWith(
                     color: AppColors.gray60,
                   ),

@@ -8,6 +8,9 @@ import '../components/input_bar/input_bar.dart';
 import 'chat_screen.dart';
 import 'box_screen.dart';
 import 'article_screen.dart';
+import '../../services/schedule/schedule_service.dart';
+import '../components/box/schedules/schedule_card_list_view_model.dart';
+import '../components/box/schedules/schedule_card_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -69,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (bottomInset > 0) {
       debugPrint('IME/키보드 표시됨 - 높이: $bottomInset');
     }
-    
+
     return KeyboardDismissOnTap(
       child: Scaffold(
         key: _scaffoldKey,
@@ -85,21 +88,43 @@ class _HomeScreenState extends State<HomeScreen> {
                     onMenuPressed: () {
                       _scaffoldKey.currentState?.openDrawer();
                     },
-                  ),                  Expanded(
+                  ),
+                  Expanded(
                     child: PageView(
                       controller: _pageController,
                       onPageChanged: _onPageChanged,
                       physics: const BouncingScrollPhysics(),
-                      children: [                        // 채팅 화면
+                      children: [
+                        // 채팅 화면
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
                           child: ChatScreen(),
                         ),
 
-                        // 보관함 화면
+                        // 보관함 화면 (일정 연동)
                         Padding(
                           padding: EdgeInsets.only(bottom: _inputBarHeight),
-                          child: const BoxScreen(),
+                          child: FutureBuilder(
+                            future: _loadScheduleViewModel(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              if (snapshot.hasError) {
+                                return Center(
+                                  child: Text(
+                                    '일정 불러오기 실패: \\${snapshot.error}',
+                                  ),
+                                );
+                              }
+                              final viewModel =
+                                  snapshot.data as ScheduleCardListViewModel?;
+                              return BoxScreen(scheduleViewModel: viewModel);
+                            },
+                          ),
                         ),
 
                         // 통계 화면
@@ -111,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ],
-              ),              // 입력 바
+              ), // 입력 바
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -135,6 +160,22 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  Future<ScheduleCardListViewModel> _loadScheduleViewModel() async {
+    final userId = _authService.userId;
+    if (userId == null || userId.isEmpty) {
+      // 로그인 안 된 경우 샘플 데이터 사용
+      return ScheduleCardListViewModel();
+    }
+    final schedules = await ScheduleService().fetchSchedules(userId);
+    final mapList = ScheduleCardListViewModel.fromScheduleList(schedules);
+    final viewModel = ScheduleCardListViewModel.withSchedules(
+      mapList.map((e) => ScheduleCardModel.fromMap(e)).toList(),
+    );
+    viewModel.initWithMapList(mapList);
+    return viewModel;
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
