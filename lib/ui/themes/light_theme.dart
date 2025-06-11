@@ -99,6 +99,6 @@ class LightTheme {
           width: 1,
         ),
       ),
-    )
+    ),
   );
 }
