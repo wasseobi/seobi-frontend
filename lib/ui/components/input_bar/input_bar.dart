@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:provider/provider.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
+import 'package:seobi_app/ui/components/common/custom_button.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
+import 'package:seobi_app/ui/constants/dimensions/app_dimensions.dart';
 import 'input_bar_view_model.dart';
 
 class InputBar extends StatefulWidget {
@@ -11,6 +13,8 @@ class InputBar extends StatefulWidget {
   final Function(double height)? onHeightChanged;
 
   const InputBar({
+    super.key,
+    required this.controller,
     super.key,
     required this.controller,
     this.focusNode,
@@ -28,6 +32,8 @@ class _InputBarState extends State<InputBar> {
 
   late final FocusNode _focusNode;
   late final InputBarViewModel _viewModel;
+  double? _previousBottomInset; // IME/키보드 높이 변경 감지용
+
   double? _previousBottomInset; // IME/키보드 높이 변경 감지용
 
   @override
@@ -145,6 +151,8 @@ class _InputBarState extends State<InputBar> {
   BorderRadius _getContainerRadius(bool isKeyboardVisible) {
     final radius = AppDimensions.borderRadiusLarge; // 반경 값
 
+    final radius = AppDimensions.borderRadiusLarge; // 반경 값
+
     return isKeyboardVisible
         ? BorderRadius.only(
           topLeft: Radius.circular(radius),
@@ -153,21 +161,14 @@ class _InputBarState extends State<InputBar> {
         : BorderRadius.circular(radius); // 모든 코너 둥글게
   }
 
-  EdgeInsets _getContainerPadding(bool isKeyboardVisible) {
-    return isKeyboardVisible
-        ? const EdgeInsets.symmetric(
-          horizontal: AppDimensions.paddingMedium,
-          vertical: AppDimensions.paddingSmall,
-        )
-        : const EdgeInsets.all(AppDimensions.paddingSmall);
-  }
-
   // 높이 측정을 위한 GlobalKey
   final GlobalKey _containerKey = GlobalKey();
 
   // 높이 측정 및 콜백 호출 메서드
   void _measureAndNotifyHeight() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final RenderBox? renderBox =
+          _containerKey.currentContext?.findRenderObject() as RenderBox?;
       final RenderBox? renderBox =
           _containerKey.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null && widget.onHeightChanged != null) {
@@ -183,6 +184,9 @@ class _InputBarState extends State<InputBar> {
     final previousBottomInset = _previousBottomInset ?? 0;
 
     if (bottomInset != previousBottomInset) {
+      debugPrint(
+        'InputBar - IME/키보드 높이 변경: $previousBottomInset -> $bottomInset',
+      );
       debugPrint(
         'InputBar - IME/키보드 높이 변경: $previousBottomInset -> $bottomInset',
       );
