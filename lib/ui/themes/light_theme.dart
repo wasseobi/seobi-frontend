@@ -54,7 +54,9 @@ class LightTheme {
       color: AppColors.white100,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderRadius: BorderRadius.all(
+          Radius.circular(AppDimensions.borderRadiusSmall),
+        ),
         side: BorderSide(color: AppColors.gray40, width: 1),
       ),
     ),
@@ -102,12 +104,7 @@ class LightTheme {
 
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       elevation: 0.0,
-      shape: CircleBorder(
-        side: BorderSide(
-          color: AppColors.gray40,
-          width: 1,
-        ),
-      ),
+      shape: CircleBorder(side: BorderSide(color: AppColors.gray40, width: 1)),
     ),
   );
 }
