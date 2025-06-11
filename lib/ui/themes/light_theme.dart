@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import '../constants/app_colors.dart';
 
 class LightTheme {
@@ -52,10 +53,10 @@ class LightTheme {
     cardTheme: const CardThemeData(
       color: AppColors.white100,
       elevation: 0,
-      // shape: RoundedRectangleBorder(
-      //   borderRadius: BorderRadius.all(Radius.circular(12)),
-      //   side: BorderSide(color: AppColors.gray80, width: 1),
-      // ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        side: BorderSide(color: AppColors.gray40, width: 1),
+      ),
     ),
 
     elevatedButtonTheme: const ElevatedButtonThemeData(
@@ -70,5 +71,34 @@ class LightTheme {
         ),
       ),
     ),
+
+    iconButtonTheme: IconButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: WidgetStatePropertyAll(AppColors.whiteBlur),
+        foregroundColor: WidgetStatePropertyAll(AppColors.black100),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(
+              Radius.circular(AppDimensions.borderRadiusLarge),
+            ),
+            // side: BorderSide(color: AppColors.gray40, width: 1),
+          ),
+        ),
+        iconSize: WidgetStatePropertyAll(AppDimensions.iconSizeMedium),
+        fixedSize: WidgetStatePropertyAll(
+          Size.square(AppDimensions.buttonHeightMedium),
+        ),
+      ),
+    ),
+
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      elevation: 0.0,
+      shape: CircleBorder(
+        side: BorderSide(
+          color: AppColors.gray40,
+          width: 1,
+        ),
+      ),
+    )
   );
 }

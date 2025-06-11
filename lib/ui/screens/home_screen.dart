@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import '../components/navigation/custom_navigation_bar.dart';
 import '../components/drawer/custom_drawer.dart';
 import '../components/auth/sign_in_bottom_sheet.dart';
@@ -73,6 +74,12 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('IME/키보드 표시됨 - 높이: $bottomInset');
     }
 
+    var pageInset = EdgeInsets.only(
+      bottom: _inputBarHeight - AppDimensions.borderRadiusLarge,
+      left: AppDimensions.paddingMedium,
+      right: AppDimensions.paddingMedium,
+    );
+
     return KeyboardDismissOnTap(
       child: Scaffold(
         key: _scaffoldKey,
@@ -96,20 +103,35 @@ class _HomeScreenState extends State<HomeScreen> {
                       physics: const BouncingScrollPhysics(),
                       children: [
                         // 채팅 화면
-                        Padding(
-                          padding: EdgeInsets.only(bottom: _inputBarHeight),
-                          child: ChatScreen(),
-                        ),
+                        Padding(padding: pageInset, child: ChatScreen()),
 
                         // 보관함 화면 (일정 연동)
                         Padding(
-                          padding: EdgeInsets.only(bottom: _inputBarHeight),
-                          child: BoxScreen(),
+                          padding: pageInset,
+                          child: FutureBuilder(
+                            future: _loadScheduleViewModel(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              if (snapshot.hasError) {
+                                return Center(
+                                  child: Text(
+                                    '일정 불러오기 실패: \\${snapshot.error}',
+                                  ),
+                                );
+                              }
+                              return BoxScreen();
+                            },
+                          ),
                         ),
 
                         // 통계 화면
                         Padding(
-                          padding: EdgeInsets.only(bottom: _inputBarHeight),
+                          padding: pageInset,
                           child: const ArticleScreen(),
                         ),
                       ],

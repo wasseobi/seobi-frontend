@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:provider/provider.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
-import 'package:seobi_app/ui/components/common/custom_button.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
-import 'package:seobi_app/ui/constants/dimensions/app_dimensions.dart';
 import 'input_bar_view_model.dart';
 
 class InputBar extends StatefulWidget {
@@ -91,14 +89,8 @@ class _InputBarState extends State<InputBar> {
           suffixIcon:
               !isEmpty
                   ? IconButton(
-                    onPressed: () {
-                      viewModel.clearText();
-                    },
-                    icon: const Icon(
-                      Icons.close,
-                      size: 18,
-                      color: AppColors.gray60,
-                    ),
+                    onPressed: viewModel.clearText,
+                    icon: const Icon(Icons.close),
                   )
                   : null,
         ),
@@ -109,21 +101,26 @@ class _InputBarState extends State<InputBar> {
   // 전송/음성 버튼 빌드 메서드
   Widget _buildActionButton(BuildContext context, bool isEmpty) {
     final viewModel = Provider.of<InputBarViewModel>(context);
-    return CustomButton(
-      type: CustomButtonType.circular,
-      icon: viewModel.actionButtonIcon,
-      backgroundColor: viewModel.actionButtonColor,
-      iconColor: Colors.white,
+    return IconButton.filled(
+      icon: Icon(viewModel.actionButtonIcon),
+      color: Colors.white,
       onPressed: viewModel.handleButtonPress,
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.all<Color>(
+          viewModel.actionButtonColor,
+        ),
+      ),
     );
   }
 
   // 컨테이너 스타일 관련 메서드들
-  EdgeInsetsGeometry _getContainerPadding(bool isKeyboardVisible) {
+  EdgeInsetsGeometry _getContainerMargin(bool isKeyboardVisible) {
     return isKeyboardVisible
         ? EdgeInsets
             .zero // 키보드가 보이면 좌우하단 패딩 없음
-        : const EdgeInsets.only(left: 12, right: 12); // 기본 패딩
+        : const EdgeInsets.symmetric(
+          horizontal: AppDimensions.paddingSmall,
+        ); // 기본 패딩
   }
 
   BorderRadius _getContainerRadius(bool isKeyboardVisible) {
@@ -131,10 +128,19 @@ class _InputBarState extends State<InputBar> {
 
     return isKeyboardVisible
         ? BorderRadius.only(
-            topLeft: Radius.circular(radius),
-            topRight: Radius.circular(radius),
-          ) // 키보드가 보이면 위쪽만 둥글게
+          topLeft: Radius.circular(radius),
+          topRight: Radius.circular(radius),
+        ) // 키보드가 보이면 위쪽만 둥글게
         : BorderRadius.circular(radius); // 모든 코너 둥글게
+  }
+
+  EdgeInsets _getContainerPadding(bool isKeyboardVisible) {
+    return isKeyboardVisible
+        ? const EdgeInsets.symmetric(
+          horizontal: AppDimensions.paddingMedium,
+          vertical: AppDimensions.paddingSmall,
+        )
+        : const EdgeInsets.all(AppDimensions.paddingSmall);
   }
 
   // 높이 측정을 위한 GlobalKey
@@ -175,40 +181,32 @@ class _InputBarState extends State<InputBar> {
               return Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
-                  padding: _getContainerPadding(isKeyboardVisible),
-                  child: Container(
+                  padding: _getContainerMargin(isKeyboardVisible),
+                  child: Material(
                     key: _containerKey,
-                    width: double.infinity, // 화면 너비 전체를 차지
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
+                    shape: RoundedRectangleBorder(
                       borderRadius: _getContainerRadius(isKeyboardVisible),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, -2),
-                        ),
-                      ],
+                      side: BorderSide(color: AppColors.gray40, width: 1),
                     ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 12), // 텍스트 필드
-                        Expanded(
-                          child: _buildTextField(
-                            context,
-                            viewModel.isEmpty,
-                            viewModel.isRecording,
+                    child: Padding(
+                      padding: _getContainerPadding(isKeyboardVisible),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: AppDimensions.paddingMedium,
+                          ), // 텍스트 필드
+                          Expanded(
+                            child: _buildTextField(
+                              context,
+                              viewModel.isEmpty,
+                              viewModel.isRecording,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // 동적 버튼 (모드와 상태에 따라 변경)
-                        _buildActionButton(context, viewModel.isEmpty),
-                      ],
+                          const SizedBox(width: AppDimensions.paddingSmall),
+                          // 동적 버튼 (모드와 상태에 따라 변경)
+                          _buildActionButton(context, viewModel.isEmpty),
+                        ],
+                      ),
                     ),
                   ),
                 ),

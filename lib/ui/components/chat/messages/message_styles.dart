@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:seobi_app/ui/constants/app_colors.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 
 class MessageStyles {
   // 텍스트 스타일
@@ -22,8 +23,13 @@ class MessageStyles {
   );
 
   // 레이아웃 관련 상수
-  static const EdgeInsets messagePadding = EdgeInsets.all(12);
-  static const EdgeInsets messageMargin = EdgeInsets.symmetric(vertical: 4, horizontal: 8);
+  static const EdgeInsets messagePadding = EdgeInsets.symmetric(
+    vertical: AppDimensions.paddingSmall,
+    horizontal: AppDimensions.paddingMedium,
+  );
+  static const EdgeInsets messageMargin = EdgeInsets.symmetric(
+    vertical: AppDimensions.paddingSmall,
+  );
   static const double borderRadius = 12.0;
   static const double maxWidth = 320.0;  // 메시지 배경색
   static final Color userMessageColor = AppColors.chatMsgBox;
