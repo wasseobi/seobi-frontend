@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:seobi_app/services/conversation/history_service.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
 import 'package:seobi_app/ui/components/chat/messages/summary_message.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
 import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import 'messages/user_message.dart';
 import 'messages/tool_call_message.dart';
@@ -69,7 +70,9 @@ class _MessageListState extends State<MessageList> {
             _buildMessageListView(context),
             if (_showScrollButton)
               Positioned(
-                bottom: AppDimensions.borderRadiusLarge + AppDimensions.paddingSmall,
+                bottom:
+                    AppDimensions.borderRadiusLarge +
+                    AppDimensions.paddingSmall,
                 child: FloatingActionButton(
                   mini: true,
                   onPressed: _scrollToBottom,
@@ -128,25 +131,53 @@ class _MessageListState extends State<MessageList> {
 
     return RefreshIndicator(
       onRefresh: _handleRefresh,
-      child: _buildMessagesListView(allMessages, pendingMessage),
+      child: _buildMessagesListView(
+        allMessages,
+        pendingMessage,
+        historyService.isGenerating,
+      ),
     );
   }
 
   Widget _buildMessagesListView(
     List<Message> messages,
     String? pendingMessage,
+    bool isGenerating,
   ) {
+    final count =
+        messages.length + (pendingMessage != null || isGenerating ? 1 : 0);
+
     return ListView.builder(
-      padding: EdgeInsets.only(bottom: AppDimensions.paddingLarge + AppDimensions.borderRadiusLarge),
+      padding: EdgeInsets.only(
+        bottom: AppDimensions.paddingLarge + AppDimensions.borderRadiusLarge,
+      ),
       reverse: true,
       controller: _scrollController,
-      itemCount: messages.length + (pendingMessage != null ? 1 : 0),
+      itemCount: count,
       itemBuilder: (context, index) {
         if (pendingMessage != null && index == 0) {
           return UserMessage(content: [pendingMessage], isPending: true);
         }
 
-        final actualIndex = pendingMessage != null ? index - 1 : index;
+        if (isGenerating && index == 0) {
+          return Padding(
+            padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: AppDimensions.progressIndicatorMedium,
+                  height: AppDimensions.progressIndicatorMedium,
+                  child: const CircularProgressIndicator(
+                    color: AppColors.main100,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final actualIndex =
+            (pendingMessage != null || isGenerating) ? index - 1 : index;
         final message = messages[actualIndex];
         return _buildMessageWidget(message);
       },

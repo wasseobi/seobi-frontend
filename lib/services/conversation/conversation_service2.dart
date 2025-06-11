@@ -13,7 +13,7 @@ class ConversationService2 {
   static final ConversationService2 _instance =
       ConversationService2._internal();
   factory ConversationService2() => _instance;
-  
+
   final AuthService _authService = AuthService();
   final HistoryService _historyService = HistoryService();
   final TtsService _ttsService = TtsService();
@@ -37,8 +37,6 @@ class ConversationService2 {
 
     // TtsService 초기화
     await _ttsService.initialize();
-
-    
 
     debugPrint('[ConversationService2] 서비스 초기화 완료');
   }
