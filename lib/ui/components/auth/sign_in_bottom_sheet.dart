@@ -52,15 +52,16 @@ class _SignInBottomSheetContentState extends State<_SignInBottomSheetContent> {
     final mediaQuery = MediaQuery.of(context);
     final screenWidth = mediaQuery.size.width;
     final isLandscape = mediaQuery.orientation == Orientation.landscape;
+    final radius = (Theme.of(context).bottomSheetTheme.shape as RoundedRectangleBorder?)?.borderRadius as BorderRadius;
 
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF6F6F6),
         borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(12),
-          topRight: const Radius.circular(12),
-          bottomLeft: Radius.circular(isLandscape ? 12 : 0),
-          bottomRight: Radius.circular(isLandscape ? 12 : 0),
+          topLeft: radius.topLeft,
+          topRight: radius.topRight,
+          bottomLeft: Radius.circular(isLandscape ? radius.bottomLeft.x : 0),
+          bottomRight: Radius.circular(isLandscape ? radius.bottomRight.x : 0),
         ),
         boxShadow: const [
           BoxShadow(
@@ -96,7 +97,7 @@ class _SignInBottomSheetContentState extends State<_SignInBottomSheetContent> {
                     ),
                     const SizedBox(height: 5),
                     const Text(
-                      '바로 가입하고 AI 비서를 만나보세요',
+                      '바로 가입하고 서비를 만나보세요',
                       style: TextStyle(
                         color: Color(0xFF7D7D7D),
                         fontSize: 16,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:seobi_app/ui/constants/app_colors.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 
 /// 점선을 그리기 위한 CustomPainter 클래스
 class DashedLinePainter extends CustomPainter {
@@ -57,15 +59,10 @@ class SummaryMessage extends StatelessWidget {
 
     return Column(
       children: [
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(8.0),
+        Card.outlined(
+          color: AppColors.white80,
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(AppDimensions.paddingMedium),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -78,8 +75,11 @@ class SummaryMessage extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      const Icon(Icons.chat_outlined, size: 18),
-                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.chat_outlined,
+                        size: AppDimensions.iconSizeSmall,
+                      ),
+                      const SizedBox(width: AppDimensions.paddingSmall),
                       Text(
                         title!.trim(),
                         style: TextStyle(
@@ -90,7 +90,7 @@ class SummaryMessage extends StatelessWidget {
                     ],
                   ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: AppDimensions.paddingMedium),
 
                 // 세션 요약(설명)
                 // 설명이 없으면 빈 위젯을 반환
@@ -104,27 +104,30 @@ class SummaryMessage extends StatelessWidget {
                     ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
                   ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: AppDimensions.paddingMedium),
 
                 // 세션 기간 - 맨 아래로 이동
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: AppDimensions.paddingMedium,
+                    vertical: AppDimensions.paddingSmall,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(4),
+                    color: AppColors.gray40,
+                    borderRadius: BorderRadius.circular(
+                      AppDimensions.borderRadiusSmall,
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const SizedBox(width: 4),
                       Icon(
                         Icons.calendar_today,
-                        size: 14,
-                        color: Colors.grey.shade700,
+                        size: AppDimensions.iconSizeSmall,
+                        color: AppColors.gray80,
                       ),
-                      const SizedBox(width: 12),
+
+                      const SizedBox(width: AppDimensions.paddingMedium),
+
                       Column(
                         children: [
                           Text(
@@ -150,15 +153,15 @@ class SummaryMessage extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: CustomPaint(
-            painter: DashedLinePainter(),
-            size: const Size(double.infinity, 1),
-          ),
+
+        const SizedBox(height: AppDimensions.paddingMedium),
+
+        CustomPaint(
+          painter: DashedLinePainter(),
+          size: const Size(double.infinity, 1),
         ),
-        SizedBox(height: 24),
+
+        const SizedBox(height: AppDimensions.paddingLarge),
       ],
     );
   }

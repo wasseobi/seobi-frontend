@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import 'tasks/task_card_list.dart';
 import 'tasks/task_card_list_view_model.dart';
 import 'schedules/schedule_card_list.dart';
@@ -30,25 +31,21 @@ class _BoxContentState extends State<BoxContent>
   Widget build(BuildContext context) {
     super.build(context);
     return SingleChildScrollView(
-      controller: _scrollController,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 20),
-            TaskCardList(
-              width: double.infinity,
-              viewModel: widget.taskViewModel,
-            ),
-            SizedBox(height: 32),
-            ScheduleCardList(
-              width: double.infinity,
-              viewModel: widget.scheduleViewModel,
-            ),
-            SizedBox(height: 32),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: AppDimensions.paddingMedium),
+          TaskCardList(width: double.infinity, viewModel: widget.taskViewModel),
+          SizedBox(height: AppDimensions.paddingLarge),
+          ScheduleCardList(
+            width: double.infinity,
+            viewModel: widget.scheduleViewModel,
+          ),
+          SizedBox(
+            height:
+                AppDimensions.paddingLarge + AppDimensions.borderRadiusLarge,
+          ),
+        ],
       ),
     );
   }

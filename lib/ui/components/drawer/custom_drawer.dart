@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:seobi_app/ui/components/common/custom_button.dart';
+import 'package:seobi_app/ui/constants/app_dimensions.dart';
 import '../../constants/app_colors.dart';
 import 'profile_card/profile_card.dart';
 import 'profile_card/profile_view_model.dart';
@@ -56,32 +56,33 @@ class _CustomDrawerState extends State<CustomDrawer> {
         builder: (context, viewModel, _) {
           return Drawer(
             width: 340,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.only(bottomRight: Radius.circular(40)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                bottomRight: Radius.circular(AppDimensions.borderRadiusLarge),
+              ),
             ),
-            backgroundColor: AppColors.containerLight,
             child: SafeArea(
-              child: Column(
-                children: [
-                  // 상단 여백을 위한 Spacer
-                  const Expanded(child: SizedBox()),
-                  // 구분선
-                  Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 33,
-                      vertical: 13,
-                    ),
-                    child: Divider(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppDimensions.paddingMedium,
+                  vertical: AppDimensions.paddingMedium,
+                ),
+                child: Column(
+                  children: [
+                    // 상단 여백을 위한 Spacer
+                    const Expanded(child: SizedBox()),
+                    // 구분선
+                    Divider(
                       height: 1,
                       thickness: 1,
-                      color: AppColors.main80,
+                      color: Theme.of(context).dividerColor,
                     ),
-                  ),
-                  // 최하단 프로필 카드
-                  _buildBottomProfile(viewModel),
-                  // 하단 여백을 위한 Spacer
-                  SizedBox(height: 10),
-                ],
+                    SizedBox(height: AppDimensions.paddingMedium),
+                    // 최하단 프로필 카드
+                    _buildBottomProfile(viewModel),
+                    // 하단 여백을 위한 Spacer
+                  ],
+                ),
               ),
             ),
           );
@@ -91,32 +92,27 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   Widget _buildBottomProfile(ProfileViewModel viewModel) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 33, vertical: 13),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ProfileCard(
-              roleBackgroundColor: AppColors.main100,
-              onProfileTap: _handleProfileTap,
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: ProfileCard(
+            roleBackgroundColor: AppColors.main100,
+            onProfileTap: _handleProfileTap,
           ),
-          viewModel.isLoggedIn
-              ? CustomButton(
-                icon: Icons.logout,
-                onPressed: _handleSignOut,
-                iconColor: AppColors.gray80,
-                tooltip: '로그아웃',
-              )
-              : CustomButton(
-                icon: Icons.login,
-                onPressed: _handleSignIn,
-                iconColor: AppColors.gray80,
-                tooltip: '로그인',
-              ),
-        ],
-      ),
+        ),
+        viewModel.isLoggedIn
+            ? IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _handleSignOut,
+              tooltip: '로그아웃',
+            )
+            : IconButton(
+              icon: const Icon(Icons.login),
+              onPressed: _handleSignIn,
+              tooltip: '로그인',
+            ),
+      ],
     );
   }
 }

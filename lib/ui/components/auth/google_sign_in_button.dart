@@ -45,29 +45,17 @@ class _GoogleSignInButtonContent extends StatelessWidget {
     return SizedBox(
       height: 58,
       width: double.infinity,
-      child: ElevatedButton(
+      child: OutlinedButton(
         onPressed: isLoading ? null : () => _handleSignIn(context),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.buttonLightBg,
-          foregroundColor: AppColors.textLight,
-          elevation: 0,
+        style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: RoundedRectangleBorder(
-            side: const BorderSide(width: 1, color: Color(0xFFADB3BC)),
-            borderRadius: BorderRadius.circular(12),
-          ),
         ),
         child:
             isLoading
                 ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.textLight,
-                    ),
-                  ),
+                  child: CircularProgressIndicator(),
                 )
                 : Stack(
                   children: [

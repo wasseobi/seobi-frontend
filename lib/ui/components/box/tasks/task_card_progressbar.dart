@@ -14,48 +14,13 @@ class TaskCardProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: TaskCardDimensions.progressBarHeight,
-      decoration: BoxDecoration(color: AppColors.gray40),
-      child: Stack(
-        children: [
-          // Background track
-          Positioned(
-            left: TaskCardDimensions.progressBarLeftPadding,
-            top: 0,
-            child: Container(
-              width: TaskCardDimensions.progressBarWidth,
-              height: TaskCardDimensions.progressBarHeight,
-              decoration: ShapeDecoration(
-                color: AppColors.gray60,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    TaskCardDimensions.progressBarRadius,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Progress track
-          Positioned(
-            left: TaskCardDimensions.progressBarLeftPadding,
-            top: 0,
-            child: Container(
-              width: TaskCardDimensions.progressBarWidth * progress,
-              height: TaskCardDimensions.progressBarHeight,
-              decoration: ShapeDecoration(
-                color: isActive ? AppColors.main100 : AppColors.gray100,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    TaskCardDimensions.progressBarRadius,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+    return LinearProgressIndicator(
+      value: progress,
+      backgroundColor: AppColors.gray60,
+      valueColor: AlwaysStoppedAnimation<Color>(
+        isActive ? AppColors.main100 : AppColors.gray100,
       ),
+      borderRadius: BorderRadius.circular(TaskCardDimensions.progressBarRadius),
     );
   }
 }

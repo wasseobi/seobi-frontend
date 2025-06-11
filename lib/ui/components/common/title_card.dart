@@ -24,7 +24,7 @@ class TitleCard extends StatelessWidget {
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: ShapeDecoration(
-            color: AppColors.white100,
+            color: AppColors.white80,
             shape: RoundedRectangleBorder(
               side: BorderSide(color: AppColors.gray100),
             ),
