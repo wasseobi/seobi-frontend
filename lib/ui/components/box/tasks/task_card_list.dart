@@ -25,31 +25,6 @@ class _TaskCardListState extends State<TaskCardList> {
     _viewModel = widget.viewModel ?? TaskCardListViewModel();
   }
 
-  Widget _buildTaskList({bool isExpanded = false}) {
-    return ListView.builder(
-      shrinkWrap: !isExpanded,
-      physics: isExpanded ? null : const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount: _viewModel.tasks.length,
-      itemBuilder: (context, index) {
-        final task = _viewModel.tasks[index];
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: index == _viewModel.tasks.length - 1
-                ? 0
-                : TaskCardDimensions.listSpacing,
-          ),
-          child: TaskCard(
-            task: task,
-            onChanged: (value) {
-              _viewModel.toggleTaskStatus(task.id, value);
-            },
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -71,6 +46,31 @@ class _TaskCardListState extends State<TaskCardList> {
             else
               _buildTaskList(),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskList({bool isExpanded = false}) {
+    return ListView.builder(
+      shrinkWrap: !isExpanded,
+      physics: isExpanded ? null : const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: _viewModel.tasks.length,
+      itemBuilder: (context, index) {
+        final task = _viewModel.tasks[index];
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index == _viewModel.tasks.length - 1
+                ? 0
+                : TaskCardDimensions.listSpacing,
+          ),
+          child: TaskCard(
+            task: task,
+            onChanged: (value) {
+              _viewModel.toggleTaskStatus(task.id, value);
+            },
+          ),
         );
       },
     );
