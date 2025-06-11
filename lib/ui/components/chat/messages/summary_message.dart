@@ -63,7 +63,6 @@ class SummaryMessage extends StatelessWidget {
     return Column(
       children: [
         Card.outlined(
-          color: AppColors.white80,
           child: Padding(
             padding: const EdgeInsets.all(AppDimensions.paddingMedium),
             child: Column(

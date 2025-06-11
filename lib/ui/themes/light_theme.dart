@@ -40,15 +40,22 @@ class LightTheme {
       indicatorColor: AppColors.white100,
     ),
 
-    drawerTheme: const DrawerThemeData(
-      backgroundColor: AppColors.white100,
-    ),
+    drawerTheme: const DrawerThemeData(backgroundColor: AppColors.white100),
 
     dividerColor: AppColors.main80,
 
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       color: AppColors.green100,
       circularTrackColor: AppColors.gray80,
+    ),
+
+    cardTheme: const CardThemeData(
+      color: AppColors.white100,
+      elevation: 0,
+      // shape: RoundedRectangleBorder(
+      //   borderRadius: BorderRadius.all(Radius.circular(12)),
+      //   side: BorderSide(color: AppColors.gray80, width: 1),
+      // ),
     ),
   );
 }
