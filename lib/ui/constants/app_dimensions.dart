@@ -26,13 +26,13 @@ class AppDimensions {
   static const double buttonHeightLarge = 60.0;
 
   // Border Radius
-  static final double borderRadiusLarge = 32;
-  static final double borderRadiusMedium = 24;
-  static final double borderRadiusSmall = 16;
-  static final double borderRadiusExtraSmall = 8;
+  static const double borderRadiusLarge = 32;
+  static const double borderRadiusMedium = 24;
+  static const double borderRadiusSmall = 16;
+  static const double borderRadiusExtraSmall = 8;
 
   // Elevations
-  static final double elevationSmall = 2.0;
-  static final double elevationMedium = 4.0;
-  static final double elevationLarge = 8.0;
+  static const double elevationSmall = 2.0;
+  static const double elevationMedium = 4.0;
+  static const double elevationLarge = 8.0;
 }

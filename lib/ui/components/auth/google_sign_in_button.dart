@@ -47,7 +47,7 @@ class _GoogleSignInButtonContent extends StatelessWidget {
       width: double.infinity,
       child: OutlinedButton(
         onPressed: isLoading ? null : () => _handleSignIn(context),
-        style: ElevatedButton.styleFrom(
+        style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 20),
         ),
         child:

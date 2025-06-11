@@ -59,15 +59,24 @@ class LightTheme {
       ),
     ),
 
-    elevatedButtonTheme: const ElevatedButtonThemeData(
+    outlinedButtonTheme: const OutlinedButtonThemeData(
       style: ButtonStyle(
-        backgroundColor: WidgetStatePropertyAll(AppColors.white100),
-        foregroundColor: WidgetStatePropertyAll(AppColors.black100),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
+            borderRadius: BorderRadius.all(
+              Radius.circular(AppDimensions.borderRadiusLarge),
+            ),
             side: BorderSide(color: AppColors.gray40, width: 1),
           ),
+        ),
+      ),
+    ),
+
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: AppColors.white100,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppDimensions.borderRadiusLarge),
         ),
       ),
     ),
