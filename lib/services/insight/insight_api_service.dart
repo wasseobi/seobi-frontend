@@ -56,7 +56,7 @@ class InsightApiService {
       return await _httpHelper.getList<InsightArticleApi>(
         '/insights/$userId',
         (json) => InsightArticleApi.fromJson(json),
-        timeout: const Duration(seconds: 15),
+        timeout: const Duration(minutes: 5),
       );
     } catch (e) {
       throw Exception('인사이트 목록 조회 실패: $e');
@@ -73,7 +73,7 @@ class InsightApiService {
       return await _httpHelper.get<InsightDetailApi>(
         '/insights/list/$articleId',
         (json) => InsightDetailApi.fromJson(json),
-        timeout: const Duration(seconds: 15),
+        timeout: const Duration(minutes: 5),
       );
     } catch (e) {
       throw Exception('인사이트 상세 조회 실패: $e');
