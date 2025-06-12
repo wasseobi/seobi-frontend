@@ -26,7 +26,7 @@ class ConversationService2 {
   // 세션 자동 종료를 위한 타이머
   Timer? _sessionTimer;
   // 세션 자동 종료 시간 (3분)
-  static const Duration _sessionTimeout = Duration(minutes: 3);
+  static const Duration _sessionTimeout = Duration(minutes: 1, seconds: 30);
   ConversationService2._internal();
 
   /// 초기화
