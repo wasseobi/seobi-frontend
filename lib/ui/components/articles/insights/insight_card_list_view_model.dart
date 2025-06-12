@@ -152,11 +152,14 @@ class InsightCardListViewModel extends ChangeNotifier {
   Future<void> _loadGeneratingState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _isGenerating = prefs.getBool(_generatingKey) ?? false;
+      final wasGenerating = prefs.getBool(_generatingKey) ?? false;
 
-      if (_isGenerating) {
+      // 이전에 생성 중이었다면 생성 중 카드만 추가하고 실제 생성 상태는 false로 설정
+      if (wasGenerating) {
         _addGeneratingCard();
       }
+      _isGenerating = false; // 앱 시작시에는 항상 false로 시작
+      await _saveGeneratingState(false);
       notifyListeners();
     } catch (e) {
       debugPrint('[ViewModel] 생성 중 상태 로드 실패: $e');
@@ -186,6 +189,11 @@ class InsightCardListViewModel extends ChangeNotifier {
     _insights.removeWhere((insight) => insight.id == 'generating');
   }
 
+  /// 생성 중 카드가 있는지 확인
+  bool _hasGeneratingCard() {
+    return _insights.any((insight) => insight.id == 'generating');
+  }
+
   /// 생성 중 상태 저장
   Future<void> _saveGeneratingState(bool generating) async {
     try {
@@ -208,8 +216,9 @@ class InsightCardListViewModel extends ChangeNotifier {
   Future<void> generateNewInsight() async {
     debugPrint('[ViewModel] generateNewInsight 호출됨');
 
-    if (_isGenerating) {
-      debugPrint('[ViewModel] 이미 생성 중이어서 무시됨');
+    // 생성 중 카드가 있으면 중복 생성 방지
+    if (_hasGeneratingCard()) {
+      debugPrint('[ViewModel] 이미 생성 중 카드가 있어서 무시됨');
       return;
     }
 
@@ -431,7 +440,6 @@ class InsightCardListViewModel extends ChangeNotifier {
   void _setGenerating(bool generating) {
     _isGenerating = generating;
     if (!generating) {
-      _removeGeneratingCard();
       _saveGeneratingState(false);
     }
     notifyListeners();
