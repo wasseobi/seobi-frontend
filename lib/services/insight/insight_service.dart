@@ -82,23 +82,23 @@ class InsightService {
     }
   }
 
-  /// 현재 사용자의 데이터를 기반으로 새로운 인사이트를 생성합니다 (AuthService 사용)
-  ///
-  /// Returns: 생성된 인사이트 상세 정보
-  /// Throws: Exception when API call fails or generation fails
+  /// 현재 사용자의 데이터를 기반으로 새로운 인사이트를 생성합니다
   Future<InsightDetailApi> generateInsight() async {
     try {
+      debugPrint('[InsightService] generateInsight 호출됨');
       // 인증 확인 및 사용자 ID 가져오기
       final userId = await _getUserIdAndAuthenticate();
-      debugPrint('[InsightService] 새 인사이트 생성 시작: $userId');
+      debugPrint('[InsightService] 인증 확인 완료, userId: $userId');
 
       final newInsight = await _repository.generateInsight(userId);
-
-      debugPrint('[InsightService] 새 인사이트 생성 완료: ${newInsight.title}');
+      debugPrint('[InsightService] 인사이트 생성 완료: ${newInsight.id}');
       return newInsight;
-    } catch (e) {
-      debugPrint('[InsightService] 인사이트 생성 실패: $e');
-      throw Exception('새로운 인사이트를 생성하는데 실패했습니다: $e');
+    } catch (e, stackTrace) {
+      debugPrint('[InsightService] 인사이트 생성 중 에러 발생:');
+      debugPrint(e.toString());
+      debugPrint('Stack trace:');
+      debugPrint(stackTrace.toString());
+      throw Exception('인사이트 생성에 실패했습니다: $e');
     }
   }
 
