@@ -11,9 +11,8 @@ import '../../../../services/insight/models/insight_detail_api.dart';
 ///
 /// 주요 기능:
 /// - 인사이트 목록 로드 및 캐시 관리
-/// - 비동기 인사이트 생성 및 대기 상태 관리
+/// - 수동 인사이트 생성 관리
 /// - 생성 실패 인사이트 필터링
-/// - 일주일 기준 자동 생성
 class InsightCardListViewModel extends ChangeNotifier {
   // ========================================
   // 상수 및 멤버 변수
@@ -24,11 +23,15 @@ class InsightCardListViewModel extends ChangeNotifier {
 
   // 저장소 키
   static const String _storageKey = 'insight_cards_state';
-  static const String _pendingRequestKey = 'pending_insight_request';
+  static const String _generatingKey = 'insight_generating_state';
+  static const String _generatingTimeKey = 'insight_generating_time';
+  static const Duration _maxGeneratingDuration = Duration(minutes: 10);
 
   // 상태 관리
   bool _isLoading = false;
+  bool _isGenerating = false;
   String? _error;
+  DateTime? _generatingStartTime;
 
   // 생성 실패 키워드 목록
   static const List<String> _failureKeywords = [
@@ -47,17 +50,34 @@ class InsightCardListViewModel extends ChangeNotifier {
   // Getters 및 생성자
   // ========================================
 
-  /// Insight 리스트 getter
-  List<InsightCardModel> get insights => _insights;
+  /// Insight 리스트 getter - 생성 중 상태에 따라 생성 중 카드를 포함하여 반환
+  List<InsightCardModel> get insights {
+    if (!_isGenerating) return _insights;
+
+    // 생성 중일 때는 생성 중 카드를 맨 앞에 추가
+    return [
+      InsightCardModel(
+        id: 'generating',
+        title: '인사이트 생성 중...',
+        keywords: ['생성중'],
+        date: DateTime.now().toString().substring(0, 10),
+      ),
+      ..._insights,
+    ];
+  }
 
   /// 로딩 상태 getter
   bool get isLoading => _isLoading;
+
+  /// 생성 중 상태 getter
+  bool get isGenerating => _isGenerating;
 
   /// 에러 상태 getter
   String? get error => _error;
 
   /// 기본 생성자
   InsightCardListViewModel() {
+    _loadGeneratingState();
     _loadInsights();
   }
 
@@ -70,7 +90,7 @@ class InsightCardListViewModel extends ChangeNotifier {
   // 메인 API 로드 로직
   // ========================================
 
-  /// API에서 인사이트 목록을 로드합니다 (비동기 생성 패턴 적용)
+  /// API에서 인사이트 목록을 로드합니다
   Future<void> loadInsightsFromAPI() async {
     if (_isLoading) return; // 중복 호출 방지
 
@@ -89,12 +109,10 @@ class InsightCardListViewModel extends ChangeNotifier {
       _insights.clear();
       _insights.addAll(validArticles);
 
-      // 3단계: 대기 중인 생성 요청 처리
-      await _checkPendingGenerationRequests(validArticles.length);
-      notifyListeners();
+      // 3단계: 상세 정보 로드
+      _loadDetailedInsights(validArticles);
 
-      // 4단계: 백그라운드에서 상세 정보 조회 및 자동 생성
-      _loadDetailedInsightsAndAutoGenerate(validArticles);
+      notifyListeners();
     } catch (e) {
       debugPrint('[ViewModel] API 인사이트 로드 실패: $e');
       _setError('인사이트를 불러오는데 실패했습니다: $e');
@@ -104,10 +122,8 @@ class InsightCardListViewModel extends ChangeNotifier {
     }
   }
 
-  /// 백그라운드에서 상세 정보 조회 및 자동 생성 처리
-  Future<void> _loadDetailedInsightsAndAutoGenerate(
-    List<InsightCardModel> basicModels,
-  ) async {
+  /// 백그라운드에서 상세 정보 조회
+  Future<void> _loadDetailedInsights(List<InsightCardModel> basicModels) async {
     try {
       debugPrint('[ViewModel] 백그라운드에서 상세 정보 조회 시작');
 
@@ -134,205 +150,142 @@ class InsightCardListViewModel extends ChangeNotifier {
               .map((detail) => InsightCardModel.fromApiDetail(detail))
               .toList();
 
-      _updateInsightsWithGeneration(detailedUiModels);
-
-      // 자동 생성 체크
-      await _checkAndGenerateWeeklyInsight();
+      _insights.clear();
+      _insights.addAll(detailedUiModels);
+      _saveInsights();
+      notifyListeners();
     } catch (e) {
       debugPrint('[ViewModel] 백그라운드 상세 정보 조회 실패: $e');
-      try {
-        await _checkAndGenerateWeeklyInsight();
-      } catch (autoGenError) {
-        debugPrint('[ViewModel] 자동 생성도 실패: $autoGenError');
-      }
     }
   }
 
-  /// 생성 중 카드를 유지하면서 인사이트 목록 업데이트
-  void _updateInsightsWithGeneration(List<InsightCardModel> newInsights) {
-    final generatingCards =
-        _insights.where((insight) => insight.id == 'generating').toList();
-
-    _insights.clear();
-    if (generatingCards.isNotEmpty) {
-      _insights.add(generatingCards.first);
-    }
-    _insights.addAll(newInsights);
-
-    _saveInsights();
-    notifyListeners();
-    debugPrint('[ViewModel] 상세 정보 조회 완료 및 UI 업데이트: ${_insights.length}개');
-  }
-
   // ========================================
-  // 비동기 인사이트 생성 관리
+  // 인사이트 생성 로직
   // ========================================
 
-  /// 대기 중인 생성 요청 확인 및 처리
-  Future<void> _checkPendingGenerationRequests(int currentInsightCount) async {
+  /// 생성 중 상태를 로드합니다
+  Future<void> _loadGeneratingState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final pendingData = prefs.getString(_pendingRequestKey);
-      if (pendingData == null) return;
+      final generating = prefs.getBool(_generatingKey) ?? false;
+      final generatingTimeStr = prefs.getString(_generatingTimeKey);
 
-      final pendingInfo = jsonDecode(pendingData);
-      final requestDate = DateTime.parse(pendingInfo['requestDate']);
-      final expectedCount = pendingInfo['expectedCount'] as int;
-      final daysSinceRequest = DateTime.now().difference(requestDate).inDays;
+      if (generating && generatingTimeStr != null) {
+        final generatingTime = DateTime.parse(generatingTimeStr);
+        final now = DateTime.now();
+        final difference = now.difference(generatingTime);
 
-      debugPrint(
-        '[ViewModel] 대기 중인 요청 확인: ${daysSinceRequest}일 전 (일주일 기준), 예상 개수: $expectedCount, 현재 개수: $currentInsightCount',
-      );
-
-      if (currentInsightCount > expectedCount) {
-        // 새 인사이트가 생성됨 - 대기 상태 해제
-        debugPrint('[ViewModel] 새 인사이트 생성 완료 - 대기 상태 해제');
-        await prefs.remove(_pendingRequestKey);
-      } else if (daysSinceRequest >= 7) {
-        // 일주일 지남 - 재요청
-        debugPrint('[ViewModel] 일주일 지났지만 생성 안됨 - 재요청 시작');
-        await _retryInsightGeneration();
-      } else {
-        // 대기 중 - 생성 중 카드 표시
-        debugPrint('[ViewModel] 생성 대기 중 - 생성 중 카드 표시');
-        _showGeneratingCard();
+        // 생성 시작 후 일정 시간이 지났다면 생성 실패로 간주
+        if (difference > _maxGeneratingDuration) {
+          _setGenerating(false);
+          _setError('인사이트 생성이 시간 초과로 실패했습니다.');
+          await _saveGeneratingState(false);
+        } else {
+          _setGenerating(true);
+          _generatingStartTime = generatingTime;
+          // 생성 상태 확인
+          _checkGenerationStatus();
+        }
       }
     } catch (e) {
-      debugPrint('[ViewModel] 대기 요청 확인 실패: $e');
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_pendingRequestKey);
+      debugPrint('[ViewModel] 생성 중 상태 로드 실패: $e');
     }
   }
 
-  /// 생성 중 카드를 표시합니다
-  void _showGeneratingCard() {
-    final hasGeneratingCard = _insights.any(
-      (insight) => insight.id == 'generating',
-    );
-    if (!hasGeneratingCard) {
-      _insights.insert(
-        0,
-        InsightCardModel(
-          id: 'generating',
-          title: '인사이트 생성 중...',
-          keywords: ['생성중'],
-          date: DateTime.now().toString().substring(0, 10),
-        ),
-      );
-      notifyListeners();
-    }
-  }
+  /// 생성 상태 확인 및 처리
+  Future<void> _checkGenerationStatus() async {
+    if (!_isGenerating || _generatingStartTime == null) return;
 
-  /// 인사이트 생성을 재시도합니다
-  Future<void> _retryInsightGeneration() async {
     try {
-      debugPrint('[ViewModel] 인사이트 생성 재시도 시작');
-      _showGeneratingCard();
-      notifyListeners();
-      await _requestInsightGenerationAsync();
-    } catch (e) {
-      debugPrint('[ViewModel] 인사이트 생성 재시도 실패: $e');
-    }
-  }
-
-  /// 비동기 인사이트 생성 요청
-  Future<void> _requestInsightGenerationAsync() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // 짧은 타임아웃으로 생성 요청 (10초)
-      await _insightService.generateInsight().timeout(
-        const Duration(seconds: 10),
-      );
-
-      // 10초 안에 완료되면 성공 처리
-      debugPrint('[ViewModel] 인사이트 생성 즉시 완료');
-      await prefs.remove(_pendingRequestKey);
-      await loadInsightsFromAPI();
-    } catch (e) {
-      // 타임아웃이거나 실패해도 "생성 중"으로 처리
-      debugPrint('[ViewModel] 인사이트 생성 비동기 처리: $e');
-
-      final prefs = await SharedPreferences.getInstance();
-      final pendingInfo = {
-        'requestDate': DateTime.now().toIso8601String(),
-        'expectedCount': _insights.where((i) => i.id != 'generating').length,
-      };
-
-      await prefs.setString(_pendingRequestKey, jsonEncode(pendingInfo));
-      debugPrint('[ViewModel] 생성 요청 기록 완료 - 일주일 후 확인 예정');
-    }
-  }
-
-  /// 새 인사이트를 생성합니다 (비동기 패턴)
-  Future<void> generateNewInsight() async {
-    if (_isLoading) return;
-
-    debugPrint('[ViewModel] 새 인사이트 생성 시작 (비동기 패턴)');
-    _showGeneratingCard();
-    notifyListeners();
-    await _requestInsightGenerationAsync();
-  }
-
-  // ========================================
-  // 자동 생성 로직 (일주일 기준)
-  // ========================================
-
-  /// 마지막 인사이트 생성 날짜 확인 및 자동 생성 (일주일 기준)
-  Future<void> _checkAndGenerateWeeklyInsight() async {
-    try {
-      final realInsights =
-          _insights.where((insight) => insight.id != 'generating').toList();
-
-      if (realInsights.isEmpty) {
-        // 인사이트가 없으면 첫 인사이트 생성
-        debugPrint('[ViewModel] 인사이트 없음 - 첫 인사이트 생성 (비동기)');
-        _showGeneratingCard();
-        notifyListeners();
-        await _requestInsightGenerationAsync();
-        return;
-      }
-
-      // 가장 최근 인사이트의 날짜 확인
-      final latestInsight = realInsights.first;
-      final latestDate = _parseDate(latestInsight.date);
-
-      if (latestDate == null) {
-        debugPrint('[ViewModel] 날짜 파싱 실패: ${latestInsight.date}');
-        return;
-      }
+      debugPrint('[ViewModel] 생성 상태 확인 시작');
 
       final now = DateTime.now();
-      final daysDifference = now.difference(latestDate).inDays;
+      final difference = now.difference(_generatingStartTime!);
 
-      debugPrint(
-        '[ViewModel] 마지막 인사이트 날짜: ${latestInsight.date}, 차이: ${daysDifference}일',
-      );
-
-      // 일주일 이상 차이나면 자동 생성
-      if (daysDifference >= 7) {
-        debugPrint(
-          '[ViewModel] 마지막 인사이트가 ${daysDifference}일 전 생성됨 - 새 인사이트 자동 생성 시작 (비동기)',
-        );
-        _showGeneratingCard();
-        notifyListeners();
-        await _requestInsightGenerationAsync();
-      } else {
-        debugPrint('[ViewModel] 아직 일주일이 지나지 않음 - 자동 생성 스킵');
+      // 생성 시간이 초과된 경우
+      if (difference > _maxGeneratingDuration) {
+        _setGenerating(false);
+        _setError('인사이트 생성이 시간 초과로 실패했습니다.');
+        await _saveGeneratingState(false);
+        return;
       }
+
+      // API를 통해 최신 인사이트 목록 조회
+      await loadInsightsFromAPI();
+
+      // 새로운 인사이트가 추가되었다면 생성 완료로 간주
+      _setGenerating(false);
+      await _saveGeneratingState(false);
     } catch (e) {
-      debugPrint('[ViewModel] 날짜 기반 자동 생성 체크 실패: $e');
+      debugPrint('[ViewModel] 생성 상태 확인 실패: $e');
+      // 에러가 발생해도 생성은 계속 진행
     }
   }
 
-  /// 날짜 문자열을 DateTime으로 파싱 ("2024.03.15" → DateTime)
-  DateTime? _parseDate(String dateString) {
+  /// 생성 중 상태 저장
+  Future<void> _saveGeneratingState(bool generating) async {
     try {
-      final normalizedDate = dateString.replaceAll('.', '-');
-      return DateTime.parse(normalizedDate);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_generatingKey, generating);
+
+      if (generating) {
+        // 생성 시작 시간 저장
+        final now = DateTime.now();
+        await prefs.setString(_generatingTimeKey, now.toIso8601String());
+        _generatingStartTime = now;
+      } else {
+        // 생성 완료 시 시작 시간 제거
+        await prefs.remove(_generatingTimeKey);
+        _generatingStartTime = null;
+      }
     } catch (e) {
-      debugPrint('[ViewModel] 날짜 파싱 오류: $dateString - $e');
-      return null;
+      debugPrint('[ViewModel] 생성 중 상태 저장 실패: $e');
+    }
+  }
+
+  /// 새 인사이트를 생성합니다
+  Future<void> generateNewInsight() async {
+    debugPrint('[ViewModel] generateNewInsight 호출됨');
+
+    // 이미 생성 중이면 중복 생성 방지
+    if (_isGenerating) {
+      debugPrint('[ViewModel] 이미 생성 중이어서 무시됨');
+      return;
+    }
+
+    _setGenerating(true);
+    await _saveGeneratingState(true);
+    _setError(null);
+
+    try {
+      debugPrint('[ViewModel] 새 인사이트 생성 시작');
+
+      debugPrint('[ViewModel] InsightService.generateInsight 호출 시작');
+      // 인사이트 생성 요청
+      final newInsight = await _insightService.generateInsight();
+      debugPrint(
+        '[ViewModel] InsightService.generateInsight 호출 완료: ${newInsight.id}',
+      );
+
+      // 새 인사이트가 실패한 것이 아니라면 목록에 추가
+      if (!_isFailedInsightDetail(newInsight)) {
+        _insights.insert(0, InsightCardModel.fromApiDetail(newInsight));
+        _saveInsights();
+        debugPrint('[ViewModel] 새 인사이트 생성 및 저장 완료');
+      } else {
+        debugPrint('[ViewModel] 생성된 인사이트가 실패로 판단됨');
+        _setError('인사이트 생성에 실패했습니다. 나중에 다시 시도해주세요.');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[ViewModel] 인사이트 생성 중 에러 발생:');
+      debugPrint(e.toString());
+      debugPrint('Stack trace:');
+      debugPrint(stackTrace.toString());
+      _setError('인사이트 생성에 실패했습니다: $e');
+    } finally {
+      _setGenerating(false);
+      await _saveGeneratingState(false);
+      notifyListeners();
     }
   }
 
@@ -387,7 +340,7 @@ class InsightCardListViewModel extends ChangeNotifier {
   // 로컬 저장소 관리
   // ========================================
 
-  /// 저장된 Insight 상태 불러오기 (자동 API 호출 포함)
+  /// 저장된 Insight 상태 불러오기
   Future<void> _loadInsights() async {
     if (_insightService.isUserLoggedIn) {
       debugPrint('[ViewModel] 로그인 상태 - API에서 실제 데이터 로드 시도');
@@ -504,6 +457,14 @@ class InsightCardListViewModel extends ChangeNotifier {
   /// 상태 관리 헬퍼 메서드들
   void _setLoading(bool loading) {
     _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setGenerating(bool generating) {
+    _isGenerating = generating;
+    if (!generating) {
+      _saveGeneratingState(false);
+    }
     notifyListeners();
   }
 

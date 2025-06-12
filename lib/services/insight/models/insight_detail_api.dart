@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// API에서 받아오는 Insight Article 상세 정보 응답 모델
 class InsightDetailApi {
   final String id;
@@ -24,61 +26,51 @@ class InsightDetailApi {
 
   /// API JSON 응답을 InsightDetailApi 객체로 변환
   factory InsightDetailApi.fromJson(Map<String, dynamic> json) {
-    // content 필드 파싱 개선
     String contentText = '';
     final contentField = json['content'];
 
     try {
       if (contentField is String) {
-        // content가 문자열인 경우
-        if (contentField.startsWith('{') && contentField.endsWith('}')) {
-          // JSON 문자열인 경우 파싱 시도
-          try {
-            // 문자열을 JSON으로 파싱
-            final contentJson = contentField
-                .replaceAll("'", '"') // 작은따옴표를 큰따옴표로 변경
-                .replaceAll('\\n', '\n'); // 이스케이프 문자 처리
-
-            // 정규식으로 text 값 추출
-            final textMatch = RegExp(
-              r'"text":\s*"([^"]*)"',
-            ).firstMatch(contentJson);
-            if (textMatch != null) {
-              contentText = textMatch.group(1) ?? '';
-            } else {
-              // 정규식 실패 시 간단한 방법으로 추출
-              final startIndex = contentJson.indexOf('"text":') + 7;
-              final textStart = contentJson.indexOf('"', startIndex) + 1;
-              final textEnd = contentJson.lastIndexOf('"');
-              if (textStart > 0 && textEnd > textStart) {
-                contentText = contentJson.substring(textStart, textEnd);
-              } else {
-                contentText = contentField; // fallback
-              }
-            }
-          } catch (e) {
-            // JSON 파싱 실패 시 원본 문자열 사용
-
-            contentText = contentField;
-          }
+        // 작은따옴표로 된 text 필드 확인
+        if (contentField.contains("'text':")) {
+          final textStart = contentField.indexOf("'text':") + 7;
+          contentText =
+              contentField
+                  .substring(textStart)
+                  .replaceAll(RegExp(r'^\{|\}$'), '') // 시작과 끝의 중괄호 제거
+                  .replaceAll("'", '')
+                  .replaceAll('\\n', '\n')
+                  .trim();
+        }
+        // 큰따옴표로 된 text 필드 확인
+        else if (contentField.contains('"text":')) {
+          final textStart = contentField.indexOf('"text":') + 7;
+          contentText =
+              contentField
+                  .substring(textStart)
+                  .replaceAll(RegExp(r'^\{|\}$'), '') // 시작과 끝의 중괄호 제거
+                  .replaceAll('"', '')
+                  .replaceAll('\\n', '\n')
+                  .trim();
         } else {
-          // 일반 문자열인 경우 그대로 사용
           contentText = contentField;
         }
       } else if (contentField is Map<String, dynamic>) {
-        // content가 이미 객체인 경우 text 필드 추출
-        contentText = contentField['text'] as String? ?? '';
+        // Map인 경우 text 필드 직접 추출
+        contentText = contentField['text']?.toString() ?? '';
       } else {
         // 다른 형태인 경우 문자열로 변환
         contentText = contentField?.toString() ?? '';
       }
 
-      // 이스케이프 문자들을 실제 문자로 변환
-      contentText = contentText
-          .replaceAll('\\n', '\n')
-          .replaceAll('\\t', '\t')
-          .replaceAll('\\"', '"')
-          .replaceAll("\\'", "'");
+      // 최종 텍스트 정리
+      contentText =
+          contentText
+              .replaceAll('\\n', '\n')
+              .replaceAll('\\t', '\t')
+              .replaceAll('\\"', '"')
+              .replaceAll("\\'", "'")
+              .trim();
     } catch (e) {
       contentText = contentField?.toString() ?? '';
     }
@@ -86,7 +78,7 @@ class InsightDetailApi {
     return InsightDetailApi(
       id: json['id'] as String,
       title: json['title'] as String,
-      content: contentText, // 파싱된 텍스트 사용
+      content: contentText,
       tags: List<String>.from(json['tags'] as List? ?? []),
       source: json['source'] as String? ?? '',
       type: json['type'] as String? ?? '',
