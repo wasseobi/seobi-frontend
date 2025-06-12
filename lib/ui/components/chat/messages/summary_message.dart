@@ -54,8 +54,11 @@ class SummaryMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('yyyy년 MM월 dd일 HH시 mm분');
-    final startDateFormatted = dateFormat.format(startDate);
-    final endDateFormatted = dateFormat.format(endDate);
+    // UTC 시간을 현지 시간으로 변환
+    final localStartDate = startDate.toLocal();
+    final localEndDate = endDate.toLocal();
+    final startDateFormatted = dateFormat.format(localStartDate);
+    final endDateFormatted = dateFormat.format(localEndDate);
 
     return Column(
       children: [

@@ -37,6 +37,11 @@ class AppDimensions {
   static const double elevationMedium = 4.0;
   static const double elevationLarge = 8.0;
 
+  // Circular Progress Indicator Sizes
+  static const double progressIndicatorSmall = 16.0;
+  static const double progressIndicatorMedium = 24.0;
+  static const double progressIndicatorLarge = 32.0;
+
   // Report Indicators
   static const double reportIndicatorSmall = 8.0;
   static const double reportIndicatorMedium = 16.0;

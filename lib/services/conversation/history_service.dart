@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:seobi_app/repositories/backend/backend_repository.dart';
 import 'package:seobi_app/repositories/backend/models/message.dart';
 import '../auth/auth_service.dart';
+import '../audio/audio_service.dart';
 import 'models/session.dart';
 
 /// 대화 히스토리를 관리하는 서비스
@@ -11,6 +12,7 @@ class HistoryService extends ChangeNotifier {
 
   final BackendRepository _backendRepository = BackendRepository();
   final AuthService _authService = AuthService();
+  final AudioService _audioService = AudioService();
 
   /// 모든 세션 정보 (최신 → 오래된 순서)
   List<Session> _sessions = [];
@@ -27,10 +29,15 @@ class HistoryService extends ChangeNotifier {
   /// 초기화 완료 여부
   bool _isInitialized = false;
 
+  /// 현재 서비 응답이 생성중인지
+  bool _isGeneratingAnswer = false;
+
   HistoryService._internal() {
     // AuthService의 변화를 감지
     _authService.addListener(_onAuthStateChanged);
-  }  /// 모든 세션 정보를 원격에서 가져와서 최신 → 오래된 순서로 저장
+  }
+
+  /// 모든 세션 정보를 원격에서 가져와서 최신 → 오래된 순서로 저장
   Future<void> initialize() async {
     if (_isInitialized) {
       debugPrint('[HistoryService] 이미 초기화됨');
@@ -42,7 +49,7 @@ class HistoryService extends ChangeNotifier {
       await _authService.init();
       // 현재 사용자 정보 저장
       _currentUserId = _authService.userId;
-      
+
       if (_currentUserId == null) {
         debugPrint('[HistoryService] 로그인되지 않은 상태로 초기화');
         _sessions = [];
@@ -50,9 +57,9 @@ class HistoryService extends ChangeNotifier {
         _isInitialized = true;
         notifyListeners();
         return;
-      }      // 사용자 인증 및 ID 가져오기
+      } // 사용자 인증 및 ID 가져오기
       final userId = await _getUserIdAndAuthenticate();
-      
+
       if (userId == null) {
         debugPrint('[HistoryService] 인증 실패 - 세션 정보 클리어');
         _sessions = [];
@@ -62,8 +69,11 @@ class HistoryService extends ChangeNotifier {
         return;
       }
 
-      final backendSessions = await _backendRepository.getSessionsByUserId(userId);
-      _sessions = backendSessions.map((s) => Session.fromBackendSession(s)).toList();
+      final backendSessions = await _backendRepository.getSessionsByUserId(
+        userId,
+      );
+      _sessions =
+          backendSessions.map((s) => Session.fromBackendSession(s)).toList();
       _sessions.sort((a, b) {
         if (a.startAt == null || b.startAt == null) return 0;
         return b.startAt!.compareTo(a.startAt!);
@@ -76,10 +86,9 @@ class HistoryService extends ChangeNotifier {
 
       await _loadInitialSessions();
       notifyListeners();
-
     } catch (e) {
       debugPrint('[HistoryService] 초기화 오류: $e');
-      if (e.toString().contains('Connection') || 
+      if (e.toString().contains('Connection') ||
           e.toString().contains('ClientException') ||
           e.toString().contains('SocketException')) {
         debugPrint('[HistoryService] 네트워크 오류로 오프라인 모드 초기화');
@@ -93,24 +102,38 @@ class HistoryService extends ChangeNotifier {
     }
   }
 
+  void setGeneratingAnswer(bool isGenerating) {
+    _isGeneratingAnswer = isGenerating;
+    debugPrint('[HistoryService] 응답 생성 상태 변경: $_isGeneratingAnswer');
+    
+    // 응답 생성 시작할 때 오디오 재생
+    if (isGenerating) {
+      _audioService.playLooping('assets/audio/pencil.mp3');
+    } else {
+      _audioService.playOnce('assets/audio/positive_beep.mp3');
+    }
+    
+    notifyListeners();
+  }
+
   /// 인증 상태 변화 처리
   void _onAuthStateChanged() async {
     debugPrint('[HistoryService] 인증 상태 변화 감지');
-    
+
     final newUserId = _authService.userId;
-    
+
     // 사용자가 변경된 경우 (로그아웃, 다른 계정으로 로그인 등)
     if (_currentUserId != newUserId) {
       debugPrint('[HistoryService] 사용자 변경 감지: $_currentUserId -> $newUserId');
-      
+
       _currentUserId = newUserId;
       _isInitialized = false;
-      
+
       // 세션 정보 초기화
       _sessions.clear();
       _offset = 0;
       _pendingUserMessage = null;
-        // 새로운 사용자로 다시 초기화
+      // 새로운 사용자로 다시 초기화
       if (newUserId != null) {
         try {
           await initialize();
@@ -128,8 +151,9 @@ class HistoryService extends ChangeNotifier {
         _isInitialized = true;
         notifyListeners();
       }
-    }  }
-  
+    }
+  }
+
   /// 현재 사용자 정보를 가져오고 인증을 설정합니다.
   /// 로그인이 안 되어 있으면 null을 반환합니다.
   Future<String?> _getUserIdAndAuthenticate() async {
@@ -144,7 +168,8 @@ class HistoryService extends ChangeNotifier {
     }
 
     // BackendRepository에 인증 토큰 설정
-    _backendRepository.setAuthToken(user.accessToken);    return user.id;
+    _backendRepository.setAuthToken(user.accessToken);
+    return user.id;
   }
 
   /// 초기 세션들 로드 (첫 5개 세션)
@@ -154,7 +179,7 @@ class HistoryService extends ChangeNotifier {
         debugPrint('[HistoryService] 로드할 세션 없음');
         return;
       }
-      
+
       await fetchPaginatedSessions(5);
       debugPrint('[HistoryService] 초기 ${_offset}개 세션 로드 완료');
     } catch (e) {
@@ -170,7 +195,9 @@ class HistoryService extends ChangeNotifier {
         return session;
       }
 
-      final messages = await _backendRepository.getMessagesBySessionId(session.id);
+      final messages = await _backendRepository.getMessagesBySessionId(
+        session.id,
+      );
       messages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
       final updatedSession = session.copyWith(
@@ -178,18 +205,16 @@ class HistoryService extends ChangeNotifier {
         isLoaded: true,
       );
 
-      debugPrint('[HistoryService] 세션 ${session.id} 로드 완료: ${messages.length}개 메시지');
+      debugPrint(
+        '[HistoryService] 세션 ${session.id} 로드 완료: ${messages.length}개 메시지',
+      );
       return updatedSession;
-
     } catch (e) {
       debugPrint('[HistoryService] 세션 메시지 로드 오류: $e');
       if (e.toString().contains('Connection') ||
           e.toString().contains('ClientException') ||
           e.toString().contains('SocketException')) {
-        return session.copyWith(
-          messages: <Message>[],
-          isLoaded: true,
-        );
+        return session.copyWith(messages: <Message>[], isLoaded: true);
       }
       rethrow;
     }
@@ -203,8 +228,9 @@ class HistoryService extends ChangeNotifier {
 
       int loadedSessionsWithMessages = 0;
       int processedSessions = 0;
-      
-      while (loadedSessionsWithMessages < n && _offset + processedSessions < _sessions.length) {
+
+      while (loadedSessionsWithMessages < n &&
+          _offset + processedSessions < _sessions.length) {
         final sessionIndex = _offset + processedSessions;
         final session = _sessions[sessionIndex];
 
@@ -226,9 +252,10 @@ class HistoryService extends ChangeNotifier {
       }
 
       _offset += processedSessions;
-      debugPrint('[HistoryService] 세션 로드 완료: 메시지 있는 세션 $loadedSessionsWithMessages/$processedSessions');
+      debugPrint(
+        '[HistoryService] 세션 로드 완료: 메시지 있는 세션 $loadedSessionsWithMessages/$processedSessions',
+      );
       notifyListeners();
-
     } catch (e) {
       debugPrint('[HistoryService] 페이지네이션 오류: $e');
       rethrow;
@@ -240,7 +267,9 @@ class HistoryService extends ChangeNotifier {
     final index = _sessions.indexWhere((s) => s.id == updatedSession.id);
     if (index != -1) {
       _sessions[index] = updatedSession;
-      debugPrint('[HistoryService] 세션 업데이트: ${updatedSession.id} (${updatedSession.messages.length}개 메시지)');
+      debugPrint(
+        '[HistoryService] 세션 업데이트: ${updatedSession.id} (${updatedSession.messages.length}개 메시지)',
+      );
       notifyListeners(); // 즉시 알림
     }
   }
@@ -256,7 +285,7 @@ class HistoryService extends ChangeNotifier {
   void addMessageToSession(Message message) {
     final sessionId = message.sessionId;
     final session = getSessionById(sessionId);
-    
+
     if (session != null) {
       final updatedMessages = [message, ...session.messages];
       final updatedSession = session.copyWith(messages: updatedMessages);
@@ -269,7 +298,9 @@ class HistoryService extends ChangeNotifier {
   Message? getMessageById(String messageId) {
     for (final session in _sessions) {
       try {
-        return session.messages.firstWhere((message) => message.id == messageId);
+        return session.messages.firstWhere(
+          (message) => message.id == messageId,
+        );
       } catch (e) {
         // 해당 세션에서 메시지를 찾지 못한 경우 다음 세션 검색
         continue;
@@ -282,18 +313,21 @@ class HistoryService extends ChangeNotifier {
   void updateMessageInSession(Message updatedMessage) {
     final sessionId = updatedMessage.sessionId;
     final session = getSessionById(sessionId);
-    
+
     if (session != null) {
-      final updatedMessages = session.messages.map((message) {
-        if (message.id == updatedMessage.id) {
-          return updatedMessage;
-        }
-        return message;
-      }).toList();
-      
+      final updatedMessages =
+          session.messages.map((message) {
+            if (message.id == updatedMessage.id) {
+              return updatedMessage;
+            }
+            return message;
+          }).toList();
+
       final updatedSession = session.copyWith(messages: updatedMessages);
       updateSession(updatedSession);
-      debugPrint('[HistoryService] 메시지 업데이트: ${updatedMessage.id} ($sessionId)');
+      debugPrint(
+        '[HistoryService] 메시지 업데이트: ${updatedMessage.id} ($sessionId)',
+      );
     }
   }
 
@@ -325,12 +359,14 @@ class HistoryService extends ChangeNotifier {
     _offset = 0;
     debugPrint('[HistoryService] 오프셋 리셋');
   }
+
   /// 대기 중인 사용자 메시지 설정
   void setPendingUserMessage(String? message) {
     _pendingUserMessage = message;
     if (message != null) {
-      debugPrint('[HistoryService] 대기 메시지 설정');
+      _audioService.playOnce('assets/audio/book_open.mp3');
     }
+    
     notifyListeners();
   }
 
@@ -348,6 +384,8 @@ class HistoryService extends ChangeNotifier {
 
   /// 대기 중인 사용자 메시지가 있는지 확인
   bool get hasPendingUserMessage => _pendingUserMessage != null;
+
+  bool get isGenerating => _isGeneratingAnswer;
 
   @override
   void dispose() {

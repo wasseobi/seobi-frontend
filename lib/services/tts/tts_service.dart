@@ -182,7 +182,7 @@ class TtsService {
     if (text.trim().isEmpty) {
       debugPrint('[TtsService] 빈 텍스트로 인해 큐 추가 건너뜀');
       return;
-    }    // TTS가 비활성화 상태이면 큐에 추가하지 않음
+    } // TTS가 비활성화 상태이면 큐에 추가하지 않음
     if (!_isEnabled) {
       debugPrint('[TtsService] TTS 비활성화 상태로 큐 추가 무시');
       return;
@@ -291,6 +291,7 @@ class TtsService {
     _currentWordStartPosition = null;
     debugPrint('[TtsService] 중단 완료 - 모든 큐 초기화됨');
 
+    _setState(TtsState.idle);
     debugPrint('[TtsService] ===== STOP() 메서드 완료 =====');
   }
 
@@ -398,7 +399,7 @@ class TtsService {
   Future<void> _checkAndProcessCompleteSentence() async {
     if (_tokenQueue.isEmpty) return;
 
-  // 큐의 모든 토큰을 하나의 문자열로 합칩니다.
+    // 큐의 모든 토큰을 하나의 문자열로 합칩니다.
     final combinedText = _tokenQueue.join('');
 
     // 정규식을 사용하여 문장의 끝을 찾습니다. (마침표, 느낌표, 물음표)
@@ -438,6 +439,7 @@ class TtsService {
       }
     }
   }
+
   /// 토큰 큐의 모든 내용을 TTS 큐로 전달합니다.
   Future<void> flush() async {
     if (_tokenQueue.isEmpty) {
