@@ -29,6 +29,17 @@ class InsightDetailApi {
   factory InsightDetailApi.fromJson(Map<String, dynamic> json) {
     String contentText = '';
     final contentField = json['content'];
+    var sourceField = json['source'];
+
+    debugPrint('Source 필드 원본: $sourceField (${sourceField.runtimeType})');
+
+    // source 필드 전처리
+    if (sourceField is String) {
+      sourceField =
+          sourceField
+              .replaceAll(RegExp(r'^\{|\}$'), '') // 시작과 끝의 중괄호 제거
+              .trim();
+    }
 
     try {
       if (contentField is String) {
@@ -62,7 +73,7 @@ class InsightDetailApi {
       title: json['title'] as String,
       content: contentText,
       tags: List<String>.from(json['tags'] as List? ?? []),
-      source: json['source'] as String? ?? '',
+      source: sourceField,
       type: json['type'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
       keywords: List<String>.from(json['keywords'] as List? ?? []),

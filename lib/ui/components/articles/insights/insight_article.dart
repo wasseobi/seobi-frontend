@@ -247,34 +247,95 @@ class InsightArticle extends StatelessWidget {
   }
 
   Widget _buildExpandableSourceLinks(BuildContext context, String sources) {
-    final sourceList = sources.split('\n').where((s) => s.isNotEmpty).toList();
+    debugPrint('출처 데이터 원본: $sources');
 
-    return ExpansionTile(
-      title: Text(
-        '출처 ${sourceList.length}개',
-        style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+    // 중괄호 제거 및 URL 파싱
+    final sourceList =
+        sources
+            .replaceAll(RegExp(r'^\{|\}$'), '') // 시작과 끝의 중괄호 제거
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .where((s) => s.startsWith('http://') || s.startsWith('https://'))
+            .toList();
+
+    debugPrint('파싱된 출처 목록: $sourceList');
+
+    if (sourceList.isEmpty) {
+      return const SizedBox.shrink(); // 유효한 URL이 없으면 위젯을 표시하지 않음
+    }
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-      children:
-          sourceList
-              .map(
-                (source) => ListTile(
-                  dense: true,
-                  title: Text(
-                    source,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.blue,
-                      decoration: TextDecoration.underline,
+      child: ExpansionTile(
+        title: Row(
+          children: [
+            Icon(Icons.link, size: 16, color: Colors.grey.shade600),
+            const SizedBox(width: 8),
+            Text(
+              '출처 ${sourceList.length}개',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children:
+            sourceList.map((source) {
+              // URL을 보기 좋게 표시하기 위한 처리
+              String displayText = source;
+              try {
+                final uri = Uri.parse(source);
+                displayText = uri.host;
+                if (uri.pathSegments.isNotEmpty) {
+                  displayText +=
+                      uri.pathSegments.length > 2
+                          ? '/${uri.pathSegments[0]}/..'
+                          : '/${uri.pathSegments.join('/')}';
+                }
+              } catch (e) {
+                debugPrint('URL 파싱 실패: $e');
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _launchUrl(source),
+                        child: Text(
+                          displayText,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue,
+                            decoration: TextDecoration.underline,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
-                  ),
-                  onTap: () async {
-                    if (await canLaunch(source)) {
-                      await launch(source);
-                    }
-                  },
+                    IconButton(
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => _launchUrl(source),
+                    ),
+                  ],
                 ),
-              )
-              .toList(),
+              );
+            }).toList(),
+      ),
     );
   }
 
