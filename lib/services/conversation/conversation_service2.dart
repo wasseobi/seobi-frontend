@@ -57,10 +57,8 @@ class ConversationService2 {
     return user.id;
   }
 
-  /// 가장 최근 세션을 가져오거나 새로 생성
-  Future<local_session.Session> _getOrCreateLatestSession() async {
-    final userId = await _getUserIdAndAuthenticate();
-
+  /// 가장 최근의 활성 세션을 가져옴
+  Future<local_session.Session?> _getLatestSession() async {
     // History Service에서 세션 목록 가져오기
     final sessions = _historyService.sessions;
 
@@ -71,7 +69,9 @@ class ConversationService2 {
               (session) => session.isActive,
               orElse: () => sessions.first,
             )
-            : null; // 활성 세션이 있고 열려있다면 반환
+            : null;
+
+    // 활성 세션이 있고 열려있다면 반환
     if (activeSession != null && activeSession.isActive) {
       debugPrint('[ConversationService2] 기존 활성 세션 사용: ${activeSession.id}');
 
@@ -83,7 +83,15 @@ class ConversationService2 {
       }
 
       return activeSession;
-    } // 새 세션 생성
+    }
+
+    return null;
+  }
+
+  /// 새로운 세션을 생성
+  Future<local_session.Session> _createSession() async {
+    final userId = await _getUserIdAndAuthenticate();
+
     debugPrint('[ConversationService2] 새 세션 생성 중...');
     final backendSession = await _backendRepository.postSession(userId);
     final newSession = local_session.Session.fromBackendSession(
@@ -99,16 +107,39 @@ class ConversationService2 {
     return newSession;
   }
 
+  /// 가장 최근 세션을 가져오거나 새로 생성
+  Future<local_session.Session> _getOrCreateLatestSession() async {
+    debugPrint('[ConversationService2] 최근 세션 가져오기 또는 생성 중...');
+    final latestSession = await _getLatestSession();
+    if (latestSession != null) {
+      return latestSession;
+    }
+
+    return _createSession();
+  }
+
   /// 메시지 전송 및 세션 업데이트
   Future<void> sendMessage(String content) async {
     try {
       debugPrint('[ConversationService2] 메시지 전송 시작');
 
-      // 세션 가져오기 또는 생성
-      final session = await _getOrCreateLatestSession();
-
       // 사용자 ID 가져오기 및 인증
       final userId = await _getUserIdAndAuthenticate();
+
+      // 세션 가져오기 또는 생성
+      local_session.Session session = await _getOrCreateLatestSession();
+
+
+      // 세션이 이미 종료되었나 검사하고 처리
+      final backendSession = await _backendRepository.getSessionById(
+        session.id,
+      );
+      if (backendSession.isFinished) {
+        debugPrint('[ConversationService2] ⚠️ 세션이 종료되었습니다. 강제로 다시 불러옵니다: ${session.id}');
+        await _historyService.initialize(force: true);
+        session = await _getOrCreateLatestSession();
+      }
+
       // 타이머 리셋
       _resetSessionTimer(session.id);
 
@@ -127,12 +158,17 @@ class ConversationService2 {
         location: (await _gpsRepository.getCurrentPosition()).toJson(),
       ); // 스트림 리스닝 시작
 
+      debugPrint('[ConversationService2] SSE 스트림 리스닝 시작: ${session.id}');
+
       await for (final data in stream) {
         try {
+          debugPrint(
+            '[ConversationService2] SSE 이벤트 수신: ${data.runtimeType}',
+          );
           if (data is Map<String, dynamic>) {
             // Map 형식 데이터 처리
             sseHandler.handleEvent(data, session.id, userId);
-          } else if (data is List) {
+          } else if (data is List<dynamic>) {
             // List 형식 데이터 처리: 각 아이템을 개별적으로 처리
             for (final item in data) {
               if (item is Map<String, dynamic>) {

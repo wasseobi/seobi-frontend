@@ -117,7 +117,7 @@ class BackendRepository implements IBackendRepository {
 
   @override
   Future<List<Session>> getSessionsByUserId(String userId) {
-    return _http.getList('/s/$userId', Session.fromJson);
+    return _http.getList('/s/u/$userId', Session.fromJson);
   }
   //========================================
   // 메시지 관련 메서드들
