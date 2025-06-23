@@ -1,6 +1,17 @@
-# seobi_app
+![Dart](https://img.shields.io/badge/dart-3670A0?style=flat&logo=dart&logoColor=white) ![Flutter](https://img.shields.io/badge/Flutter-02569B.svg?style=flat&logo=flutter&logoColor=white) ![Figma](https://img.shields.io/badge/figma-F24E1E.svg?style=flat&logo=figma&logoColor=white)
+# 📱 서비 앱
 
-A new Flutter project.
+Flutter로 개발된 **서비**의 앱입니다.
+
+### Platform Support
+- ✅ Android
+- 🛠️ Windows
+- 🛠️ iOS
+- 🛠️ macOS
+
+---
+
+# 개발자 메모
 
 ## 초기 설정
 
